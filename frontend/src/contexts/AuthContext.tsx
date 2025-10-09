@@ -122,7 +122,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     try {
+      console.log('Fetching user data...');
       const userData = await authAPI.getCurrentUser();
+      console.log('Raw user data from API:', userData);
       
       // Transform backend data (snake_case) to frontend format (camelCase)
       const transformedUser: User = {
@@ -136,7 +138,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isActive: userData.is_active,
       };
       
+      console.log('Transformed user data:', transformedUser);
       setUser(transformedUser);
+      console.log('User set in context - isAuthenticated should now be true');
+      
     } catch (error) {
       console.error('Failed to refresh user:', error);
       // If refresh fails, clear auth state
