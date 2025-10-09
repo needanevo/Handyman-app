@@ -59,10 +59,20 @@ export default function RegisterScreen() {
       // Navigation handled automatically by AuthContext + index.tsx
       console.log('Registration successful - user should be automatically redirected');
     } catch (error: any) {
-      Alert.alert(
-        'Registration Failed',
-        error.response?.data?.detail || 'Please try again'
-      );
+      console.error('Registration error details:', error);
+      
+      let errorMessage = 'Please try again';
+      
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          // Handle Pydantic validation errors
+          errorMessage = error.response.data.detail.map((err: any) => err.msg).join(', ');
+        } else {
+          errorMessage = error.response.data.detail;
+        }
+      }
+      
+      Alert.alert('Registration Failed', errorMessage);
     } finally {
       setIsLoading(false);
     }
