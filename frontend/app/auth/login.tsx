@@ -36,7 +36,9 @@ export default function LoginScreen() {
     try {
       setIsLoading(true);
       await login(data.email, data.password);
-      router.replace('/home');
+      
+      // Navigation handled automatically by AuthContext + index.tsx
+      console.log('Login successful - user should be automatically redirected');
     } catch (error: any) {
       Alert.alert(
         'Login Failed',
