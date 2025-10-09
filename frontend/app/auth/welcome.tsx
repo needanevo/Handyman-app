@@ -41,9 +41,11 @@ export default function WelcomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <View style={styles.logo}>
-              <Text style={styles.logoText}>RJ</Text>
-            </View>
+            <Image 
+              source={{ uri: 'https://customer-assets.emergentagent.com/job_fixitright-2/artifacts/l18wndlz_handyman.png' }}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
           <Text style={styles.title}>The Real Johnson</Text>
           <Text style={styles.subtitle}>Handyman Services</Text>
