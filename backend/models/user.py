@@ -45,10 +45,10 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     phone: str
-    first_name: str
-    last_name: str
+    firstName: str
+    lastName: str
     role: UserRole = UserRole.CUSTOMER
-    marketing_opt_in: bool = False
+    marketingOptIn: bool = False
 
 class UserLogin(BaseModel):
     email: EmailStr
