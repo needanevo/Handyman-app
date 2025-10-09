@@ -165,8 +165,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       
       // Clear stored tokens
-      await SecureStore.deleteItemAsync('accessToken');
-      await SecureStore.deleteItemAsync('refreshToken');
+      await storage.removeItem('accessToken');
+      await storage.removeItem('refreshToken');
       
       // Clear API token
       authAPI.clearAuthToken();
