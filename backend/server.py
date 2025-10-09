@@ -140,8 +140,9 @@ async def login_user(login_data: UserLogin):
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 @api_router.get("/auth/me", response_model=User)
-async def get_current_user_info(current_user: User = Depends(lambda: get_current_user(auth_handler=auth_handler))):
+async def get_current_user_info(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Get current user information"""
+    current_user = await get_current_user(credentials, auth_handler)
     return current_user
 
 # ==================== SERVICE CATALOG ROUTES ====================
