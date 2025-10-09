@@ -94,17 +94,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (userData: RegisterData) => {
     try {
       setIsLoading(true);
+      console.log('Starting registration process...');
+      
       const response = await authAPI.register(userData);
+      console.log('Registration API call successful');
       
       // Store tokens securely
       await SecureStore.setItemAsync('accessToken', response.access_token);
       await SecureStore.setItemAsync('refreshToken', response.refresh_token);
+      console.log('Tokens stored securely');
       
       // Set token in API client
       authAPI.setAuthToken(response.access_token);
+      console.log('Token set in API client');
       
       // Fetch user data
       await refreshUser();
+      console.log('User data refreshed successfully');
+      
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;
