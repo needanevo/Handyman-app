@@ -27,7 +27,7 @@ export default function Index() {
   return (
     <View style={styles.container}>
       <LoadingSpinner 
-        text="Initializing The Real Johnson Services..."
+        text="Initializing The Real Johnson Handyman Services..."
         fullScreen={true}
       />
     </View>
