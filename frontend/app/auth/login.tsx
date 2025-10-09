@@ -33,8 +33,10 @@ export default function LoginScreen() {
   } = useForm<LoginForm>();
 
   const onSubmit = async (data: LoginForm) => {
+    console.log('LOGIN FORM SUBMIT FUNCTION CALLED!', data);
     try {
       setIsLoading(true);
+      console.log('About to call login function from AuthContext...');
       await login(data.email, data.password);
       
       // Navigation handled automatically by AuthContext + index.tsx
