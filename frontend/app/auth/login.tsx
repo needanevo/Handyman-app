@@ -14,34 +14,49 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Button } from '../../src/components/Button';
 import { Ionicons } from '@expo/vector-icons';
-import { useForm, Controller } from 'react-hook-form';
-
-interface LoginForm {
-  email: string;
-  password: string;
-}
 
 export default function LoginScreen() {
   const { login } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginForm>();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<{email?: string; password?: string}>({});
 
-  const onSubmit = async (data: LoginForm) => {
-    console.log('LOGIN FORM SUBMIT FUNCTION CALLED!', data);
+  const validateForm = () => {
+    const newErrors: {email?: string; password?: string} = {};
+    
+    if (!email) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
+      newErrors.email = 'Invalid email address';
+    }
+    
+    if (!password) {
+      newErrors.password = 'Password is required';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    console.log('LOGIN BUTTON CLICKED - Simple form approach');
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     try {
       setIsLoading(true);
       console.log('About to call login function from AuthContext...');
-      await login(data.email, data.password);
+      await login(email, password);
       
-      // Navigation handled automatically by AuthContext + index.tsx
       console.log('Login successful - user should be automatically redirected');
+      Alert.alert('Success', 'Login successful! Redirecting...');
+      
     } catch (error: any) {
+      console.error('Login error:', error);
       Alert.alert(
         'Login Failed',
         error.response?.data?.detail || 'Please check your credentials'
