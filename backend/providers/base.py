@@ -10,6 +10,7 @@ class MockProviderMixin:
     """Mixin for providers that can operate in mock mode"""
     def __init__(self, mock_mode=False, **kwargs):
         self.mock_mode = mock_mode
+        super().__init__(**kwargs)
         
     def _mock_log(self, operation: str, data: Dict[str, Any]):
         """Log mock operations for debugging"""
