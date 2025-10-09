@@ -282,8 +282,19 @@ async def request_quote(
             expires_at=datetime.utcnow() + timedelta(days=7)
         )
         
-        # Save to database
-        await db.quotes.insert_one(quote.dict(default=str))
+        # Save to database - Pydantic v2 compatibility
+        quote_dict = quote.model_dump()
+        # Convert datetime objects to ISO strings for MongoDB
+        if 'created_at' in quote_dict and quote_dict['created_at']:
+            quote_dict['created_at'] = quote_dict['created_at'].isoformat()
+        if 'updated_at' in quote_dict and quote_dict['updated_at']:
+            quote_dict['updated_at'] = quote_dict['updated_at'].isoformat()
+        if 'expires_at' in quote_dict and quote_dict['expires_at']:
+            quote_dict['expires_at'] = quote_dict['expires_at'].isoformat()
+        if 'preferred_dates' in quote_dict:
+            quote_dict['preferred_dates'] = [d.isoformat() if hasattr(d, 'isoformat') else str(d) for d in quote_dict['preferred_dates']]
+        
+        await db.quotes.insert_one(quote_dict)
         
         return {
             "quote_id": quote.id,
