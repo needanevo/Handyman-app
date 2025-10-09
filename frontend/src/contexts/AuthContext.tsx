@@ -75,17 +75,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      console.log('Starting login process...');
+      
       const response = await authAPI.login({ email, password });
+      console.log('Login API call successful');
       
       // Store tokens securely
-      await SecureStore.setItemAsync('accessToken', response.access_token);
-      await SecureStore.setItemAsync('refreshToken', response.refresh_token);
+      await storage.setItem('accessToken', response.access_token);
+      await storage.setItem('refreshToken', response.refresh_token);
+      console.log('Tokens stored securely');
       
       // Set token in API client
       authAPI.setAuthToken(response.access_token);
+      console.log('Token set in API client');
       
       // Fetch user data
       await refreshUser();
+      console.log('User data refreshed successfully');
+      
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
