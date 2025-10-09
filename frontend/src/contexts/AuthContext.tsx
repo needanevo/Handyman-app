@@ -116,7 +116,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async () => {
     try {
       const userData = await authAPI.getCurrentUser();
-      setUser(userData);
+      
+      // Transform backend data (snake_case) to frontend format (camelCase)
+      const transformedUser: User = {
+        id: userData.id,
+        email: userData.email,
+        firstName: userData.first_name,
+        lastName: userData.last_name,
+        role: userData.role,
+        phone: userData.phone,
+        addresses: userData.addresses || [],
+        isActive: userData.is_active,
+      };
+      
+      setUser(transformedUser);
     } catch (error) {
       console.error('Failed to refresh user:', error);
       // If refresh fails, clear auth state
