@@ -137,10 +137,24 @@ export default function LoginScreen() {
           <View style={styles.actions}>
             <Button
               title="Sign In"
-              onPress={handleSubmit(onSubmit)}
+              onPress={() => {
+                console.log('BUTTON CLICKED - Direct test without form validation');
+                const email = 'demo@therealjohnson.com';
+                const password = 'demo123';
+                onSubmit({ email, password });
+              }}
               loading={isLoading}
               fullWidth
               size="large"
+            />
+            
+            <Button
+              title="Sign In (Form)"
+              onPress={handleSubmit(onSubmit)}
+              loading={isLoading}
+              fullWidth
+              size="medium"
+              variant="outline"
             />
             
             <View style={styles.signupContainer}>
