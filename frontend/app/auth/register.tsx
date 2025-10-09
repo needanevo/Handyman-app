@@ -55,7 +55,9 @@ export default function RegisterScreen() {
         password: data.password,
         role: 'customer',
       });
-      router.replace('/home');
+      
+      // Navigation handled automatically by AuthContext + index.tsx
+      console.log('Registration successful - user should be automatically redirected');
     } catch (error: any) {
       Alert.alert(
         'Registration Failed',
