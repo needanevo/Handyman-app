@@ -378,7 +378,7 @@ async def respond_to_quote(
 @api_router.post("/profile/addresses")
 async def add_address(
     address: Address,
-    current_user: User = Depends(lambda: get_current_user(auth_handler=auth_handler))
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """Add address to user profile"""
     # Geocode address if maps provider is available
@@ -401,7 +401,7 @@ async def add_address(
 
 @api_router.get("/profile/addresses", response_model=List[Address])
 async def get_addresses(
-    current_user: User = Depends(lambda: get_current_user(auth_handler=auth_handler))
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """Get user addresses"""
     return current_user.addresses
