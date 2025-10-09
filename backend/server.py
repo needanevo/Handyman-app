@@ -305,9 +305,10 @@ async def get_quote(
 async def respond_to_quote(
     quote_id: str,
     response: QuoteResponse,
-    current_user: User = Depends(lambda: get_current_user(auth_handler=auth_handler))
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Accept or reject a quote"""
+    current_user = await get_current_user(credentials, auth_handler)
     quote = await db.quotes.find_one({"id": quote_id, "customer_id": current_user.id})
     if not quote:
         raise HTTPException(status_code=404, detail="Quote not found")
