@@ -109,7 +109,8 @@ class BackendTester:
         registration_data = {
             "email": unique_email,
             "password": TEST_USER_PASSWORD,
-            "full_name": TEST_USER_NAME,
+            "first_name": "John",
+            "last_name": "Customer",
             "phone": TEST_USER_PHONE,
             "role": "customer"
         }
