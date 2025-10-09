@@ -189,6 +189,7 @@ async def request_quote(
 ):
     """Request a quote for services"""
     try:
+        current_user = await get_current_user(credentials, auth_handler)
         # Get AI suggestion if enabled
         ai_suggestion = None
         if os.getenv('FEATURE_AI_QUOTE_ENABLED', 'true').lower() == 'true':
