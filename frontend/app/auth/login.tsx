@@ -19,8 +19,8 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('demo@therealjohnson.com');
+  const [password, setPassword] = useState('demo123');
   const [errors, setErrors] = useState<{email?: string; password?: string}>({});
 
   const validateForm = () => {
