@@ -107,24 +107,16 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginBottom: 16,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FF6B35',
-    justifyContent: 'center',
     alignItems: 'center',
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
   },
   title: {
     fontSize: 28,
