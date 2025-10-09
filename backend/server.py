@@ -21,6 +21,10 @@ from models import (
 from auth.auth_handler import AuthHandler, get_current_user, require_admin, require_technician_or_admin
 
 # Import services
+# Import services
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from services.pricing_engine import PricingEngine
 
 # Import providers
