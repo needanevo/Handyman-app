@@ -285,9 +285,10 @@ async def get_user_quotes(
 @api_router.get("/quotes/{quote_id}", response_model=Quote)
 async def get_quote(
     quote_id: str,
-    current_user: User = Depends(lambda: get_current_user(auth_handler=auth_handler))
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Get a specific quote"""
+    current_user = await get_current_user(credentials, auth_handler)
     quote = await db.quotes.find_one({"id": quote_id})
     if not quote:
         raise HTTPException(status_code=404, detail="Quote not found")
