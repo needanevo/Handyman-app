@@ -9,12 +9,18 @@ export default function Index() {
   const router = useRouter();
 
   useEffect(() => {
+    console.log('Index useEffect - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
+    
     if (!isLoading) {
       if (isAuthenticated) {
+        console.log('User is authenticated - navigating to home');
         router.replace('/home');
       } else {
+        console.log('User is not authenticated - navigating to welcome');
         router.replace('/auth/welcome');
       }
+    } else {
+      console.log('Still loading...');
     }
   }, [isLoading, isAuthenticated, router]);
 
