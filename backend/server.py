@@ -185,7 +185,7 @@ async def create_service(
 @api_router.post("/quotes/request")
 async def request_quote(
     quote_request: QuoteRequest,
-    current_user: User = Depends(lambda: get_current_user(auth_handler=auth_handler))
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Request a quote for services"""
     try:
