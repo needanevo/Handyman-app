@@ -110,8 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Registration API call successful');
       
       // Store tokens securely
-      await SecureStore.setItemAsync('accessToken', response.access_token);
-      await SecureStore.setItemAsync('refreshToken', response.refresh_token);
+      await storage.setItem('accessToken', response.access_token);
+      await storage.setItem('refreshToken', response.refresh_token);
       console.log('Tokens stored securely');
       
       // Set token in API client
