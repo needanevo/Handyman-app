@@ -130,7 +130,11 @@ export default function LoginScreen() {
           <View style={styles.actions}>
             <Button
               title="Sign In"
-              onPress={handleSubmit}
+              onPress={() => {
+                console.log('=== BUTTON CLICKED ===');
+                alert('Button clicked! Attempting login...');
+                handleSubmit();
+              }}
               loading={isLoading}
               fullWidth
               size="large"
