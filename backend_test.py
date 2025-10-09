@@ -265,7 +265,7 @@ class BackendTester:
                 (datetime.now() + timedelta(days=3)).isoformat(),
                 (datetime.now() + timedelta(days=5)).isoformat()
             ],
-            "budget_range": "100-300",
+            "budget_range": {"min": 100, "max": 300},
             "urgency": "normal"
         }
         
