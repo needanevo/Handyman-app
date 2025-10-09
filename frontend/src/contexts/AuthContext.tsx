@@ -56,7 +56,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuthState = async () => {
     try {
-      const token = await SecureStore.getItemAsync('accessToken');
+      console.log('Checking auth state...');
+      const token = await storage.getItem('accessToken');
+      console.log('Found stored token:', !!token);
+      
       if (token) {
         // Set the token in API client
         authAPI.setAuthToken(token);
