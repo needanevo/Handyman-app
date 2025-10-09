@@ -128,17 +128,26 @@ export default function LoginScreen() {
 
           {/* Actions */}
           <View style={styles.actions}>
-            <Button
-              title="Sign In"
+            <TouchableOpacity 
+              style={{
+                backgroundColor: '#FF6B35',
+                padding: 16,
+                borderRadius: 8,
+                alignItems: 'center',
+                width: '100%',
+                opacity: isLoading ? 0.7 : 1
+              }}
               onPress={() => {
-                console.log('=== BUTTON CLICKED ===');
-                alert('Button clicked! Attempting login...');
+                console.log('=== DIRECT BUTTON CLICKED ===');
+                alert('Direct button clicked! Testing login...');
                 handleSubmit();
               }}
-              loading={isLoading}
-              fullWidth
-              size="large"
-            />
+              disabled={isLoading}
+            >
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+                {isLoading ? 'Signing In...' : 'Sign In (Direct)'}
+              </Text>
+            </TouchableOpacity>
             
             <View style={styles.signupContainer}>
               <Text style={styles.signupText}>Don't have an account? </Text>
