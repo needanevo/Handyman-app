@@ -92,10 +92,18 @@ async def register_user(user_data: UserCreate):
                 detail="User with this email already exists"
             )
         
-        # Create new user
-        user = User(**user_data.dict(exclude={"password"}))
-        user.created_at = datetime.utcnow()
-        user.updated_at = datetime.utcnow()
+        # Create new user - map camelCase to snake_case for User model
+        user_dict = user_data.dict(exclude={"password"})
+        user = User(
+            email=user_dict["email"],
+            phone=user_dict["phone"],
+            first_name=user_dict["firstName"],
+            last_name=user_dict["lastName"],
+            role=user_dict["role"],
+            marketing_opt_in=user_dict.get("marketingOptIn", False),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
         
         # Save user to database
         await db.users.insert_one(user.dict())
