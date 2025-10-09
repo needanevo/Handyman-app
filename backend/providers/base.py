@@ -8,9 +8,8 @@ class ProviderError(Exception):
 
 class MockProviderMixin:
     """Mixin for providers that can operate in mock mode"""
-    def __init__(self, *args, **kwargs):
-        self.mock_mode = kwargs.get('mock_mode', False)
-        super().__init__(*args, **kwargs)
+    def __init__(self, mock_mode=False, **kwargs):
+        self.mock_mode = mock_mode
         
     def _mock_log(self, operation: str, data: Dict[str, Any]):
         """Log mock operations for debugging"""
