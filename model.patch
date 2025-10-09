@@ -1,25 +1,47 @@
-diff --git a/backend/services/__init__.py b/backend/services/__init__.py
-index f27d297..fdfa0fb 100644
---- a/backend/services/__init__.py
-+++ b/backend/services/__init__.py
-@@ -1,3 +1,3 @@
--from pricing_engine import PricingEngine
-+from .pricing_engine import PricingEngine
+diff --git a/backend/providers/base.py b/backend/providers/base.py
+index 7c18e83..50798bd 100644
+--- a/backend/providers/base.py
++++ b/backend/providers/base.py
+@@ -8,9 +8,9 @@ class ProviderError(Exception):
  
- __all__ = ["PricingEngine"]
-\ No newline at end of file
+ class MockProviderMixin:
+     """Mixin for providers that can operate in mock mode"""
+-    def __init__(self, *args, **kwargs):
+-        self.mock_mode = kwargs.get('mock_mode', False)
+-        super().__init__(*args, **kwargs)
++    def __init__(self, mock_mode=False, **kwargs):
++        self.mock_mode = mock_mode
++        super().__init__(**kwargs)
+         
+     def _mock_log(self, operation: str, data: Dict[str, Any]):
+         """Log mock operations for debugging"""
 diff --git a/model.patch b/model.patch
-index 06215d7..e69de29 100644
+index 800e96f..e69de29 100644
 --- a/model.patch
 +++ b/model.patch
-@@ -1,10 +0,0 @@
+@@ -1,25 +0,0 @@
 -diff --git a/backend/services/__init__.py b/backend/services/__init__.py
--index fdfa0fb..f27d297 100644
+-index f27d297..fdfa0fb 100644
 ---- a/backend/services/__init__.py
 -+++ b/backend/services/__init__.py
 -@@ -1,3 +1,3 @@
---from .pricing_engine import PricingEngine
--+from pricing_engine import PricingEngine
+--from pricing_engine import PricingEngine
+-+from .pricing_engine import PricingEngine
 - 
 - __all__ = ["PricingEngine"]
 -\ No newline at end of file
+-diff --git a/model.patch b/model.patch
+-index 06215d7..e69de29 100644
+---- a/model.patch
+-+++ b/model.patch
+-@@ -1,10 +0,0 @@
+--diff --git a/backend/services/__init__.py b/backend/services/__init__.py
+--index fdfa0fb..f27d297 100644
+----- a/backend/services/__init__.py
+--+++ b/backend/services/__init__.py
+--@@ -1,3 +1,3 @@
+---from .pricing_engine import PricingEngine
+--+from pricing_engine import PricingEngine
+-- 
+-- __all__ = ["PricingEngine"]
+--\ No newline at end of file
