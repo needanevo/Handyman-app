@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "The Real Johnson Handyman Services",
+    "slug": "real-johnson-handyman",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
