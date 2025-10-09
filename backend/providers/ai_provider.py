@@ -3,7 +3,7 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 import os
 from emergentintegrations.llm.chat import LlmChat, UserMessage
-from .base import AiProvider, AiQuoteSuggestion, ProviderError
+from providers.base import AiProvider, AiQuoteSuggestion, ProviderError
 
 load_dotenv()
 

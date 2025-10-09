@@ -1,8 +1,8 @@
 from typing import Dict, List, Any, Optional
 from decimal import Decimal, ROUND_HALF_UP
-from ..models.service import Service, PricingModel
-from ..models.quote import QuoteItem
-from ..providers.base import AiQuoteSuggestion
+from models.service import Service, PricingModel
+from models.quote import QuoteItem
+from providers.base import AiQuoteSuggestion
 
 class PricingEngine:
     """Deterministic pricing engine - AI only suggests, this calculates final prices"""
@@ -26,6 +26,7 @@ class PricingEngine:
         # Base calculation by pricing model
         if service.pricing_model == PricingModel.FLAT:
             base_price = service.base_price * quantity
+            billable_hours = None
             
         elif service.pricing_model == PricingModel.HOURLY:
             # Use AI suggested hours if available, otherwise use typical duration
@@ -46,11 +47,14 @@ class PricingEngine:
         elif service.pricing_model == PricingModel.UNIT:
             # Per unit pricing (sqft, fixture, etc.)
             base_price = service.base_price * quantity
+            billable_hours = None
         
         else:
             base_price = service.base_price * quantity
+            billable_hours = None
         
         # Apply AI complexity adjustment if available
+        complexity_multiplier = 1.0
         if ai_suggestion:
             complexity_multiplier = self._get_complexity_multiplier(ai_suggestion.complexity_rating)
             base_price *= complexity_multiplier
@@ -73,9 +77,9 @@ class PricingEngine:
         
         return {
             "base_price": round(base_price, 2),
-            "billable_hours": billable_hours if service.pricing_model == PricingModel.HOURLY else None,
+            "billable_hours": billable_hours,
             "hourly_rate": self.base_hourly_rate if service.pricing_model == PricingModel.HOURLY else None,
-            "complexity_multiplier": complexity_multiplier if ai_suggestion else 1.0,
+            "complexity_multiplier": complexity_multiplier,
             "ai_suggested": bool(ai_suggestion)
         }
     
@@ -160,8 +164,8 @@ class PricingEngine:
                     })
         
         # Calculate final item price
-        unit_price = base_price + addon_total
-        total_price = unit_price * quantity
+        unit_price = base_price / quantity if quantity > 0 else base_price
+        total_price = base_price + addon_total
         
         # Create description
         if not description:
