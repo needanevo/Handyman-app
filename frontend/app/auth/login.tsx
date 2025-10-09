@@ -53,8 +53,10 @@ export default function LoginScreen() {
       console.log('About to call login function from AuthContext...');
       await login(email, password);
       
-      console.log('Login successful - user should be automatically redirected');
-      Alert.alert('Success', 'Login successful! Redirecting...');
+      console.log('Login successful - navigating to home manually');
+      
+      // Navigate directly to home since we're not on index route
+      router.replace('/home');
       
     } catch (error: any) {
       console.error('Login error:', error);
