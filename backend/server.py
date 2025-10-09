@@ -147,7 +147,7 @@ async def login_user(login_data: UserLogin):
     
     return Token(access_token=access_token, refresh_token=refresh_token)
 
-def get_current_user_dependency(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user_dependency(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Dependency wrapper to inject auth_handler"""
     payload = auth_handler.verify_token(credentials.credentials)
     user_id = payload.get("user_id")
@@ -158,24 +158,20 @@ def get_current_user_dependency(credentials: HTTPAuthorizationCredentials = Depe
             detail="Invalid token payload"
         )
     
-    # Return a coroutine that can be awaited
-    async def get_user():
-        user = await auth_handler.get_user_by_id(user_id)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found"
-            )
-        
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Inactive user"
-            )
-        
-        return user
+    user = await auth_handler.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
     
-    return get_user()
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Inactive user"
+        )
+    
+    return user
 
 @api_router.get("/auth/me", response_model=User)
 async def get_current_user_info(current_user: User = Depends(get_current_user_dependency)):
