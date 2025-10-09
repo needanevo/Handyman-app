@@ -105,8 +105,15 @@ async def register_user(user_data: UserCreate):
             updated_at=datetime.utcnow()
         )
         
-        # Save user to database
-        await db.users.insert_one(user.dict())
+        # Save user to database - Pydantic v2 compatibility
+        user_dict = user.model_dump()
+        # Convert datetime objects to ISO strings for MongoDB
+        if 'created_at' in user_dict and user_dict['created_at']:
+            user_dict['created_at'] = user_dict['created_at'].isoformat()
+        if 'updated_at' in user_dict and user_dict['updated_at']:
+            user_dict['updated_at'] = user_dict['updated_at'].isoformat()
+        
+        await db.users.insert_one(user_dict)
         
         # Save password hash
         await auth_handler.create_user_password(user.id, user_data.password)
