@@ -270,10 +270,11 @@ async def request_quote(
 
 @api_router.get("/quotes", response_model=List[Quote])
 async def get_user_quotes(
-    current_user: User = Depends(lambda: get_current_user(auth_handler=auth_handler)),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     status_filter: Optional[QuoteStatus] = None
 ):
     """Get quotes for current user"""
+    current_user = await get_current_user(credentials, auth_handler)
     query = {"customer_id": current_user.id}
     if status_filter:
         query["status"] = status_filter
