@@ -90,53 +90,31 @@ export default function LoginScreen() {
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email</Text>
-              <Controller
-                control={control}
-                name="email"
-                rules={{
-                  required: 'Email is required',
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: 'Invalid email address',
-                  },
-                }}
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    style={[styles.input, errors.email && styles.inputError]}
-                    onChangeText={onChange}
-                    value={value}
-                    placeholder="john@example.com"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                )}
+              <TextInput
+                style={[styles.input, errors.email && styles.inputError]}
+                onChangeText={setEmail}
+                value={email}
+                placeholder="john@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
               />
               {errors.email && (
-                <Text style={styles.errorText}>{errors.email.message}</Text>
+                <Text style={styles.errorText}>{errors.email}</Text>
               )}
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
-              <Controller
-                control={control}
-                name="password"
-                rules={{
-                  required: 'Password is required',
-                }}
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    style={[styles.input, errors.password && styles.inputError]}
-                    onChangeText={onChange}
-                    value={value}
-                    placeholder="••••••••"
-                    secureTextEntry
-                  />
-                )}
+              <TextInput
+                style={[styles.input, errors.password && styles.inputError]}
+                onChangeText={setPassword}
+                value={password}
+                placeholder="••••••••"
+                secureTextEntry
               />
               {errors.password && (
-                <Text style={styles.errorText}>{errors.password.message}</Text>
+                <Text style={styles.errorText}>{errors.password}</Text>
               )}
             </View>
           </View>
