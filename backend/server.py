@@ -218,11 +218,10 @@ async def create_service(
 @api_router.post("/quotes/request")
 async def request_quote(
     quote_request: QuoteRequest,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """Request a quote for services"""
     try:
-        current_user = await get_current_user(credentials, auth_handler)
         # Get AI suggestion if enabled
         ai_suggestion = None
         if os.getenv('FEATURE_AI_QUOTE_ENABLED', 'true').lower() == 'true':
