@@ -149,23 +149,26 @@ export default function HomeScreen() {
         {/* Services */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Our Services</Text>
-          <View style={styles.servicesGrid}>
+          <View style={styles.servicesList}>
             {serviceCategories.map((service) => (
               <TouchableOpacity
                 key={service.id}
-                style={styles.serviceCard}
+                style={styles.serviceButton}
                 onPress={() => handleServiceSelect(service.id)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.serviceIcon, { backgroundColor: `${service.color}20` }]}>
+                <View style={[styles.serviceIconSmall, { backgroundColor: `${service.color}20` }]}>
                   <Ionicons
                     name={service.icon as any}
-                    size={24}
+                    size={20}
                     color={service.color}
                   />
                 </View>
-                <Text style={styles.serviceTitle}>{service.title}</Text>
-                <Text style={styles.serviceDescription}>{service.description}</Text>
+                <View style={styles.serviceContent}>
+                  <Text style={styles.serviceButtonTitle}>{service.title}</Text>
+                  <Text style={styles.serviceButtonDescription}>{service.description}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#BDC3C7" />
               </TouchableOpacity>
             ))}
           </View>
