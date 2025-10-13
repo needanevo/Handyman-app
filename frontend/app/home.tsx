@@ -327,6 +327,39 @@ const styles = StyleSheet.create({
     color: '#FF6B35',
     fontWeight: '600',
   },
+  servicesList: {
+    gap: 10,
+  },
+  serviceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  serviceIconSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  serviceContent: {
+    flex: 1,
+  },
+  serviceButtonTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 2,
+  },
+  serviceButtonDescription: {
+    fontSize: 13,
+    color: '#7F8C8D',
+  },
   servicesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
