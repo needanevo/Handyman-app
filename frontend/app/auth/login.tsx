@@ -236,6 +236,21 @@ const styles = StyleSheet.create({
   actions: {
     paddingBottom: 24,
   },
+  loginButton: {
+    backgroundColor: '#FF6B35',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
