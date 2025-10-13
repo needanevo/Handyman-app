@@ -535,30 +535,86 @@ class BackendTester:
             self.log_test("Nonexistent Service", False, f"Exception: {str(e)}")
     
     def run_all_tests(self):
-        """Run all backend tests"""
+        """Run all backend tests focusing on requested scenarios"""
         print("🚀 Starting Backend API Test Suite for The Real Johnson Handyman Services")
         print(f"Testing against: {self.base_url}")
         print("=" * 80)
         
-        # Run tests in logical order
+        # Test sequence focusing on requested scenarios
         self.test_health_endpoints()
-        self.test_service_catalog()
+        self.test_database_verification()
         
-        # Authentication flow
-        if self.test_user_registration():
-            self.test_user_login()
+        # Test demo user authentication flow as requested
+        if self.test_demo_user_login():
             self.test_get_current_user()
             
-            # Protected endpoints (require auth)
-            self.test_quote_request()
+            # Test quote/complaint system with photos as requested
+            self.test_quote_request_with_photos()
             self.test_quote_management()
+        
+        # Test service catalog (part of data retrieval)
+        self.test_service_catalog()
         
         # Security and error handling
         self.test_authentication_protection()
-        self.test_error_handling()
         
-        # Print summary
+        # Print summary and curl commands
         self.print_summary()
+        self.print_curl_commands()
+    
+    def print_curl_commands(self):
+        """Print curl commands for working endpoints as requested"""
+        print("\n" + "=" * 80)
+        print("🔧 CURL COMMANDS FOR WORKING ENDPOINTS")
+        print("=" * 80)
+        
+        # Health check
+        print("# Health Check")
+        print(f"curl -X GET '{self.base_url}/health'")
+        print()
+        
+        # Demo user login
+        print("# Demo User Login")
+        print(f"curl -X POST '{self.base_url}/auth/login' \\")
+        print("  -H 'Content-Type: application/json' \\")
+        print(f"  -d '{{\"email\": \"{DEMO_EMAIL}\", \"password\": \"{DEMO_PASSWORD}\"}}'")
+        print()
+        
+        if self.access_token:
+            # Get current user
+            print("# Get Current User (replace TOKEN with actual access_token from login)")
+            print(f"curl -X GET '{self.base_url}/auth/me' \\")
+            print("  -H 'Authorization: Bearer TOKEN'")
+            print()
+            
+            # Get services
+            print("# Get All Services")
+            print(f"curl -X GET '{self.base_url}/services'")
+            print()
+            
+            # Get user quotes
+            print("# Get User Quotes (replace TOKEN with actual access_token)")
+            print(f"curl -X GET '{self.base_url}/quotes' \\")
+            print("  -H 'Authorization: Bearer TOKEN'")
+            print()
+            
+            # Create quote request with photos
+            print("# Create Quote Request with Photos (replace TOKEN with actual access_token)")
+            print(f"curl -X POST '{self.base_url}/quotes/request' \\")
+            print("  -H 'Content-Type: application/json' \\")
+            print("  -H 'Authorization: Bearer TOKEN' \\")
+            print("  -d '{")
+            print('    "service_category": "drywall",')
+            print('    "description": "Need to patch holes in wall",')
+            print('    "address_id": "test-address-123",')
+            print('    "photos": ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="],')
+            print('    "preferred_dates": ["2024-01-15", "2024-01-16"],')
+            print('    "budget_range": "100-300",')
+            print('    "urgency": "normal"')
+            print("  }'")
+            print()
+        
+        print("=" * 80)
     
     def print_summary(self):
         """Print test summary"""
