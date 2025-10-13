@@ -186,39 +186,34 @@ export default function QuoteRequestScreen() {
             <View style={styles.placeholder} />
           </View>
 
-          {/* Service Category */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>What do you need help with?</Text>
-            <View style={styles.categoryGrid}>
-              {serviceCategories.map((service) => (
-                <TouchableOpacity
-                  key={service.id}
-                  style={[
-                    styles.categoryCard,
-                    selectedCategory === service.id && styles.categoryCardSelected,
-                  ]}
-                  onPress={() => setValue('serviceCategory', service.id)}
-                >
+          {/* Service Category - Now showing description instead of grid */}
+          {selectedService && (
+            <View style={styles.serviceInfoCard}>
+              <View style={styles.serviceInfoHeader}>
+                <View style={[styles.serviceInfoIcon, { backgroundColor: `${selectedService.color}20` }]}>
                   <Ionicons
-                    name={service.icon as any}
-                    size={24}
-                    color={selectedCategory === service.id ? '#FF6B35' : '#7F8C8D'}
+                    name={selectedService.icon as any}
+                    size={32}
+                    color={selectedService.color}
                   />
-                  <Text
-                    style={[
-                      styles.categoryTitle,
-                      selectedCategory === service.id && styles.categoryTitleSelected,
-                    ]}
-                  >
-                    {service.title}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                </View>
+                <View style={styles.serviceInfoText}>
+                  <Text style={styles.serviceInfoTitle}>{selectedService.title} Services</Text>
+                  <Text style={styles.serviceInfoSubtitle}>{selectedService.description}</Text>
+                </View>
+              </View>
+              <Text style={styles.serviceInfoDescription}>
+                {selectedService.fullDescription}
+              </Text>
+              <TouchableOpacity 
+                style={styles.changeServiceButton}
+                onPress={() => router.back()}
+              >
+                <Ionicons name="swap-horizontal-outline" size={16} color="#FF6B35" />
+                <Text style={styles.changeServiceText}>Change Service</Text>
+              </TouchableOpacity>
             </View>
-            {errors.serviceCategory && (
-              <Text style={styles.errorText}>Please select a service category</Text>
-            )}
-          </View>
+          )}
 
           {/* Description */}
           <View style={styles.section}>
