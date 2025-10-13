@@ -609,7 +609,7 @@ class BackendTester:
             print('    "address_id": "test-address-123",')
             print('    "photos": ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="],')
             print('    "preferred_dates": ["2024-01-15", "2024-01-16"],')
-            print('    "budget_range": "100-300",')
+            print('    "budget_range": {"min": 100, "max": 300},')
             print('    "urgency": "normal"')
             print("  }'")
             print()
