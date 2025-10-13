@@ -132,41 +132,12 @@ export default function LoginScreen() {
           {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity 
-              style={{
-                backgroundColor: '#FF0000',
-                padding: 16,
-                borderRadius: 8,
-                alignItems: 'center',
-                width: '100%',
-                marginBottom: 10
-              }}
-              onPress={() => {
-                alert('JavaScript is working!');
-              }}
-            >
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-                Test JavaScript
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={{
-                backgroundColor: '#FF6B35',
-                padding: 16,
-                borderRadius: 8,
-                alignItems: 'center',
-                width: '100%',
-                opacity: isLoading ? 0.7 : 1
-              }}
-              onPress={() => {
-                console.log('=== LOGIN BUTTON CLICKED ===');
-                alert('Login button clicked!');
-                handleSubmit();
-              }}
+              style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+              onPress={handleSubmit}
               disabled={isLoading}
             >
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-                {isLoading ? 'Signing In...' : 'Sign In Now'}
+              <Text style={styles.loginButtonText}>
+                {isLoading ? 'Signing In...' : 'Sign In'}
               </Text>
             </TouchableOpacity>
             
