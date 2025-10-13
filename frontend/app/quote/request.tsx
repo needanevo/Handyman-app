@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useForm, Controller } from 'react-hook-form';
 import * as ImagePicker from 'expo-image-picker';
 import { quotesAPI, profileAPI } from '../../src/services/api';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { serviceCategories } from '../../src/constants/services';
 
 interface QuoteRequestForm {
   serviceCategory: string;
