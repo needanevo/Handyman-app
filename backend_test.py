@@ -253,6 +253,113 @@ class BackendTester:
             except Exception as e:
                 self.log_test("Get Specific Service", False, f"Exception: {str(e)}")
     
+    def create_test_base64_image(self) -> str:
+        """Create a small test image in base64 format"""
+        # Simple 1x1 pixel PNG in base64
+        return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+    
+    def test_quote_request_with_photos(self):
+        """Test quote request system with base64 photos as requested"""
+        print("\n=== Testing Quote Request with Photos ===")
+        
+        if not self.access_token:
+            self.log_test("Quote Request with Photos", False, "No access token available")
+            return
+        
+        # Create quote request with base64 test images
+        quote_data = {
+            "service_category": "drywall",
+            "description": "Need to patch several holes in living room wall from picture hanging",
+            "address_id": str(uuid.uuid4()),  # Use dummy address ID
+            "photos": [
+                self.create_test_base64_image(),
+                self.create_test_base64_image()
+            ],
+            "preferred_dates": [
+                (datetime.now() + timedelta(days=3)).date().isoformat(),
+                (datetime.now() + timedelta(days=5)).date().isoformat()
+            ],
+            "budget_range": "100-300",
+            "urgency": "normal"
+        }
+        
+        try:
+            response = self.make_request("POST", "/quotes/request", quote_data)
+            if response.status_code == 200:
+                data = response.json()
+                if "quote_id" in data and "estimated_total" in data:
+                    self.quote_id = data["quote_id"]
+                    ai_suggested = data.get("ai_suggested", False)
+                    self.log_test("Quote Request with Photos", True, 
+                                f"Quote created with photos: ${data['estimated_total']:.2f}, AI suggested: {ai_suggested}")
+                    return data["quote_id"]
+                else:
+                    self.log_test("Quote Request with Photos", False, "Missing expected quote fields")
+            else:
+                self.log_test("Quote Request with Photos", False, f"HTTP {response.status_code}: {response.text}")
+        except Exception as e:
+            self.log_test("Quote Request with Photos", False, f"Exception: {str(e)}")
+        
+        return None
+    
+    def test_database_verification(self):
+        """Test database verification through API endpoints"""
+        print("\n=== Testing Database Verification ===")
+        
+        # Test MongoDB connection through health endpoint
+        try:
+            response = self.make_request("GET", "/health")
+            if response.status_code == 200:
+                data = response.json()
+                db_status = data.get("database", "unknown")
+                if db_status == "connected":
+                    self.log_test("MongoDB Connection", True, "Database connection verified through health endpoint")
+                else:
+                    self.log_test("MongoDB Connection", False, f"Database status: {db_status}")
+            else:
+                self.log_test("MongoDB Connection", False, f"Health check failed: {response.status_code}")
+        except Exception as e:
+            self.log_test("MongoDB Connection", False, f"Exception: {str(e)}")
+        
+        # Verify collections exist by testing data operations
+        # Test users collection (through auth)
+        if self.access_token:
+            try:
+                response = self.make_request("GET", "/auth/me")
+                if response.status_code == 200:
+                    self.log_test("Users Collection", True, "Users collection accessible and working")
+                else:
+                    self.log_test("Users Collection", False, "Cannot access user data")
+            except Exception as e:
+                self.log_test("Users Collection", False, f"Exception: {str(e)}")
+        
+        # Test services collection
+        try:
+            response = self.make_request("GET", "/services")
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list) and len(data) > 0:
+                    self.log_test("Services Collection", True, f"Services collection has {len(data)} records")
+                else:
+                    self.log_test("Services Collection", False, "Services collection appears empty")
+            else:
+                self.log_test("Services Collection", False, f"Cannot access services: {response.status_code}")
+        except Exception as e:
+            self.log_test("Services Collection", False, f"Exception: {str(e)}")
+        
+        # Test quotes collection
+        if self.access_token:
+            try:
+                response = self.make_request("GET", "/quotes")
+                if response.status_code == 200:
+                    data = response.json()
+                    quote_count = len(data) if isinstance(data, list) else 0
+                    self.log_test("Quotes Collection", True, f"Quotes collection accessible with {quote_count} records")
+                else:
+                    self.log_test("Quotes Collection", False, f"Cannot access quotes: {response.status_code}")
+            except Exception as e:
+                self.log_test("Quotes Collection", False, f"Exception: {str(e)}")
+
     def test_quote_request(self):
         """Test quote request system with AI integration"""
         print("\n=== Testing Quote Request System ===")
