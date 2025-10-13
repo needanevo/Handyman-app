@@ -12,6 +12,8 @@ from typing import Dict, Any, Optional
 
 # Configuration
 BASE_URL = "https://auth-debug-15.preview.emergentagent.com/api"
+DEMO_EMAIL = "demo@therealjohnson.com"
+DEMO_PASSWORD = "demo123"
 TEST_USER_EMAIL = "john.customer@example.com"
 TEST_USER_PASSWORD = "SecurePass123!"
 TEST_USER_NAME = "John Customer"
