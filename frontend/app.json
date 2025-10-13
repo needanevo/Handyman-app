@@ -9,6 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "owner": "needanevo",
+    "extra": {
+      "eas": {
+        "projectId": "c6321274-0ef1-41c1-b059-c19e28f14a54"
+      }
+    },
     "ios": {
       "supportsTablet": true
     },
