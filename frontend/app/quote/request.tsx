@@ -30,15 +30,6 @@ interface QuoteRequestForm {
   };
 }
 
-const serviceCategories = [
-  { id: 'drywall', title: 'Drywall', icon: 'hammer-outline' },
-  { id: 'painting', title: 'Painting', icon: 'brush-outline' },
-  { id: 'electrical', title: 'Electrical', icon: 'flash-outline' },
-  { id: 'plumbing', title: 'Plumbing', icon: 'water-outline' },
-  { id: 'carpentry', title: 'Carpentry', icon: 'construct-outline' },
-  { id: 'miscellaneous', title: 'Other', icon: 'build-outline' },
-];
-
 const urgencyOptions = [
   { id: 'flexible', title: 'Flexible', description: 'Within 2 weeks' },
   { id: 'normal', title: 'Normal', description: 'Within 1 week' },
@@ -68,6 +59,12 @@ export default function QuoteRequestScreen() {
   
   const selectedCategory = watch('serviceCategory');
   const selectedUrgency = watch('urgency');
+  
+  // Get the selected service details
+  const selectedService = useMemo(
+    () => serviceCategories.find(s => s.id === selectedCategory),
+    [selectedCategory]
+  );
 
   const pickImage = async () => {
     try {
