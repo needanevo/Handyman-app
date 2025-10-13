@@ -101,6 +101,32 @@ class BackendTester:
         except Exception as e:
             self.log_test("Detailed Health Check", False, f"Exception: {str(e)}")
     
+    def test_demo_user_login(self):
+        """Test login with demo credentials as requested"""
+        print("\n=== Testing Demo User Login ===")
+        
+        login_data = {
+            "email": DEMO_EMAIL,
+            "password": DEMO_PASSWORD
+        }
+        
+        try:
+            response = self.make_request("POST", "/auth/login", login_data)
+            if response.status_code == 200:
+                data = response.json()
+                if "access_token" in data and "refresh_token" in data:
+                    self.access_token = data["access_token"]
+                    self.log_test("Demo User Login", True, f"Demo user logged in successfully: {DEMO_EMAIL}")
+                    return True
+                else:
+                    self.log_test("Demo User Login", False, "Missing tokens in response")
+            else:
+                self.log_test("Demo User Login", False, f"HTTP {response.status_code}: {response.text}")
+        except Exception as e:
+            self.log_test("Demo User Login", False, f"Exception: {str(e)}")
+        
+        return False
+    
     def test_user_registration(self):
         """Test user registration"""
         print("\n=== Testing User Registration ===")
