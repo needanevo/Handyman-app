@@ -2,10 +2,10 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 import os
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from openai import OpenAI
 from providers.base import AiProvider, AiQuoteSuggestion, ProviderError
 
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../backend.env"))
 
 class EmergentAiProvider(AiProvider):
     def __init__(self):
@@ -16,23 +16,23 @@ class EmergentAiProvider(AiProvider):
         if not self.api_key:
             raise ProviderError("EMERGENT_LLM_KEY not found in environment")
     
-    def _create_chat_session(self, session_id: str = None) -> LlmChat:
+    def _create_chat_session(self, session_id: str | None = None) -> LlmChat:
         """Create a new chat session for quote generation"""
         system_message = """
-You are a professional handyman estimation assistant for The Real Johnson Handyman Services.
-You help estimate job complexity, time requirements, and material needs based on service descriptions.
+        You are a professional handyman estimation assistant for The Real Johnson Handyman Services.
+        You help estimate job complexity, time requirements, and material needs based on service descriptions.
 
-Your job is to provide structured suggestions for quotes, NOT final pricing.
-The final pricing is calculated by our deterministic pricing engine.
+        Your job is to provide structured suggestions for quotes, NOT final pricing.
+        The final pricing is calculated by our deterministic pricing engine.
 
-Provide realistic estimates based on:
-1. Service type and complexity
-2. Description details
-3. Industry standards for handyman work
-4. Safety considerations
+        Provide realistic estimates based on:
+        1. Service type and complexity
+        2. Description details
+        3. Industry standards for handyman work
+        4. Safety considerations
 
-Always be conservative in estimates to ensure customer satisfaction.
-"""
+        Always be conservative in estimates to ensure customer satisfaction.
+        """
         
         chat = LlmChat(
             api_key=self.api_key,
@@ -42,75 +42,86 @@ Always be conservative in estimates to ensure customer satisfaction.
         
         return chat
     
-    async def generate_quote_suggestion(self, service_type: str, description: str, photos_metadata: List[str] = None) -> AiQuoteSuggestion:
-        """Generate AI-powered quote suggestion"""
+    async def generate_quote_suggestion(
+        self, service_type: str, description: str, photos_metadata: List[str] = None
+    ) -> AiQuoteSuggestion:
+            """Generate AI-powered quote suggestion"""
         try:
-            # Create prompt for structured output
-            prompt = f"""
-Analyze this handyman job request and provide a structured estimate:
+            # Build the prompt text
+            prompt = """
+            Analyze this handyman job request and provide a structured estimate including parts, materials, and labor (base hourly rate $150/hr):
 
-Service Type: {service_type}
-Customer Description: {description}
-Photos Provided: {len(photos_metadata or [])} images
+                Service Type: {service_type}
+                Customer Description: {description}
+                Photos Provided: {len(photos_metadata or [])} images
 
-Provide your response in this exact JSON format:
-{{
-    "estimated_hours": <number>,
-    "suggested_materials": ["material1", "material2", "material3"],
-    "complexity_rating": <1-5>,
-    "base_price_suggestion": <number>,
-    "reasoning": "<detailed explanation>",
-    "confidence": <0.0-1.0>
-}}
+                Provide your response in this exact JSON format:
+                {{
+                    "estimated_hours": <number>,
+                    "suggested_materials": ["material1", "material2", "material3"],
+                    "complexity_rating": <1-5>,
+                    "base_price_suggestion": <number>,
+                    "reasoning": "<detailed explanation>",
+                    "confidence": <0.0-1.0>
+                }}
+            """
 
-Considerations:
-- Complexity rating: 1=Simple, 2=Easy, 3=Moderate, 4=Challenging, 5=Expert
-- Include travel time and setup in hours estimate
-- Suggest common materials needed (3-5 items max)
-- Base price should be competitive for small handyman business
-- Confidence based on description clarity and your expertise
-"""
-            
-            # Create chat session and send message
-            chat = self._create_chat_session()
-            user_message = UserMessage(text=prompt)
-            
-            response = await chat.send_message(user_message)
-            
-            # Parse JSON response
-            import json
-            try:
-                # Extract JSON from response (handle potential markdown formatting)
-                response_text = response.strip()
-                if response_text.startswith("```json"):
-                    response_text = response_text.split("```json")[1].split("```")[0].strip()
-                elif response_text.startswith("```"):
-                    response_text = response_text.split("```")[1].strip()
-                
-                data = json.loads(response_text)
-                
-                # Validate and create suggestion object
-                suggestion = AiQuoteSuggestion(
-                    estimated_hours=max(0.5, float(data.get('estimated_hours', 2.0))),  # Minimum 30 min
-                    suggested_materials=data.get('suggested_materials', [])[:5],  # Limit to 5 items
-                    complexity_rating=max(1, min(5, int(data.get('complexity_rating', 3)))),  # 1-5 range
-                    base_price_suggestion=max(50, float(data.get('base_price_suggestion', 150))),  # Minimum $50
-                    reasoning=str(data.get('reasoning', 'AI analysis based on service type and description'))[:500],  # Limit length
-                    confidence=max(0.1, min(1.0, float(data.get('confidence', 0.7))))  # 0.1-1.0 range
+            # 🔧 Call OpenAI directly
+            response = await asyncio.to_thread(
+                lambda: self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                    {"role": "system", "content": """
+                    You are a professional handyman estimation assistant for The Real Johnson Handyman Services.
+
+                        You help estimate job complexity, time requirements, and material needs based on service descriptions.
+
+                        Your job is to provide structured suggestions for quotes, NOT final pricing.
+                        The final pricing is calculated by our deterministic pricing engine.
+
+                        Provide realistic estimates based on:
+                        1. Service type and complexity
+                        2. Description details
+                        3. Industry standards for handyman work
+                        4. Safety considerations
+
+                        Always be conservative in estimates to ensure customer satisfaction.
+                        Your output must strictly follow the JSON format requested by the user.
+                        """},  # 👈 comma added here
+                        {"role": "user", "content": prompt},
+                    ],
+                    max_tokens=int(os.getenv("AI_MAX_TOKENS", "700")),
                 )
-                
-                return suggestion
-                
-            except (json.JSONDecodeError, KeyError, ValueError) as e:
-                # Fallback if JSON parsing fails
-                return self._create_fallback_suggestion(service_type, description)
-                
+            )
+
+            response_text = response.choices[0].message.content.strip()
+
+            # 🧠 Handle markdown fences
+            if response_text.startswith("```json"):
+                response_text = response_text.split("```json")[1].split("```")[0].strip()
+            elif response_text.startswith("```"):
+                response_text = response_text.split("```")[1].strip()
+
+            data = json.loads(response_text)
+
+            suggestion = AiQuoteSuggestion(
+                estimated_hours=max(0.5, float(data.get("estimated_hours", 2.0))),
+                suggested_materials=data.get("suggested_materials", [])[:5],
+                complexity_rating=max(1, min(5, int(data.get("complexity_rating", 3)))),
+                base_price_suggestion=max(50, float(data.get("base_price_suggestion", 150))),
+                reasoning=str(
+                    data.get("reasoning", "AI analysis based on service type and description")
+                )[:500],
+                confidence=max(0.1, min(1.0, float(data.get("confidence", 0.7)))),
+            )
+
+            return suggestion
+
         except Exception as e:
             if self.safety_mode:
-                # Return safe fallback in safety mode
                 return self._create_fallback_suggestion(service_type, description, error=str(e))
-            else:
-                raise ProviderError(f"AI quote generation failed: {str(e)}")
+            raise ProviderError(f"AI quote generation failed: {str(e)}")
+
     
     def _create_fallback_suggestion(self, service_type: str, description: str, error: str = None) -> AiQuoteSuggestion:
         """Create a safe fallback suggestion when AI fails"""
