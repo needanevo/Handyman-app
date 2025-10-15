@@ -1,6 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
+from .providers import EMAIL_PROVIDERS, AI_PROVIDERS
 
 load_dotenv("backend/providers/providers.env")
 from starlette.middleware.cors import CORSMiddleware
@@ -13,7 +14,7 @@ from datetime import datetime, timedelta, date
 import uuid
 
 # Import models
-from models import (
+from .models import (
     User,
     UserCreate,
     UserLogin,
@@ -32,7 +33,7 @@ from models import (
 )
 
 # Import authentication
-from auth.auth_handler import (
+from .auth.auth_handler import (
     AuthHandler,
     get_current_user,
     require_admin,
@@ -41,18 +42,11 @@ from auth.auth_handler import (
 
 # Import services
 # Import services
-from services import PricingEngine
+from .services.pricing_engine import PricingEngine
 
 # Import providers
-from providers import (
-    EmergentAiProvider,
-    MockEmailProvider,
-    MockSmsProvider,
-    MockPaymentProvider,
-    MockMapsProvider,
-    MockAiProvider,
-    ProviderError,
-)
+from .providers.openai_provider import OpenAiProvider
+from .providers.base import AiQuoteSuggestion, ProviderError
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -67,20 +61,14 @@ auth_handler = AuthHandler(db)
 pricing_engine = PricingEngine()
 
 # Initialize providers based on feature flags
-try:
-    if os.getenv("FEATURE_AI_QUOTE_ENABLED", "true").lower() == "true":
-        ai_provider = EmergentAiProvider()
-    else:
-        ai_provider = MockAiProvider()
-except Exception as e:
-    print(f"Warning: Failed to initialize AI provider, using mock: {e}")
-    ai_provider = MockAiProvider()
-
-email_provider = MockEmailProvider()
-sms_provider = MockSmsProvider()
-payment_provider = MockPaymentProvider()
-maps_provider = MockMapsProvider()
-
+active_ai = (
+    os.getenv("ACTIVE_AI_PROVIDER", "demo")
+    if os.getenv("FEATURE_AI_QUOTE_ENABLED", "true").lower() == "true"
+    else "demo"
+)
+ai_provider = AI_PROVIDERS[active_ai]()
+email_provider = EMAIL_PROVIDERS[os.getenv("ACTIVE_EMAIL_PROVIDER", "mock")]()
+maps_provider = request.app.state.maps → await maps_provider.geocode(address.dict())
 # Create the main app
 app = FastAPI(
     title="The Real Johnson Handyman Services API",
@@ -505,7 +493,7 @@ async def send_quote(quote_id: str, current_user: User = Depends(require_admin))
                     "to": [customer["email"]],
                     "subject": "Your estimate from The Real Johnson",
                     "html_content": f"Your estimate is ready. Total: ${quote['total_amount']:.2f}",
-                }
+                }  # type: ignore
             )
     except Exception as e:
         logger.warning(f"Failed to send notification: {e}")

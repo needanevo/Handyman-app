@@ -7,7 +7,7 @@ from providers.base import AiProvider, AiQuoteSuggestion, ProviderError
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../backend.env"))
 
-class EmergentAiProvider(AiProvider):
+class OpenAiProvider(AiProvider):
     def __init__(self):
         self.api_key = os.getenv('EMERGENT_LLM_KEY')
         self.model = os.getenv('AI_QUOTE_MODEL', 'gpt-4o-mini')
@@ -44,9 +44,9 @@ class EmergentAiProvider(AiProvider):
     
     async def generate_quote_suggestion(
         self, service_type: str, description: str, photos_metadata: List[str] = None
-    ) -> AiQuoteSuggestion:
+            ) -> AiQuoteSuggestion:
             """Generate AI-powered quote suggestion"""
-        try:
+    try:
             # Build the prompt text
             prompt = """
             Analyze this handyman job request and provide a structured estimate including parts, materials, and labor (base hourly rate $150/hr):

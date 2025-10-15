@@ -1,47 +1,28 @@
-from .base import (
-    EmailProvider,
-    SmsProvider,
-    PaymentProvider,
-    MapsProvider,
-    AiProvider,
-    EmailMessage,
-    SmsMessage,
-    PaymentIntent,
-    GeocodeResult,
-    RouteResult,
-    AiQuoteSuggestion,
-    ProviderError,
-)
-from .mock_providers import (
-    MockEmailProvider,
-    MockSmsProvider,
-    MockPaymentProvider,
-    MockMapsProvider,
-    MockAiProvider,
-)
-from .openai_provider import OpenAiProvider
+# from .base import AiProvider, AiQuoteSuggestion, ProviderError
+##
+# __all__ = ["AiProvider", "AiQuoteSuggestion", "ProviderError"]
+##from backend.providers.demo_provider import DemoProvider
 
+##PROVIDERS = {"demo": DemoProvider}
+##DEFAULT_PROVIDER = "demo"
+##from .mock_email_provider import MockEmailProvider
+from .demo_provider import DemoProvider
 
-__all__ = [
-    # Base interfaces
-    "EmailProvider",
-    "SmsProvider",
-    "PaymentProvider",
-    "MapsProvider",
-    "AiProvider",
-    "EmailMessage",
-    "SmsMessage",
-    "PaymentIntent",
-    "GeocodeResult",
-    "RouteResult",
-    "AiQuoteSuggestion",
-    "ProviderError",
-    # Mock implementations
-    "MockEmailProvider",
-    "MockSmsProvider",
-    "MockPaymentProvider",
-    "MockMapsProvider",
-    "MockAiProvider",
-    # Real implementations
-    "OpenAiProvider",
-]
+##EMAIL_PROVIDERS={"mock":MockEmailProvider}; AI_PROVIDERS={"demo":DemoProvider}
+##__all__=["EMAIL_PROVIDERS","AI_PROVIDERS","MockEmailProvider","DemoProvider"]
+# backend/providers/__init__.py
+from typing import Dict, Type
+from .base import AiProvider
+from .demo_provider import DemoProvider
+from .mock_email_provider import MockEmailProvider
+
+AI_PROVIDERS: Dict[str, Type[AiProvider]] = {"demo": DemoProvider}
+try:
+    from .openai_provider import OpenAiProvider
+
+    AI_PROVIDERS["openai"] = OpenAiProvider
+except Exception:
+    pass
+
+EMAIL_PROVIDERS: Dict[str, Type[object]] = {"mock": MockEmailProvider}
+__all__ = ["AI_PROVIDERS", "EMAIL_PROVIDERS"]

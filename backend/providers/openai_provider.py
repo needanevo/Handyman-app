@@ -4,7 +4,7 @@ import os
 from typing import List
 from dotenv import load_dotenv
 from openai import OpenAI
-from providers.base import AiProvider, AiQuoteSuggestion, ProviderError
+from .base import AiProvider, AiQuoteSuggestion, ProviderError
 
 # Load environment variables from providers.env
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "providers.env"))

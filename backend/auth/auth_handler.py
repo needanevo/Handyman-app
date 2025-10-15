@@ -8,7 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 import os
 from dotenv import load_dotenv
 
-from models.user import User, UserRole
+from ..models.user import User, UserRole
 
 load_dotenv()
 
