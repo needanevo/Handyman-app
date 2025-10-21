@@ -25,4 +25,9 @@ except Exception:
     pass
 
 EMAIL_PROVIDERS: Dict[str, Type[object]] = {"mock": MockEmailProvider}
-__all__ = ["AI_PROVIDERS", "EMAIL_PROVIDERS"]
+MAPS_PROVIDERS: Dict[str, Type[object]] = {}
+
+__all__ = ["AI_PROVIDERS", "EMAIL_PROVIDERS,", "MAPS_PROVIDERS"]
+from .google_maps_provider import GoogleMapsProvider
+
+MAPS_PROVIDERS["google"] = GoogleMapsProvider

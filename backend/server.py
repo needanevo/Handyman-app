@@ -2,6 +2,7 @@ from fastapi import FastAPI, APIRouter, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from .providers import EMAIL_PROVIDERS, AI_PROVIDERS
+from fastapi.responses import RedirectResponse
 
 load_dotenv("backend/providers/providers.env")
 from starlette.middleware.cors import CORSMiddleware
@@ -68,7 +69,7 @@ active_ai = (
 )
 ai_provider = AI_PROVIDERS[active_ai]()
 email_provider = EMAIL_PROVIDERS[os.getenv("ACTIVE_EMAIL_PROVIDER", "mock")]()
-maps_provider = request.app.state.maps → await maps_provider.geocode(address.dict())
+
 # Create the main app
 app = FastAPI(
     title="The Real Johnson Handyman Services API",
@@ -635,3 +636,9 @@ async def seed_default_services():
         await db.services.insert_one(service.dict())
 
     logger.info(f"Seeded {len(default_services)} default services")
+
+    
+@app.get("/")
+def root():
+    return RedirectResponse(url="/api/health", status_code=307)
+
