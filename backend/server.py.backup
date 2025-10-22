@@ -419,8 +419,8 @@ async def add_address(
                 f"{address.street}, {address.city}, {address.state} {address.zip_code}"
             )
             if geocode_result:
-                address.latitude = geocode_result["latitude"]
-                address.longitude = geocode_result["longitude"]
+                address.latitude = geocode_result.latitude
+                address.longitude = geocode_result.longitude
         except Exception as e:
             logger.warning(f"Geocoding failed: {e}")
 

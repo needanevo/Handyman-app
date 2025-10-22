@@ -104,3 +104,6 @@ android-sdk/ -e
 backend/providers/providers.env
 venv/
 __pycache__/
+backend/providers/providers.env
+.env
+*.log

@@ -1,4 +1,14 @@
+#!/bin/bash
 # deploy-handyman
-git -C . pull --ff-only
+
+# Pull latest code
+git pull --ff-only
+
+# Restart the service (this handles everything)
 sudo systemctl restart handyman-api
-journalctl -u handyman-api -n 50 --no-pager
+
+# Show recent logs
+sudo journalctl -u handyman-api -n 50 --no-pager
+
+# Check status
+sudo systemctl status handyman-api
