@@ -1,0 +1,43 @@
+# Here are some commands to see what's in your database:
+
+##Login first! (at the command prompt)##
+
+mongosh;mongodb://needanevo:1Jennifer1Joshua@127.0.0.1:27017/handyman
+
+then
+
+[#Show all collections:(this will show you your different databases#]
+
+show collections
+
+#echoed"
+
+accounts
+quotes
+services
+subcontractor_profiles
+user_passwords
+users
+/#
+
+[Count documents in each collection:]
+
+db.users.countDocuments()
+db.user_passwords.countDocuments()
+db.quotes.countDocuments()
+db.services.countDocuments()
+
+[See actual data in a collection:]
+
+db.users.find().pretty()
+db.user_passwords.find().pretty()
+db.quotes.find().pretty()
+db.services.find().pretty()
+
+[See just a few documents:]
+
+db.users.find().limit(5).pretty()
+
+[Check specific fields (like just emails):]
+
+javascriptdb.users.find({}, {email: 1, first_name: 1, last_name: 1})

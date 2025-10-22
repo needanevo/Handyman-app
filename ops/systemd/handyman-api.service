@@ -1,0 +1,10 @@
+[Unit]
+Description=Handyman API (Uvicorn)
+After=network.target
+
+[Service]
+WorkingDirectory=/srv/handyman-app/Handyman-app-main
+EnvironmentFile=/srv/handyman-app/Handyman-app-main/backend/providers/providers.env
+ExecStart=/srv/handyman-app/Handyman-app-main/venv/bin/uvicorn backend.server:app --host 127.0.0.1 --port 8001
+Restart=always
+User=root

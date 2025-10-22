@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 
 # Configuration
-BASE_URL = "https://fixitright-2.preview.emergentagent.com/api"
+BASE_URL = "https://therealjohnson.com
 TEST_USER_EMAIL = "john.customer@example.com"
 TEST_USER_PASSWORD = "SecurePass123!"
 TEST_USER_NAME = "John Customer"

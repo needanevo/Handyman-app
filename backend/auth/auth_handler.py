@@ -97,7 +97,12 @@ class AuthHandler:
         
         # For this demo, we'll store hashed password in a separate collection
         # In production, consider a more secure approach
-        password_data = await self.db.user_passwords.find_one({"user_id": user.id})
+        password_data = await self.db.user_passwords.find_one({
+    "$or": [
+        {"user_id": user.id},
+        {"user_id": str(user.id)}
+    ]
+})
         if not password_data:
             return None
         

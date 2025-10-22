@@ -1,7 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
-from .providers import EMAIL_PROVIDERS, AI_PROVIDERS, MAPS_PROVIDERS
+from .providers import EMAIL_PROVIDERS, AI_PROVIDERS
 from fastapi.responses import RedirectResponse
 
 load_dotenv("backend/providers/providers.env")
@@ -69,7 +69,7 @@ active_ai = (
 )
 ai_provider = AI_PROVIDERS[active_ai]()
 email_provider = EMAIL_PROVIDERS[os.getenv("ACTIVE_EMAIL_PROVIDER", "mock")]()
-maps_provider = MAPS_PROVIDERS[os.getenv("ACTIVE_MAPS_PROVIDER", "google")]()
+
 # Create the main app
 app = FastAPI(
     title="The Real Johnson Handyman Services API",
@@ -91,46 +91,67 @@ logger = logging.getLogger(__name__)
 
 # ==================== AUTHENTICATION ROUTES ====================
 
+
 @api_router.post("/auth/register", response_model=Token)
 async def register_user(user_data: UserCreate):
+    """Register a new user"""
     try:
-        if await auth_handler.get_user_by_email(user_data.email):
-            raise HTTPException(409, detail="Looks like you already have an account. Try logging in, or use Forgot Password.")
-        
-        # Generate user_id FIRST before creating the User object
-        user_id = str(uuid.uuid4())
-        
+        # Check if user already exists
+        existing_user = await auth_handler.get_user_by_email(user_data.email)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Your email is already in our database. Please trt your password again",
+            )
+
+        # Create new user - map camelCase to snake_case for User model
+        user_dict = user_data.dict(exclude={"password"})
         user = User(
-            id=user_id,  # ← Explicitly set the ID
-            email=user_data.email, 
-            phone=user_data.phone, 
-            first_name=user_data.firstName,
-            last_name=user_data.lastName, 
-            role=user_data.role, 
-            marketing_opt_in=user_data.marketingOptIn,
-            created_at=datetime.utcnow(), 
-            updated_at=datetime.utcnow()
+            email=user_dict["email"],
+            phone=user_dict["phone"],
+            first_name=user_dict["firstName"],
+            last_name=user_dict["lastName"],
+            role=user_dict["role"],
+            marketing_opt_in=user_dict.get("marketingOptIn", False),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
-        
-        user_doc = user.model_dump()
-        user_doc["created_at"] = user_doc["created_at"].isoformat()
-        user_doc["updated_at"] = user_doc["updated_at"].isoformat()
-        
-        await db.users.insert_one(user_doc)
-        await auth_handler.create_user_password(user_id, user_data.password)
-        
-        return Token(
-            access_token=auth_handler.create_access_token({"user_id": user_id, "email": user.email, "role": user.role}),
-            refresh_token=auth_handler.create_refresh_token({"user_id": user_id, "email": user.email})
+
+        # Save user to database - Pydantic v2 compatibility
+        user_dict = user.model_dump()
+        # Convert datetime objects to ISO strings for MongoDB
+        if "created_at" in user_dict and user_dict["created_at"]:
+            user_dict["created_at"] = user_dict["created_at"].isoformat()
+        if "updated_at" in user_dict and user_dict["updated_at"]:
+            user_dict["updated_at"] = user_dict["updated_at"].isoformat()
+
+        # Save user to database and get the real Mongo _id
+        result = await db.users.insert_one(user_dict)
+        user_id = str(result.inserted_id)
+
+        # Optional: keep your user model’s id field consistent
+        await db.users.update_one({"_id": result.inserted_id}, {"$set": {"id": user_id}})
+
+        # Save password hash linked to the Mongo _id
+        await auth_handler.create_user_password(str(user_dict["_id"])
+
+        # Create tokens using the real user_id
+        access_token = auth_handler.create_access_token(
+            data={"user_id": user_id, "email": user.email, "role": user.role}
         )
-    except HTTPException: 
-        raise
+        refresh_token = auth_handler.create_refresh_token(
+            data={"user_id": user_id, "email": user.email}
+        )
+
+
+        return Token(access_token=access_token, refresh_token=refresh_token)
+
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(500, detail=f"Failed to create user: {e}")
-
-
+        logger.error(f"Registration error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create user",
+        )
 
 
 @api_router.post("/auth/login", response_model=Token)
@@ -138,8 +159,9 @@ async def login_user(login_data: UserLogin):
     """Login user and return tokens"""
     user = await auth_handler.authenticate_user(login_data.email, login_data.password)
     if not user:
-        raise HTTPException(401, detail="That email or password didn't match. Please try again or use Forgot Password.")
-    
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
+        )
 
     access_token = auth_handler.create_access_token(
         data={"user_id": user.id, "email": user.email, "role": user.role}
