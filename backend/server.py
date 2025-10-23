@@ -626,3 +626,47 @@ async def seed_default_services():
 def root():
     return RedirectResponse(url="/api/health", status_code=307)
 
+
+@api_router.post("/auth/refresh", response_model=Token)
+async def refresh_token(refresh_token: str = Body(..., embed=True)):
+    """
+    Refresh access token using refresh token
+    """
+    try:
+        # Verify refresh token
+        payload = auth_handler.verify_token(refresh_token, token_type="refresh")
+        user_id = payload.get("user_id")
+        email = payload.get("email")
+        
+        if not user_id or not email:
+            raise HTTPException(401, "Invalid refresh token")
+        
+        # Get user to verify they still exist and are active
+        user = await auth_handler.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(401, "User not found")
+        
+        # Create new tokens
+        access_token = auth_handler.create_access_token({
+            "user_id": user_id,
+            "email": email,
+            "role": user.role
+        })
+        
+        new_refresh_token = auth_handler.create_refresh_token({
+            "user_id": user_id,
+            "email": email
+        })
+        
+        return Token(
+            access_token=access_token,
+            refresh_token=new_refresh_token
+        )
+        
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(401, "Refresh token expired")
+    except jwt.JWTError:
+        raise HTTPException(401, "Invalid refresh token")
+    except Exception as e:
+        logger.error(f"Token refresh error: {e}")
+        raise HTTPException(500, "Token refresh failed")
