@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,57 +14,36 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { Button } from '../../src/components/Button';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [email, setEmail] = useState('demo@therealjohnson.com');
-  const [password, setPassword] = useState('demo123');
-  const [errors, setErrors] = useState<{email?: string; password?: string}>({});
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  const validateForm = () => {
-    const newErrors: {email?: string; password?: string} = {};
-    
-    if (!email) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
-      newErrors.email = 'Invalid email address';
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('User authenticated, redirecting to home...');
+      router.replace('/home');
     }
-    
-    if (!password) {
-      newErrors.password = 'Password is required';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  }, [isAuthenticated]);
 
-  const handleSubmit = async () => {
-    console.log('LOGIN BUTTON CLICKED - Simple form approach');
-    
-    if (!validateForm()) {
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter email and password');
       return;
     }
-    
+
     try {
       setIsLoading(true);
-      console.log('About to call login function from AuthContext...');
+      console.log('Attempting login with:', email);
       await login(email, password);
-      
-      console.log('Login successful - navigating to home manually');
-      
-      // Navigate directly to home since we're not on index route
-      router.replace('/home');
-      
+      console.log('Login successful!');
     } catch (error: any) {
       console.error('Login error:', error);
-      Alert.alert(
-        'Login Failed',
-        error.response?.data?.detail || 'Please check your credentials'
-      );
+      Alert.alert('Login Failed', error.response?.data?.detail || error.message || 'Please check your credentials');
     } finally {
       setIsLoading(false);
     }
@@ -76,108 +56,58 @@ export default function LoginScreen() {
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.content}>
-          {/* Header */}
           <View style={styles.header}>
-            <Button
-              title=""
-              onPress={() => router.back()}
-              variant="outline"
-              size="small"
-              icon={<Ionicons name="arrow-back" size={20} color="#FF6B35" />}
-            />
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#FF6B35" />
+            </TouchableOpacity>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to your account</Text>
           </View>
 
-          {/* Form */}
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email</Text>
               <TextInput
-                style={[styles.input, errors.email && styles.inputError]}
+                style={styles.input}
                 onChangeText={setEmail}
                 value={email}
-                placeholder="john@example.com"
+                placeholder="your@email.com"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                editable={!isLoading && !authLoading}
               />
-              {errors.email && (
-                <Text style={styles.errorText}>{errors.email}</Text>
-              )}
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
               <TextInput
-                style={[styles.input, errors.password && styles.inputError]}
+                style={styles.input}
                 onChangeText={setPassword}
                 value={password}
                 placeholder="••••••••"
                 secureTextEntry
+                editable={!isLoading && !authLoading}
               />
-              {errors.password && (
-                <Text style={styles.errorText}>{errors.password}</Text>
-              )}
             </View>
           </View>
 
-          {/* Demo Credentials */}
-          <View style={styles.demoContainer}>
-            <Text style={styles.demoTitle}>Demo Credentials:</Text>
-            <Text style={styles.demoText}>Email: demo@therealjohnson.com</Text>
-            <Text style={styles.demoText}>Password: demo123</Text>
-          </View>
-
-          {/* Actions */}
           <View style={styles.actions}>
-            <TouchableOpacity 
-              style={{
-                backgroundColor: '#FF0000',
-                padding: 16,
-                borderRadius: 8,
-                alignItems: 'center',
-                width: '100%',
-                marginBottom: 10
-              }}
-              onPress={() => {
-                alert('JavaScript is working!');
-              }}
+            <TouchableOpacity
+              style={[styles.loginButton, (isLoading || authLoading) && styles.loginButtonDisabled]}
+              onPress={handleLogin}
+              disabled={isLoading || authLoading}
             >
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-                Test JavaScript
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={{
-                backgroundColor: '#FF6B35',
-                padding: 16,
-                borderRadius: 8,
-                alignItems: 'center',
-                width: '100%',
-                opacity: isLoading ? 0.7 : 1
-              }}
-              onPress={() => {
-                console.log('=== LOGIN BUTTON CLICKED ===');
-                alert('Login button clicked!');
-                handleSubmit();
-              }}
-              disabled={isLoading}
-            >
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-                {isLoading ? 'Signing In...' : 'Sign In Now'}
+              <Text style={styles.loginButtonText}>
+                {isLoading || authLoading ? 'Signing In...' : 'Sign In'}
               </Text>
             </TouchableOpacity>
             
             <View style={styles.signupContainer}>
               <Text style={styles.signupText}>Don't have an account? </Text>
-              <Button
-                title="Sign Up"
-                onPress={() => router.push('/auth/register')}
-                variant="outline"
-                size="small"
-              />
+              <TouchableOpacity onPress={() => router.push('/auth/register')}>
+                <Text style={styles.signupLink}>Sign Up</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -202,6 +132,12 @@ const styles = StyleSheet.create({
   header: {
     paddingBottom: 32,
     alignItems: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    padding: 8,
   },
   title: {
     fontSize: 24,
@@ -237,43 +173,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
-  inputError: {
-    borderColor: '#E74C3C',
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#E74C3C',
-    marginTop: 4,
-  },
-  demoContainer: {
-    backgroundColor: '#F8F9FA',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 24,
-  },
-  demoTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#495057',
-    marginBottom: 8,
-  },
-  demoText: {
-    fontSize: 14,
-    color: '#6C757D',
-    fontFamily: 'monospace',
-  },
   actions: {
     paddingBottom: 24,
+  },
+  loginButton: {
+    backgroundColor: '#FF6B35',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
   },
   signupText: {
     fontSize: 16,
     color: '#7F8C8D',
-    marginRight: 8,
+  },
+  signupLink: {
+    fontSize: 16,
+    color: '#FF6B35',
+    fontWeight: '600',
   },
 });
