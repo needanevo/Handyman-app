@@ -1,0 +1,726 @@
+import React, { useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Button } from '../../src/components/Button';
+import { Ionicons } from '@expo/vector-icons';
+import { useForm, Controller } from 'react-hook-form';
+import * as ImagePicker from 'expo-image-picker';
+import { quotesAPI } from '../../src/services/api';
+import { useAuth } from '../../src/contexts/AuthContext';
+
+interface QuoteRequestForm {
+  serviceCategory: string;
+  description: string;
+  urgency: string;
+  budgetRange: {
+    min: string;
+    max: string;
+  };
+}
+
+const serviceCategories = [
+  {
+    id: 'drywall',
+    title: 'Drywall',
+    icon: 'hammer-outline',
+    color: '#FF6B35',
+    shortDesc: 'Patches, repairs, texturing',
+    fullDesc: 'Professional drywall installation, repair, patching, and texturing services. We handle everything from small holes to full room installations, including taping, mudding, sanding, and texture matching.',
+  },
+  {
+    id: 'painting',
+    title: 'Painting',
+    icon: 'brush-outline',
+    color: '#4ECDC4',
+    shortDesc: 'Interior, exterior, touch-ups',
+    fullDesc: 'Expert painting services for interior and exterior projects. Includes surface preparation, priming, finish coats, trim work, and color consultation. Perfect for single rooms, whole homes, or touch-up projects.',
+  },
+  {
+    id: 'electrical',
+    title: 'Electrical',
+    icon: 'flash-outline',
+    color: '#45B7D1',
+    shortDesc: 'Outlets, switches, fixtures',
+    fullDesc: 'Licensed electrical services including outlet installation, switch replacement, light fixture installation, ceiling fan mounting, GFCI upgrades, and troubleshooting electrical issues. All work meets local building codes.',
+  },
+  {
+    id: 'plumbing',
+    title: 'Plumbing',
+    icon: 'water-outline',
+    color: '#96CEB4',
+    shortDesc: 'Faucets, leaks, installations',
+    fullDesc: 'Professional plumbing repairs and installations. Services include faucet replacement, leak repairs, toilet installation, sink mounting, garbage disposal installation, and drain cleaning. Emergency repairs available.',
+  },
+  {
+    id: 'carpentry',
+    title: 'Carpentry',
+    icon: 'construct-outline',
+    color: '#FECA57',
+    shortDesc: 'Doors, trim, repairs',
+    fullDesc: 'Custom carpentry and woodworking services. Specializing in door installation and repair, trim work, crown molding, baseboards, shelving, cabinet repairs, and general wood repairs. Quality craftsmanship guaranteed.',
+  },
+  {
+    id: 'miscellaneous',
+    title: 'Other',
+    icon: 'build-outline',
+    color: '#A29BFE',
+    shortDesc: 'TV mounts, honey-do lists',
+    fullDesc: 'General handyman services for those odd jobs around the house. TV mounting, furniture assembly, picture hanging, minor home repairs, and honey-do list items. If you need it done, we can help!',
+  },
+];
+
+const urgencyOptions = [
+  { id: 'flexible', title: 'Flexible', description: 'Within 2 weeks' },
+  { id: 'normal', title: 'Normal', description: 'Within 1 week' },
+  { id: 'urgent', title: 'Urgent', description: 'Within 2-3 days' },
+];
+
+// Cross-platform alert helper
+const showAlert = (title: string, message: string, buttons?: any[]) => {
+  if (Platform.OS === 'web') {
+    alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message, buttons);
+  }
+};
+
+export default function QuoteRequestScreen() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const { category } = useLocalSearchParams();
+  const [isLoading, setIsLoading] = useState(false);
+  const [photos, setPhotos] = useState<string[]>([]);
+  
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    watch,
+    setValue,
+  } = useForm<QuoteRequestForm>({
+    defaultValues: {
+      serviceCategory: (category as string) || '',
+      urgency: 'normal',
+      budgetRange: { min: '', max: '' },
+    },
+  });
+  
+  const selectedCategory = watch('serviceCategory');
+  const selectedUrgency = watch('urgency');
+
+  // Get the selected service details
+  const selectedService = useMemo(() => {
+    return serviceCategories.find(s => s.id === selectedCategory);
+  }, [selectedCategory]);
+
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showAlert('Permission needed', 'Please allow access to photos to upload images.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        setPhotos(prev => [...prev, `data:image/jpeg;base64,${result.assets[0].base64}`]);
+      }
+    } catch (error) {
+      showAlert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        showAlert('Permission needed', 'Please allow access to camera to take photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        setPhotos(prev => [...prev, `data:image/jpeg;base64,${result.assets[0].base64}`]);
+      }
+    } catch (error) {
+      showAlert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const onSubmit = async (data: QuoteRequestForm) => {
+    if (!data.serviceCategory) {
+      showAlert('Error', 'Please select a service category');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      // Get user's default address or create a mock one
+      let addressId = user?.addresses?.find(addr => addr.isDefault)?.id;
+      if (!addressId && user?.addresses && user.addresses.length > 0) {
+        addressId = user.addresses[0].id;
+      } else if (!addressId) {
+        // Create a temporary address for demo purposes
+        addressId = 'temp-address-id';
+      }
+
+      const quoteRequest = {
+        service_category: data.serviceCategory,
+        address_id: addressId,
+        description: data.description,
+        photos,
+        preferred_dates: [], // Will be enhanced later with date picker
+        budget_range: {
+          min: parseFloat(data.budgetRange.min) || 0,
+          max: parseFloat(data.budgetRange.max) || 0,
+        },
+        urgency: data.urgency,
+      };
+
+      const response = await quotesAPI.requestQuote(quoteRequest);
+      console.log('Quote response:', response);
+      
+      showAlert(
+        'Quote Generated!',
+        `Your quote has been generated. Estimated total: $${response.estimated_total}.\n\nThis is a preliminary AI-generated estimate. Our team will review and send the final quote within 24-48 hours.`,
+        [
+          {
+            text: 'View Quotes',
+            onPress: () => router.push('/quotes'),
+          },
+          {
+            text: 'OK',
+            onPress: () => router.push('/home'),
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error('Quote request error:', error);
+      showAlert(
+        'Request Failed',
+        error.response?.data?.detail || error.message || 'Please try again later'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView contentContainerStyle={styles.content}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#2C3E50" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Request Quote</Text>
+            <View style={styles.placeholder} />
+          </View>
+
+          {/* Selected Service Display */}
+          {selectedService && (
+            <View style={styles.selectedServiceSection}>
+              <View style={[styles.selectedServiceIcon, { backgroundColor: `${selectedService.color}20` }]}>
+                <Ionicons
+                  name={selectedService.icon as any}
+                  size={48}
+                  color={selectedService.color}
+                />
+              </View>
+              <Text style={styles.selectedServiceTitle}>{selectedService.title}</Text>
+              <Text style={styles.selectedServiceDescription}>{selectedService.fullDesc}</Text>
+              
+              <TouchableOpacity
+                style={styles.changeServiceButton}
+                onPress={() => setValue('serviceCategory', '')}
+              >
+                <Text style={styles.changeServiceText}>Change Service</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Service Category Selection (only show if none selected) */}
+          {!selectedService && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>What do you need help with?</Text>
+              <View style={styles.categoryGrid}>
+                {serviceCategories.map((service) => (
+                  <TouchableOpacity
+                    key={service.id}
+                    style={styles.categoryCard}
+                    onPress={() => setValue('serviceCategory', service.id)}
+                  >
+                    <View style={[styles.categoryIcon, { backgroundColor: `${service.color}20` }]}>
+                      <Ionicons
+                        name={service.icon as any}
+                        size={24}
+                        color={service.color}
+                      />
+                    </View>
+                    <Text style={styles.categoryTitle}>{service.title}</Text>
+                    <Text style={styles.categoryDesc}>{service.shortDesc}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {errors.serviceCategory && (
+                <Text style={styles.errorText}>Please select a service category</Text>
+              )}
+            </View>
+          )}
+
+          {/* Description */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Describe the issue</Text>
+            <Controller
+              control={control}
+              name="description"
+              rules={{ required: 'Please describe what you need help with' }}
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  style={[styles.textArea, errors.description && styles.inputError]}
+                  onChangeText={onChange}
+                  value={value}
+                  placeholder="Describe the work needed, any specific requirements, or problems you're experiencing..."
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              )}
+            />
+            {errors.description && (
+              <Text style={styles.errorText}>{errors.description.message}</Text>
+            )}
+          </View>
+
+          {/* Photos */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Add Photos (Optional)</Text>
+            <Text style={styles.sectionDescription}>
+              Photos help us provide more accurate estimates
+            </Text>
+            
+            <View style={styles.photoActions}>
+              <Button
+                title="Take Photo"
+                onPress={takePhoto}
+                variant="outline"
+                size="small"
+                icon={<Ionicons name="camera-outline" size={16} color="#FF6B35" />}
+              />
+              <Button
+                title="Choose from Library"
+                onPress={pickImage}
+                variant="outline"
+                size="small"
+                icon={<Ionicons name="image-outline" size={16} color="#FF6B35" />}
+              />
+            </View>
+            
+            {photos.length > 0 && (
+              <View style={styles.photoPreview}>
+                {photos.map((photo, index) => (
+                  <View key={index} style={styles.photoItem}>
+                    <TouchableOpacity
+                      onPress={() => removePhoto(index)}
+                      style={styles.removePhoto}
+                    >
+                      <Ionicons name="close" size={16} color="#fff" />
+                    </TouchableOpacity>
+                    <View style={styles.photoPlaceholder}>
+                      <Ionicons name="image" size={24} color="#7F8C8D" />
+                      <Text style={styles.photoText}>Photo {index + 1}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Urgency */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>When do you need this done?</Text>
+            <View style={styles.urgencyOptions}>
+              {urgencyOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.urgencyCard,
+                    selectedUrgency === option.id && styles.urgencyCardSelected,
+                  ]}
+                  onPress={() => setValue('urgency', option.id)}
+                >
+                  <View style={styles.urgencyContent}>
+                    <Text
+                      style={[
+                        styles.urgencyTitle,
+                        selectedUrgency === option.id && styles.urgencyTitleSelected,
+                      ]}
+                    >
+                      {option.title}
+                    </Text>
+                    <Text style={styles.urgencyDescription}>{option.description}</Text>
+                  </View>
+                  {selectedUrgency === option.id && (
+                    <Ionicons name="checkmark-circle" size={24} color="#FF6B35" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Budget Range */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Budget Range (Optional)</Text>
+            <Text style={styles.sectionDescription}>
+              Help us provide options within your budget
+            </Text>
+            <View style={styles.budgetRow}>
+              <View style={styles.budgetInput}>
+                <Text style={styles.label}>Minimum</Text>
+                <Controller
+                  control={control}
+                  name="budgetRange.min"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={styles.input}
+                      onChangeText={onChange}
+                      value={value}
+                      placeholder="$100"
+                      keyboardType="numeric"
+                    />
+                  )}
+                />
+              </View>
+              <View style={styles.budgetSeparator}>
+                <Text style={styles.budgetSeparatorText}>to</Text>
+              </View>
+              <View style={styles.budgetInput}>
+                <Text style={styles.label}>Maximum</Text>
+                <Controller
+                  control={control}
+                  name="budgetRange.max"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={styles.input}
+                      onChangeText={onChange}
+                      value={value}
+                      placeholder="$500"
+                      keyboardType="numeric"
+                    />
+                  )}
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Submit */}
+          <View style={styles.submitSection}>
+            <Button
+              title="Get AI-Powered Quote"
+              onPress={handleSubmit(onSubmit)}
+              loading={isLoading}
+              fullWidth
+              size="large"
+              icon={<Ionicons name="flash" size={20} color="#fff" />}
+            />
+            <Text style={styles.submitNote}>
+              You'll receive an AI-generated estimate in minutes. Our team will review and send the final quote within 24-48 hours.
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+    paddingBottom: 24,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  backButton: {
+    padding: 8,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+  },
+  placeholder: {
+    width: 40,
+  },
+  selectedServiceSection: {
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    backgroundColor: '#F8F9FA',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+    alignItems: 'center',
+  },
+  selectedServiceIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  selectedServiceTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    marginBottom: 12,
+  },
+  selectedServiceDescription: {
+    fontSize: 15,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  changeServiceButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+  },
+  changeServiceText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF6B35',
+  },
+  section: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    marginBottom: 8,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#7F8C8D',
+    marginBottom: 16,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -6,
+    marginTop: 8,
+  },
+  categoryCard: {
+    width: '31%',
+    margin: 6,
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  categoryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  categoryTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2C3E50',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  categoryDesc: {
+    fontSize: 10,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    lineHeight: 12,
+  },
+  textArea: {
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    height: 100,
+    backgroundColor: '#fff',
+  },
+  photoActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  photoPreview: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  photoItem: {
+    position: 'relative',
+  },
+  photoPlaceholder: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  photoText: {
+    fontSize: 10,
+    color: '#7F8C8D',
+    marginTop: 4,
+  },
+  removePhoto: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#E74C3C',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  urgencyOptions: {
+    gap: 12,
+    marginTop: 8,
+  },
+  urgencyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  urgencyCardSelected: {
+    backgroundColor: '#FFF4F1',
+    borderColor: '#FF6B35',
+  },
+  urgencyContent: {
+    flex: 1,
+  },
+  urgencyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+  },
+  urgencyTitleSelected: {
+    color: '#FF6B35',
+  },
+  urgencyDescription: {
+    fontSize: 14,
+    color: '#7F8C8D',
+    marginTop: 2,
+  },
+  budgetRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  budgetInput: {
+    flex: 1,
+  },
+  budgetSeparator: {
+    width: 40,
+    alignItems: 'center',
+    paddingBottom: 12,
+  },
+  budgetSeparatorText: {
+    fontSize: 16,
+    color: '#7F8C8D',
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 8,
+  },
+  input: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  inputError: {
+    borderColor: '#E74C3C',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#E74C3C',
+    marginTop: 8,
+  },
+  submitSection: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+  },
+  submitNote: {
+    fontSize: 12,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 16,
+  },
+});

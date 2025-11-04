@@ -1,0 +1,14 @@
+[0;1;32m●[0m handyman-api.service - Handyman API (Uvicorn)
+     Loaded: loaded (]8;;file://localhost/etc/systemd/system/handyman-api.service/etc/systemd/system/handyman-api.service]8;;; static[0;1;32m[0m)
+     Active: [0;1;32mactive (running)[0m since Tue 2025-10-21 19:02:45 EDT; 609ms ago
+   Main PID: 49660 (uvicorn)
+      Tasks: 2 (limit: 2265)
+     Memory: 33.2M (peak: 33.5M)
+        CPU: 557ms
+     CGroup: /system.slice/handyman-api.service
+             └─[0;38;5;245m49660 /srv/handyman-app/Handyman-app-main/venv/bin/python3 /srv/handyman-app/Handyman-app-main/venv/bin/uvicorn backend.server:app --host 127.0.0.1 --port 8001[0m
+
+Oct 21 19:02:45 localhost systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mhandyman-api.service: Failed with result 'exit-code'.[0m
+Oct 21 19:02:45 localhost systemd[1]: handyman-api.service: Consumed 1.562s CPU time.
+Oct 21 19:02:45 localhost systemd[1]: handyman-api.service: Scheduled restart job, restart counter is at 2.
+Oct 21 19:02:45 localhost systemd[1]: Started handyman-api.service - Handyman API (Uvicorn).
