@@ -1,8 +1,12 @@
-from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Body, Body
+from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Body, Request, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from .providers import EMAIL_PROVIDERS, AI_PROVIDERS, MAPS_PROVIDERS
 from fastapi.responses import RedirectResponse
+from .providers.linode_storage_provider import LinodeObjectStorage
+from .providers.quote_email_service import QuoteEmailService
+
+
 
 load_dotenv("backend/providers/providers.env")
 from starlette.middleware.cors import CORSMiddleware
@@ -70,6 +74,9 @@ active_ai = (
 ai_provider = AI_PROVIDERS[active_ai]()
 email_provider = EMAIL_PROVIDERS[os.getenv("ACTIVE_EMAIL_PROVIDER", "mock")]()
 maps_provider = MAPS_PROVIDERS[os.getenv("ACTIVE_MAPS_PROVIDER", "google")]()
+storage_provider = LinodeObjectStorage()
+quote_email_service = QuoteEmailService()
+
 # Create the main app
 app = FastAPI(
     title="The Real Johnson Handyman Services API",
@@ -226,6 +233,14 @@ async def create_service(
 
 
 # ==================== QUOTE ROUTES ====================
+# >>> PHOTO_DEBUG_START
+@api_router.post("/photo")
+async def debug_photo(request: Request, file: UploadFile = File(...)):
+    data = await file.read()
+    logger.info(f"📸 /photo received: name={file.filename}, bytes={len(data)}")
+    # no provider call here (provider missing on dev) — just prove request path + logging
+    return {"filename": file.filename, "received_bytes": len(data)}
+# <<< PHOTO_DEBUG_END
 
 
 @api_router.post("/quotes/request")
@@ -233,105 +248,251 @@ async def request_quote(
     quote_request: QuoteRequest,
     current_user: User = Depends(get_current_user_dependency),
 ):
-    """Request a quote for services"""
+    """
+    Request a quote for services with photo upload to Linode and email notification
+    """
     try:
-        # Get AI suggestion if enabled
+        quote_id = str(uuid.uuid4())
+        
+        # Step 1: Upload photos to Linode Object Storage
+        photo_urls = []
+        if quote_request.photos:
+            logger.info(f"Uploading {len(quote_request.photos)} photos to Linode...")
+            try:
+                photo_urls = await storage_provider.upload_multiple_photos(
+                    photos=quote_request.photos,
+                    customer_id=current_user.id,
+                    quote_id=quote_id
+                )
+                logger.info(f"Successfully uploaded photos: {photo_urls}")
+            except Exception as e:
+                logger.error(f"Photo upload failed: {e}")
+                # Continue without photos rather than failing the entire request
+                photo_urls = []
+        
+        # Step 2: Get AI suggestion if enabled
         ai_suggestion = None
+        ai_suggestion_dict = None
         if os.getenv("FEATURE_AI_QUOTE_ENABLED", "true").lower() == "true":
             try:
                 ai_suggestion = await ai_provider.generate_quote_suggestion(
                     service_type=quote_request.service_category,
                     description=quote_request.description,
-                    photos_metadata=[
-                        f"photo_{i}" for i in range(len(quote_request.photos))
-                    ],
+                    photos_metadata=[f"photo_{i}" for i in range(len(quote_request.photos))],
                 )
+                
+                # Convert to dict for email
+                ai_suggestion_dict = {
+                    'estimated_hours': ai_suggestion.estimated_hours,
+                    'suggested_materials': ai_suggestion.suggested_materials,
+                    'complexity_rating': ai_suggestion.complexity_rating,
+                    'base_price_suggestion': ai_suggestion.base_price_suggestion,
+                    'reasoning': ai_suggestion.reasoning,
+                    'confidence': ai_suggestion.confidence
+                }
+                
+                logger.info(f"AI suggestion generated with {ai_suggestion.confidence:.0%} confidence")
             except Exception as e:
                 logger.warning(f"AI quote generation failed: {e}")
-
-        # Find relevant services
-        services = await db.services.find(
-            {"category": quote_request.service_category.lower(), "is_active": True}
-        ).to_list(10)
-
-        if not services:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"No services found for category: {quote_request.service_category}",
-            )
-
-        # Create quote items for matching services
-        quote_items = []
-        for service_data in services[:1]:  # Use first matching service for now
-            service = Service(**service_data)
-            quote_item = pricing_engine.create_quote_item(
-                service=service,
-                quantity=1.0,
-                description=quote_request.description,
-                ai_suggestion=ai_suggestion,
-            )
-            quote_items.append(quote_item)
-
-        # Calculate totals (mock distance for now)
-        totals = pricing_engine.calculate_quote_totals(quote_items, distance_miles=5.0)
-
-        # Create quote
+        
+        # Step 3: Calculate pricing using AI suggestion or fallback to default
+        base_price = (
+            ai_suggestion.base_price_suggestion
+            if ai_suggestion
+            else pricing_engine.get_base_price(quote_request.service_category)
+        )
+        
+        estimated_hours = (
+            ai_suggestion.estimated_hours
+            if ai_suggestion
+            else pricing_engine.estimate_hours(quote_request.service_category)
+        )
+        
+        # Calculate totals
+        subtotal = base_price
+        trip_fee = 0.0  # Can be calculated based on address
+        tax_rate = 0.08  # 8% - adjust based on location
+        tax_amount = subtotal * tax_rate
+        total_amount = subtotal + trip_fee + tax_amount
+        
+        # Step 4: Create quote in database
         quote = Quote(
+            id=quote_id,
             customer_id=current_user.id,
             address_id=quote_request.address_id,
-            items=quote_items,
-            subtotal=totals["subtotal"],
-            tax_rate=totals["tax_rate"],
-            tax_amount=totals["tax_amount"],
-            trip_fee=totals["trip_fee"],
-            total_amount=totals["total_amount"],
+            items=[
+                QuoteItem(
+                    service_id=str(uuid.uuid4()),
+                    service_title=quote_request.service_category,
+                    description=quote_request.description,
+                    quantity=1.0,
+                    unit_price=base_price,
+                    total_price=base_price,
+                )
+            ],
+            subtotal=subtotal,
+            tax_rate=tax_rate,
+            tax_amount=tax_amount,
+            trip_fee=trip_fee,
+            total_amount=total_amount,
             description=quote_request.description,
-            photos=quote_request.photos,
+            photos=photo_urls,  # Store Linode URLs instead of base64
             preferred_dates=[
                 datetime.fromisoformat(d).date() for d in quote_request.preferred_dates
-            ],
+            ]
+            if quote_request.preferred_dates
+            else [],
             budget_range=quote_request.budget_range,
             urgency=quote_request.urgency,
-            ai_suggested=bool(ai_suggestion),
+            ai_suggested=ai_suggestion is not None,
             ai_confidence=ai_suggestion.confidence if ai_suggestion else None,
             ai_reasoning=ai_suggestion.reasoning if ai_suggestion else None,
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            status=QuoteStatus.DRAFT,
         )
-
-        # Save to database - Pydantic v2 compatibility
+        
+        # Save to database
         quote_dict = quote.model_dump()
-        # Convert datetime objects to ISO strings for MongoDB
-        if "created_at" in quote_dict and quote_dict["created_at"]:
-            quote_dict["created_at"] = quote_dict["created_at"].isoformat()
-        if "updated_at" in quote_dict and quote_dict["updated_at"]:
-            quote_dict["updated_at"] = quote_dict["updated_at"].isoformat()
-        if "expires_at" in quote_dict and quote_dict["expires_at"]:
-            quote_dict["expires_at"] = quote_dict["expires_at"].isoformat()
-        if "preferred_dates" in quote_dict:
+        
+        # Convert dates to ISO format for MongoDB
+        quote_dict["created_at"] = quote_dict["created_at"].isoformat()
+        quote_dict["updated_at"] = quote_dict["updated_at"].isoformat()
+        if quote_dict.get("preferred_dates"):
             quote_dict["preferred_dates"] = [
-                d.isoformat() if hasattr(d, "isoformat") else str(d)
-                for d in quote_dict["preferred_dates"]
+                d.isoformat() for d in quote_dict["preferred_dates"]
             ]
-
+        
         await db.quotes.insert_one(quote_dict)
-
+        logger.info(f"Quote {quote_id} created and saved to database")
+        
+        # Step 5: Send immediate confirmation email to customer
+        try:
+            customer_name = f"{current_user.first_name} {current_user.last_name}"
+            await quote_email_service.send_quote_received_notification(
+                to_email=current_user.email,
+                customer_name=customer_name,
+                service_category=quote_request.service_category
+            )
+            logger.info(f"Confirmation email sent to {current_user.email}")
+        except Exception as e:
+            logger.warning(f"Failed to send confirmation email: {e}")
+        
+        # Step 6: Prepare customer request data for admin/future email
+        customer_request_data = {
+            'description': quote_request.description,
+            'service_category': quote_request.service_category,
+            'urgency': quote_request.urgency,
+            'preferred_dates': quote_request.preferred_dates,
+            'photo_urls': photo_urls
+        }
+        
         return {
             "quote_id": quote.id,
-            "estimated_total": quote.total_amount,
-            "expires_at": quote.expires_at,
-            "ai_suggested": quote.ai_suggested,
-            "items": [
-                {"title": item.service_title, "price": item.total_price}
-                for item in quote.items
-            ],
+            "status": quote.status,
+            "total_amount": quote.total_amount,
+            "estimated_hours": estimated_hours,
+            "ai_confidence": ai_suggestion.confidence if ai_suggestion else None,
+            "photo_urls": photo_urls,
+            "message": "Quote request received! We'll send you a detailed estimate within 24 hours.",
         }
-
+        
     except Exception as e:
-        logger.error(f"Quote request error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process quote request: {str(e)}",
+        logger.error(f"Quote request failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, detail=f"Failed to process quote request: {str(e)}")
+
+
+# ==================== NEW ENDPOINT: Send Quote Email ====================
+
+@api_router.post("/admin/quotes/{quote_id}/send-email")
+async def send_quote_email_endpoint(
+    quote_id: str, 
+    current_user: User = Depends(require_admin)
+):
+    """
+    Send detailed quote email to customer (admin only)
+    This sends the full quote with AI analysis and all details
+    """
+    try:
+        # Get quote from database
+        quote_doc = await db.quotes.find_one({"id": quote_id})
+        if not quote_doc:
+            raise HTTPException(status_code=404, detail="Quote not found")
+        
+        # Get customer details
+        customer = await db.users.find_one({"id": quote_doc["customer_id"]})
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        
+        # Prepare quote data for email
+        quote_data = {
+            'id': quote_doc['id'],
+            'items': quote_doc['items'],
+            'subtotal': quote_doc['subtotal'],
+            'tax_rate': quote_doc['tax_rate'],
+            'tax_amount': quote_doc['tax_amount'],
+            'trip_fee': quote_doc['trip_fee'],
+            'total_amount': quote_doc['total_amount']
+        }
+        
+        # Prepare AI suggestion data if available
+        ai_suggestion_data = None
+        if quote_doc.get('ai_suggested'):
+            ai_suggestion_data = {
+                'estimated_hours': quote_doc.get('ai_reasoning', '').split('hours')[0] if 'hours' in quote_doc.get('ai_reasoning', '') else 'N/A',
+                'suggested_materials': ['Materials will be determined during service'],  # Extract from reasoning if needed
+                'complexity_rating': 3,  # Could calculate from AI data
+                'reasoning': quote_doc.get('ai_reasoning', ''),
+                'confidence': quote_doc.get('ai_confidence', 0)
+            }
+        
+        # Prepare customer request data
+        customer_request_data = {
+            'description': quote_doc.get('description', ''),
+            'service_category': quote_doc['items'][0]['service_title'] if quote_doc.get('items') else 'N/A',
+            'urgency': quote_doc.get('urgency', 'normal'),
+            'preferred_dates': [d for d in quote_doc.get('preferred_dates', [])],
+            'photo_urls': quote_doc.get('photos', [])
+        }
+        
+        # Send email
+        customer_name = f"{customer.get('first_name', '')} {customer.get('last_name', '')}"
+        success = await quote_email_service.send_quote_email(
+            to_email=customer['email'],
+            customer_name=customer_name,
+            quote_data=quote_data,
+            ai_suggestion=ai_suggestion_data,
+            customer_request=customer_request_data
         )
+        
+        if success:
+            # Update quote status
+            await db.quotes.update_one(
+                {"id": quote_id},
+                {
+                    "$set": {
+                        "status": QuoteStatus.SENT,
+                        "sent_at": datetime.utcnow().isoformat()
+                    }
+                }
+            )
+            
+            return {
+                "message": "Quote email sent successfully",
+                "quote_id": quote_id,
+                "sent_to": customer['email']
+            }
+        else:
+            raise HTTPException(500, detail="Failed to send email")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to send quote email: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, detail=f"Failed to send quote email: {str(e)}")
+
 
 
 @api_router.get("/quotes", response_model=List[Quote])
