@@ -111,6 +111,8 @@ dist/
  # Archives
  **/*.zip
  **/*.tar.gz
-
+#Metro
+.metro-cache/
+metro-cache/
 backend/backend.log
 frontend/.env
