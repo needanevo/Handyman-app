@@ -49,4 +49,15 @@ dist/
 
 backend/backend.log
 frontend/.env
-
+.venv/
+GEMINI.md
+backend/__pycache__/
+backend/auth/__pycache__/
+backend/models/__pycache__/
+backend/node_modules/
+backend/providers/__pycache__/
+backend/providers/providers.env
+backend/providers/providers.txt
+backend/services/__pycache__/
+frontend/app/auth/login-working.tsx
+venv/
