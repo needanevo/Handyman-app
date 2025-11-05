@@ -53,8 +53,12 @@ from .services.pricing_engine import PricingEngine
 from .providers.openai_provider import OpenAiProvider
 from .providers.base import AiQuoteSuggestion, ProviderError
 
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / ".env")
+# --- Environment Variable Loading ---
+# Build the absolute path to the providers.env file
+# This is robust and will work regardless of where the app is started from
+PROJ_ROOT = Path(__file__).parent.parent # This is the Handyman-app-main directory
+load_dotenv(PROJ_ROOT / "backend/providers/providers.env")
+# --- End Environment Loading ---
 
 # MongoDB connection
 mongo_url = os.environ["MONGO_URL"]
