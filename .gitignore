@@ -111,3 +111,6 @@ dist/
  # Archives
  **/*.zip
  **/*.tar.gz
+
+backend/backend.log
+frontend/.env
