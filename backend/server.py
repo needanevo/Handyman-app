@@ -71,9 +71,9 @@ pricing_engine = PricingEngine()
 
 # Initialize providers based on feature flags
 active_ai = (
-    os.getenv("ACTIVE_AI_PROVIDER", "demo")
+    os.getenv("ACTIVE_AI_PROVIDER", "mock")
     if os.getenv("FEATURE_AI_QUOTE_ENABLED", "true").lower() == "true"
-    else "demo"
+    else "mock"
 )
 ai_provider = AI_PROVIDERS[active_ai]()
 email_provider = EMAIL_PROVIDERS[os.getenv("ACTIVE_EMAIL_PROVIDER", "mock")]()
