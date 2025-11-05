@@ -1,6 +1,9 @@
 import os
 import boto3
 from botocore.exceptions import ClientError
+from botocore.config import Config
+
+
 from typing import Optional, List
 import base64
 import uuid
@@ -18,24 +21,32 @@ class LinodeObjectStorage:
         # Linode Object Storage credentials
         self.access_key = os.getenv("LINODE_ACCESS_KEY")
         self.secret_key = os.getenv("LINODE_SECRET_KEY")
-        self.bucket_name = os.getenv("LINODE_BUCKET_NAME", "handyman-photos")
-        self.region = os.getenv("LINODE_REGION", "us-east-1")  # e.g., us-east-1, eu-central-1
+        self.bucket_name = os.getenv("LINODE_BUCKET_NAME", "photos")
+        self.region = "us-east-1" # Linode's Washington, D.C. region
         
-        # Linode endpoint format: https://{region}.linodeobjects.com
-        self.endpoint_url = f"https://{self.region}.linodeobjects.com"
+        # Linode endpoint format: https://{cluster_id}.linodeobjects.com
+        # We will use the specific cluster endpoint for stability
+        self.endpoint_url = "https://us-iad-10.linodeobjects.com"
         
-        if not all([self.access_key, self.secret_key]):
-            raise ValueError("LINODE_ACCESS_KEY and LINODE_SECRET_KEY must be set")
-        
-        # Initialize S3 client with Linode endpoint
+        # Initialize S3 client with Linode endpoint and proper timeouts
         self.s3_client = boto3.client(
             's3',
             aws_access_key_id=self.access_key,
             aws_secret_access_key=self.secret_key,
             endpoint_url=self.endpoint_url,
-            region_name=self.region
+            region_name=self.region,
+            config=Config(
+                signature_version='s3v4',
+                s3={'addressing_style': 'path'},
+                retries={'max_attempts': 3, 'mode': 'adaptive'},
+                connect_timeout=60,  # Increased from 3 to 60 seconds
+                read_timeout=60      # Increased from 9 to 60 seconds
+            )
         )
-        
+        logger.info(f"🔧 Linode bucket={self.bucket_name} region={self.region} endpoint={self.endpoint_url}")
+        self.s3_client.head_bucket(Bucket=self.bucket_name)
+        logger.info("✅ HEAD bucket ok")
+
         # Ensure bucket exists
         self._ensure_bucket_exists()
     
@@ -111,9 +122,12 @@ class LinodeObjectStorage:
                 ContentType=content_type,
                 ACL='public-read'  # Make publicly accessible
             )
-            
+            logger.info(f"📦 PUT -> bucket={self.bucket_name} key={object_key}")
+            self.s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+            logger.info("✅ HEAD object ok")
+
             # Generate public URL
-            public_url = f"{self.endpoint_url}/{self.bucket_name}/{object_key}"
+            public_url = f"https://{self.bucket_name}.{self.region}.linodeobjects.com/{object_key}"
             
             logger.info(f"Uploaded photo to: {public_url}")
             return public_url
@@ -218,3 +232,85 @@ class LinodeObjectStorage:
         except Exception as e:
             logger.error(f"Failed to delete quote photos: {e}")
             return False
+
+    def generate_signed_url(self, key: str, expires: int = 3600) -> str:
+        """Generate a presigned URL for secure access to a photo"""
+        return self.s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": self.bucket_name, "Key": key},
+            ExpiresIn=expires,
+        )
+
+    async def upload_photo_bytes(self, data: bytes, key: str) -> str:
+        """Upload raw bytes directly to storage"""
+        self.s3_client.put_object(
+            Bucket=self.bucket_name, Key=key, Body=data, ContentType="image/jpeg"
+        )
+        return self.generate_signed_url(key)
+        logger.info(f"📦 PUT -> bucket={self.bucket_name} key={object_key}")
+        self.s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+        logger.info("✅ HEAD object ok")
+
+    async def upload_photo_direct(
+        self,
+        file_data: bytes,
+        customer_id: str,
+        quote_id: str,
+        filename: str,
+        content_type: str = 'image/jpeg'
+    ) -> str:
+        """
+        Upload photo bytes directly to Linode Object Storage
+        No base64 encoding - much faster!
+        
+        Args:
+            file_data: Raw image bytes
+            customer_id: Customer ID for organizing files
+            quote_id: Quote ID for organizing files
+            filename: Filename with extension
+            content_type: MIME type of the image
+            
+        Returns:
+            Public URL of uploaded photo
+        """
+        try:
+            # Create a new client for each upload to avoid issues with async reuse
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_key,
+                endpoint_url=self.endpoint_url,
+                region_name=self.region,
+                config=Config(
+                    signature_version='s3v4',
+                    s3={'addressing_style': 'path'},
+                    retries={'max_attempts': 3, 'mode': 'adaptive'},
+                    connect_timeout=60,
+                    read_timeout=60
+                )
+            )
+
+            # Organize files: customers/{customer_id}/quotes/{quote_id}/{filename}
+            object_key = f"customers/{customer_id}/quotes/{quote_id}/{filename}"
+            
+            # Upload to Linode Object Storage
+            s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=object_key,
+                Body=file_data,
+                ContentType=content_type,
+                ACL='public-read'  # Make publicly accessible
+            )
+            logger.info(f"📦 PUT -> bucket={self.bucket_name} key={object_key}")
+            self.s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+            logger.info("✅ HEAD object ok")
+
+            # Generate public URL
+            public_url = f"{self.endpoint_url}/{self.bucket_name}/{object_key}"
+            
+            logger.info(f"Uploaded photo to: {public_url}")
+            return public_url
+            
+        except Exception as e:
+            logger.error(f"Failed to upload photo: {e}")
+            raise Exception(f"Photo upload failed: {str(e)}")

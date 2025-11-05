@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Body, Request, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Body, Request, UploadFile, File, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from .providers import EMAIL_PROVIDERS, AI_PROVIDERS, MAPS_PROVIDERS
@@ -236,12 +236,62 @@ async def create_service(
 # >>> PHOTO_DEBUG_START
 @api_router.post("/photo")
 async def debug_photo(request: Request, file: UploadFile = File(...)):
+    sp = request.app.state.storage if hasattr(request.app.state, "storage") else None
+    if not sp:
+        raise HTTPException(500, "Storage provider not initialized")
     data = await file.read()
-    logger.info(f"📸 /photo received: name={file.filename}, bytes={len(data)}")
-    # no provider call here (provider missing on dev) — just prove request path + logging
-    return {"filename": file.filename, "received_bytes": len(data)}
+    logger.info(f"📸 /photo: name={file.filename}, bytes={len(data)}")
+    key = f"debug/{uuid.uuid4()}_{file.filename}"
+    url = await sp.upload_photo_bytes(data, key)
+    logger.info(f"✅ /photo uploaded: {url}")
+    return {"url": url, "key": key}
 # <<< PHOTO_DEBUG_END
-
+@api_router.post("/photos/upload")
+async def upload_photo_immediately(
+    file: UploadFile = File(...),
+    customer_id: str = Form(...),
+):
+    """
+    Upload photo immediately when taken and return Linode URL
+    This uploads right away, not waiting for quote submission
+    """
+    try:
+        # Validate it's an image
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        # Read the file data
+        file_data = await file.read()
+        
+        # Create temp quote ID (will be organized later when actual quote is created)
+        temp_quote_id = f"temp_{str(uuid.uuid4())}"
+        
+        # Get file extension
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"photo_{uuid.uuid4().hex[:8]}.{file_extension}"
+        
+        # Upload using the NEW method in linode_storage_provider.py
+        url = await storage_provider.upload_photo_direct(
+            file_data=file_data,
+            customer_id=customer_id,
+            quote_id=temp_quote_id,
+            filename=filename,
+            content_type=file.content_type
+        )
+        
+        logger.info(f"Photo uploaded immediately: {url}")
+        
+        return {
+            "success": True,
+            "url": url,
+            "temp_quote_id": temp_quote_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Immediate photo upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Photo upload failed: {str(e)}")
 
 @api_router.post("/quotes/request")
 async def request_quote(

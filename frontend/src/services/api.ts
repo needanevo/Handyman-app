@@ -66,7 +66,18 @@ class APIClient {
     const response: AxiosResponse<T> = await this.client.delete(url);
     return response.data;
   }
+
+  async postFormData<T>(url: string, formData: FormData): Promise<T> {
+    const response: AxiosResponse<T> = await this.client.post(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 40000,
+    });
+    return response.data;
+  }
 }
+
 
 // Create API client instance
 const apiClient = new APIClient();
@@ -105,6 +116,21 @@ export const quotesAPI = {
   
   getQuote: (id: string) => 
     apiClient.get<any>(`/quotes/${id}`),
+  
+// NEW METHOD: Upload photo immediately
+  uploadPhotoImmediate: async (file: { uri: string; type: string; name: string }, customer_id: string) => {
+    const formData = new FormData();
+    
+    formData.append('file', {
+      uri: file.uri,
+      type: file.type,
+      name: file.name,
+    } as any);
+    
+    formData.append('customer_id', customer_id);
+    
+    return apiClient.postFormData<any>('/photos/upload', formData);
+  },
   
   respondToQuote: (id: string, response: { accept: boolean; customer_notes?: string }) => 
     apiClient.post<any>(`/quotes/${id}/respond`, response),

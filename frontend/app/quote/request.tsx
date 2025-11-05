@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -28,6 +29,14 @@ interface QuoteRequestForm {
     max: string;
   };
 }
+interface PhotoUpload {
+  id: string;
+  uri: string;
+  status: 'uploading' | 'success' | 'failed';
+  url?: string;
+  error?: string;
+}
+
 
 const serviceCategories = [
   {
@@ -100,7 +109,7 @@ export default function QuoteRequestScreen() {
   const router = useRouter();
   const { category } = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<PhotoUpload[]>([]);
   
   const {
     control,
@@ -124,6 +133,81 @@ export default function QuoteRequestScreen() {
     return serviceCategories.find(s => s.id === selectedCategory);
   }, [selectedCategory]);
 
+  // Upload with 30-second timeout
+  const uploadPhotoWithTimeout = async (photoUri: string, photoId: string, fileName: string): Promise<string> => {
+    const UPLOAD_TIMEOUT = 30000;
+
+    const uploadPromise = quotesAPI.uploadPhotoImmediate(
+      { uri: photoUri, type: 'image/jpeg', name: fileName },
+      user?.id || 'guest'
+    );
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Upload timed out after 30 seconds')), UPLOAD_TIMEOUT)
+    );
+
+    try {
+      const result = await Promise.race([uploadPromise, timeoutPromise]);
+      return result.url;
+    } catch (error: any) {
+      throw new Error(error.message || 'Upload failed');
+    }
+  };
+
+  // Handle photo capture and immediate upload
+  const handlePhotoCapture = async (photoUri: string, fileName: string) => {
+    const photoId = `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const newPhoto: PhotoUpload = {
+      id: photoId,
+      uri: photoUri,
+      status: 'uploading',
+    };
+    
+    setPhotos(prev => [...prev, newPhoto]);
+
+    try {
+      const url = await uploadPhotoWithTimeout(photoUri, photoId, fileName);
+      
+      setPhotos(prev =>
+        prev.map(p => p.id === photoId ? { ...p, status: 'success', url } : p)
+      );
+    } catch (error: any) {
+      console.error('Photo upload failed:', error);
+      
+      setPhotos(prev =>
+        prev.map(p => p.id === photoId ? { ...p, status: 'failed', error: error.message } : p)
+      );
+      
+      showAlert(
+        'Upload Failed',
+        `Failed to upload photo: ${error.message}\n\nYou can retry or continue without this photo.`
+      );
+    }
+  };
+
+  // Retry failed upload
+  const retryUpload = async (photoId: string) => {
+    const photo = photos.find(p => p.id === photoId);
+    if (!photo) return;
+
+    setPhotos(prev =>
+      prev.map(p => p.id === photoId ? { ...p, status: 'uploading', error: undefined } : p)
+    );
+
+    try {
+      const fileName = `photo_${Date.now()}.jpg`;
+      const url = await uploadPhotoWithTimeout(photo.uri, photoId, fileName);
+      setPhotos(prev =>
+        prev.map(p => p.id === photoId ? { ...p, status: 'success', url } : p)
+      );
+    } catch (error: any) {
+      setPhotos(prev =>
+        prev.map(p => p.id === photoId ? { ...p, status: 'failed', error: error.message } : p)
+      );
+    }
+  };
+
   const pickImage = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -137,11 +221,12 @@ export default function QuoteRequestScreen() {
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
-        base64: true,
+        base64: false,  // CHANGED: No base64!
       });
 
-      if (!result.canceled && result.assets[0].base64) {
-        setPhotos(prev => [...prev, `data:image/jpeg;base64,${result.assets[0].base64}`]);
+      if (!result.canceled && result.assets[0].uri) {
+        const fileName = result.assets[0].fileName || `photo_${Date.now()}.jpg`;
+        await handlePhotoCapture(result.assets[0].uri, fileName);  // CHANGED: Upload immediately!
       }
     } catch (error) {
       showAlert('Error', 'Failed to pick image. Please try again.');
@@ -160,24 +245,34 @@ export default function QuoteRequestScreen() {
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
-        base64: true,
+        base64: false,  // CHANGED: No base64!
       });
 
-      if (!result.canceled && result.assets[0].base64) {
-        setPhotos(prev => [...prev, `data:image/jpeg;base64,${result.assets[0].base64}`]);
+      if (!result.canceled && result.assets[0].uri) {
+        const fileName = `photo_${Date.now()}.jpg`;
+        await handlePhotoCapture(result.assets[0].uri, fileName);  // CHANGED: Upload immediately!
       }
     } catch (error) {
       showAlert('Error', 'Failed to take photo. Please try again.');
     }
   };
 
-  const removePhoto = (index: number) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
+  const removePhoto = (photoId: string) => {
+    setPhotos(prev => prev.filter(p => p.id !== photoId));
   };
 
   const onSubmit = async (data: QuoteRequestForm) => {
     if (!data.serviceCategory) {
       showAlert('Error', 'Please select a service category');
+      return;
+    }
+
+    const uploadingPhotos = photos.filter(p => p.status === 'uploading');
+    if (uploadingPhotos.length > 0) {
+      showAlert(
+        'Photos Uploading',
+        'Please wait for photos to finish uploading before submitting.'
+      );
       return;
     }
 
@@ -197,7 +292,7 @@ export default function QuoteRequestScreen() {
         service_category: data.serviceCategory,
         address_id: addressId,
         description: data.description,
-        photos,
+        photos: photos.filter(p => p.status === 'success' && p.url).map(p => p.url!),
         preferred_dates: [], // Will be enhanced later with date picker
         budget_range: {
           min: parseFloat(data.budgetRange.min) || 0,
@@ -352,22 +447,49 @@ export default function QuoteRequestScreen() {
             {photos.length > 0 && (
               <View style={styles.photoPreview}>
                 {photos.map((photo, index) => (
-                  <View key={index} style={styles.photoItem}>
+                  <View key={photo.id} style={styles.photoItem}>
                     <TouchableOpacity
-                      onPress={() => removePhoto(index)}
+                      onPress={() => removePhoto(photo.id)}
                       style={styles.removePhoto}
                     >
                       <Ionicons name="close" size={16} color="#fff" />
                     </TouchableOpacity>
-                    <View style={styles.photoPlaceholder}>
-                      <Ionicons name="image" size={24} color="#7F8C8D" />
-                      <Text style={styles.photoText}>Photo {index + 1}</Text>
+                    
+                    <View style={[
+                      styles.photoPlaceholder,
+                      photo.status === 'success' && styles.photoSuccess,
+                      photo.status === 'failed' && styles.photoFailed,
+                    ]}>
+                      {photo.status === 'uploading' && (
+                        <>
+                          <ActivityIndicator size="small" color="#FF6B35" />
+                          <Text style={styles.photoText}>Uploading...</Text>
+                        </>
+                      )}
+                      {photo.status === 'success' && (
+                        <>
+                          <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
+                          <Text style={styles.photoTextSuccess}>Photo {index + 1}</Text>
+                        </>
+                      )}
+                      {photo.status === 'failed' && (
+                        <>
+                          <Ionicons name="alert-circle" size={24} color="#E74C3C" />
+                          <Text style={styles.photoTextFailed}>Failed</Text>
+                          <TouchableOpacity
+                            onPress={() => retryUpload(photo.id)}
+                            style={styles.retryButton}
+                          >
+                            <Text style={styles.retryText}>Retry</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
                     </View>
                   </View>
                 ))}
               </View>
             )}
-          </View>
+            </View>
 
           {/* Urgency */}
           <View style={styles.section}>
@@ -622,6 +744,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E5E5',
+  },
+  photoSuccess: {
+    backgroundColor: '#E8F8F0',
+    borderColor: '#27AE60',
+  },
+  photoFailed: {
+    backgroundColor: '#FDECEA',
+    borderColor: '#E74C3C',
+  },
+  photoTextSuccess: {
+    fontSize: 10,
+    color: '#27AE60',
+    marginTop: 4,
+  },
+  photoTextFailed: {
+    fontSize: 10,
+    color: '#E74C3C',
+    marginTop: 4,
+  },
+  retryButton: {
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: '#E74C3C',
+    borderRadius: 4,
+  },
+  retryText: {
+    fontSize: 9,
+    color: '#fff',
+    fontWeight: '600',
   },
   photoText: {
     fontSize: 10,
