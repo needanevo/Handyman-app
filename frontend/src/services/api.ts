@@ -2,7 +2,14 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import Constants from 'expo-constants';
 
 // Get backend URL from environment
+
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://therealjohnson.com';
+
+
+//###Commented out for localhost or development###
+
+//const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+
 
 class APIClient {
   private client: AxiosInstance;
@@ -67,6 +74,7 @@ class APIClient {
     return response.data;
   }
 
+
   async postFormData<T>(url: string, formData: FormData): Promise<T> {
     const response: AxiosResponse<T> = await this.client.post(url, formData, {
       headers: {
@@ -77,6 +85,7 @@ class APIClient {
     return response.data;
   }
 }
+
 
 
 // Create API client instance
@@ -117,6 +126,7 @@ export const quotesAPI = {
   getQuote: (id: string) => 
     apiClient.get<any>(`/quotes/${id}`),
   
+
 // NEW METHOD: Upload photo immediately
   uploadPhotoImmediate: async (file: { uri: string; type: string; name: string }, customer_id: string) => {
     const formData = new FormData();
@@ -132,6 +142,7 @@ export const quotesAPI = {
     return apiClient.postFormData<any>('/photos/upload', formData);
   },
   
+
   respondToQuote: (id: string, response: { accept: boolean; customer_notes?: string }) => 
     apiClient.post<any>(`/quotes/${id}/respond`, response),
 };
