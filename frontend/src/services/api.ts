@@ -11,7 +11,7 @@ class APIClient {
   constructor() {
     this.client = axios.create({
       baseURL: `${BACKEND_URL}/api`,
-      timeout: 10000,
+      timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -72,7 +72,7 @@ class APIClient {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
-      timeout: 40000,
+      timeout: 60000,
     });
     return response.data;
   }
