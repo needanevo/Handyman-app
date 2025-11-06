@@ -55,24 +55,9 @@ export default function JobRequestStep3() {
     setIsSubmitting(true);
 
     try {
-      // Step 1: Upload photos
-      const photo_urls = await Promise.all(
-        photos.map(async (photo: string) => {
-          const photoData = {
-            uri: photo,
-            type: 'image/jpeg',
-            name: photo.split('/').pop() || 'photo.jpg',
-          };
-          if (!user || !user.id) {
-            throw new Error('User not authenticated');
-          }
-          const result = await quotesAPI.uploadPhotoImmediate(photoData, user.id);
-          return result.url;
-        })
-      );
-
-      // Step 2: Create job request with photo URLs
-      await quotesAPI.requestQuote({ ...params, photos: photo_urls, quote });
+      // Photos are already uploaded URLs from PhotoUploader component
+      // No need to upload again - just use the URLs directly
+      await quotesAPI.requestQuote({ ...params, photos, quote });
 
       Alert.alert(
         'Job Posted!',

@@ -12,6 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, borderRadius, spacing, typography, shadows } from '../constants/theme';
+import { quotesAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PhotoUploaderProps {
   photos: string[];
@@ -31,6 +33,33 @@ export function PhotoUploader({
   required = false,
 }: PhotoUploaderProps) {
   const [uploading, setUploading] = useState(false);
+  const { user } = useAuth();
+
+  const uploadPhotoToServer = async (uri: string): Promise<string | null> => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to upload photos');
+      return null;
+    }
+
+    try {
+      // Extract filename and type from URI
+      const filename = uri.split('/').pop() || 'photo.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      const file = {
+        uri,
+        type,
+        name: filename,
+      };
+
+      const response = await quotesAPI.uploadPhotoImmediate(file, user.id);
+      return response.url;
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      throw error;
+    }
+  };
 
   const requestPermission = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -63,7 +92,15 @@ export function PhotoUploader({
       });
 
       if (!result.canceled && result.assets[0]) {
-        onPhotosChange([...photos, result.assets[0].uri]);
+        const localUri = result.assets[0].uri;
+
+        // Upload to server immediately
+        const uploadedUrl = await uploadPhotoToServer(localUri);
+        if (uploadedUrl) {
+          onPhotosChange([...photos, uploadedUrl]);
+        } else {
+          Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
+        }
       }
     } catch (error) {
       console.error('Error taking photo:', error);
@@ -90,10 +127,25 @@ export function PhotoUploader({
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        const newPhotos = result.assets
-          .slice(0, maxPhotos - photos.length)
-          .map(asset => asset.uri);
-        onPhotosChange([...photos, ...newPhotos]);
+        const assetsToUpload = result.assets.slice(0, maxPhotos - photos.length);
+
+        // Upload all photos in parallel
+        const uploadPromises = assetsToUpload.map(asset => uploadPhotoToServer(asset.uri));
+        const uploadedUrls = await Promise.all(uploadPromises);
+
+        // Filter out failed uploads (null values)
+        const successfulUrls = uploadedUrls.filter(url => url !== null) as string[];
+
+        if (successfulUrls.length > 0) {
+          onPhotosChange([...photos, ...successfulUrls]);
+        }
+
+        if (successfulUrls.length < assetsToUpload.length) {
+          Alert.alert(
+            'Partial Upload',
+            `${successfulUrls.length} of ${assetsToUpload.length} photos uploaded successfully.`
+          );
+        }
       }
     } catch (error) {
       console.error('Error picking photo:', error);
