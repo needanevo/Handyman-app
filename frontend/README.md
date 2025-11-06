@@ -1,50 +1,85 @@
-# Welcome to your Expo app 👋
+# The Real Johnson - Frontend Application
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A beautiful, user-friendly React Native application for The Real Johnson Handyman marketplace, connecting homeowners with trusted contractors through an intuitive, transparent platform.
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Quick Start
 
 ```bash
-npm run reset-project
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+
+# Run on iOS
+npm run ios
+
+# Run on Android
+npm run android
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Key Features
 
-## Learn more
+### For Customers
+- AI-powered job quotes from photos
+- Multi-step job request wizard
+- Real-time job tracking with milestones
+- Escrow payment protection
+- In-app chat with contractors
 
-To learn more about developing your project with Expo, look at the following resources:
+### For Contractors
+- Document verification onboarding
+- Job notifications and acceptance
+- Material receipt uploads
+- Progress tracking with photos
+- Secure payment releases
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Documentation
 
-## Join the community
+- **[Design System Guide](./DESIGN_SYSTEM_GUIDE.md)** - Complete design token reference
+- **[UI Redesign Summary](./UI_REDESIGN_SUMMARY.md)** - Comprehensive redesign documentation
+- **[Feature Requirements](../FEATURE_REQUIREMENTS.md)** - Full feature specifications
 
-Join our community of developers creating universal apps.
+## Project Structure
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```
+frontend/
+├── app/                    # Expo Router screens
+│   ├── auth/              # Authentication flows
+│   ├── (customer)/        # Customer screens
+│   └── (contractor)/      # Contractor screens
+├── src/
+│   ├── components/        # Reusable UI components
+│   ├── constants/         # Design system tokens
+│   ├── contexts/          # React contexts
+│   ├── services/          # API client
+│   └── utils/             # Helper functions
+└── assets/                # Images, fonts
+```
+
+## Technology Stack
+
+- React Native + Expo
+- Expo Router (file-based routing)
+- TypeScript
+- React Query (data fetching)
+- React Hook Form (forms)
+- Custom Design System
+
+## Design System
+
+Import theme tokens and components:
+
+```typescript
+import { colors, spacing, typography } from '@/constants/theme';
+import { Button, Card, Badge } from '@/components';
+```
+
+See [DESIGN_SYSTEM_GUIDE.md](./DESIGN_SYSTEM_GUIDE.md) for complete documentation.
+
+## Resources
+
+- [Expo Documentation](https://docs.expo.dev/)
+- [React Native Documentation](https://reactnative.dev/)
+- [Expo Router](https://expo.github.io/router/docs/)
+- [Ionicons](https://ionic.io/ionicons)
