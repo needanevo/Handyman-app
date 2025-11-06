@@ -1,0 +1,167 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, spacing, typography } from '../../../src/constants/theme';
+import { Button } from '../../../src/components/Button';
+import { StepIndicator } from '../../../src/components/StepIndicator';
+import { PhotoUploader } from '../../../src/components/PhotoUploader';
+import { authAPI } from '../../../src/services/api';
+
+export default function ContractorRegisterStep4() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const [portfolioPhotos, setPortfolioPhotos] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const onSubmit = async () => {
+    setIsLoading(true);
+    try {
+      // Combine all params and portfolio photos
+      const registrationData = {
+        ...params,
+        portfolioPhotos: JSON.stringify(portfolioPhotos),
+      };
+
+      // Call API to register contractor
+      await authAPI.register(registrationData);
+
+      Alert.alert(
+        'Registration Complete',
+        'Your registration is complete. You can now log in.',
+        [
+          {
+            text: 'Log In',
+            onPress: () => router.replace('/auth/login'),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Contractor registration error:', error);
+      Alert.alert('Error', 'Failed to complete registration. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const steps = [
+    { label: 'Basic Info', completed: true },
+    { label: 'Documents', completed: true },
+    { label: 'Profile', completed: true },
+    { label: 'Portfolio', completed: false },
+  ];
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView contentContainerStyle={styles.content}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Button
+              title=""
+              onPress={() => router.back()}
+              variant="ghost"
+              size="small"
+              icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
+              style={styles.backButton}
+            />
+          </View>
+
+          {/* Progress */}
+          <StepIndicator steps={steps} currentStep={3} />
+
+          {/* Title */}
+          <View style={styles.titleSection}>
+            <Text style={styles.title}>Showcase Your Work</Text>
+            <Text style={styles.subtitle}>
+              Upload photos of your best work to attract customers (optional)
+            </Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
+            <PhotoUploader
+              photos={portfolioPhotos}
+              onPhotosChange={setPortfolioPhotos}
+              maxPhotos={10}
+              label="Portfolio Photos"
+              helpText="Upload up to 10 photos"
+            />
+          </View>
+
+          {/* Actions */}
+          <View style={styles.actions}>
+            <Button
+              title="Complete Registration"
+              onPress={onSubmit}
+              loading={isLoading}
+              size="large"
+              fullWidth
+            />
+            <Button
+              title="Back"
+              onPress={() => router.back()}
+              variant="outline"
+              size="medium"
+              fullWidth
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background.primary,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing['2xl'],
+  },
+  header: {
+    paddingTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+  },
+  titleSection: {
+    marginBottom: spacing['2xl'],
+  },
+  title: {
+    ...typography.sizes['2xl'],
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    ...typography.sizes.base,
+    color: colors.neutral[600],
+    lineHeight: 24,
+  },
+  form: {
+    marginBottom: spacing.xl,
+  },
+  actions: {
+    gap: spacing.md,
+  },
+});

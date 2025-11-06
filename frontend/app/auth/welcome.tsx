@@ -76,6 +76,15 @@ export default function WelcomeScreen() {
             fullWidth
           />
 
+          <Button
+            title="Register as a Contractor"
+            onPress={() => router.push('/auth/contractor/onboarding-intro')}
+            variant="secondary"
+            size="large"
+            fullWidth
+            style={{ marginTop: 16 }}
+          />
+
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Already have an account? </Text>
             <Button
