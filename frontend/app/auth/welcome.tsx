@@ -71,11 +71,11 @@ export default function WelcomeScreen() {
         <View style={styles.actions}>
           <Button
             title="Get Started"
-            onPress={() => router.push('/auth/register')}
+            onPress={() => router.push('/auth/role-selection')}
             size="large"
             fullWidth
           />
-          
+
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Already have an account? </Text>
             <Button

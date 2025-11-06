@@ -755,9 +755,12 @@ async def startup_event():
         logger.warning(f"Index creation warning: {e}")
 
     # Insert default services if none exist
-    service_count = await db.services.count_documents({})
-    if service_count == 0:
-        await seed_default_services()
+    try:
+        service_count = await db.services.count_documents({})
+        if service_count == 0:
+            await seed_default_services()
+    except Exception as e:
+        logger.warning(f"Could not seed services (database may be unavailable): {e}")
 
 
 @app.on_event("shutdown")
