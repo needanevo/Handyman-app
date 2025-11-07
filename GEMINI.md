@@ -68,6 +68,17 @@ The application follows a modern client-server architecture. The FastAPI backend
 *   **Issue:** The photo upload feature was not working because the API call to upload the photos was commented out and the data was not being sent in the correct format.
 *   **Fix:** The `handleSubmit` function in `frontend/app/(customer)/job-request/step3-review.tsx` has been updated to first upload the photos to the backend using the `quotesAPI.uploadPhotoImmediate` function and then create the job request with the returned photo URLs.
 
+### Photo Upload Still Failing (Customer Job Request)
+
+*   **Issue:** Despite implementing automatic login for contractors and verifying the frontend's `PhotoUploader` component calls `quotesAPI.uploadPhotoImmediate`, photo uploads for customer job requests are still failing.
+*   **Current Status:** The backend's `/photos/upload` endpoint has been confirmed to exist in `backend/server.py`, and additional logging has been added to it. However, no logs from this endpoint are appearing in the backend terminal when a photo upload is attempted from the frontend, suggesting the request might not be reaching the endpoint, or failing silently before logging.
+*   **Next Steps:** Need to analyze backend logs more closely after a photo upload attempt to identify the point of failure, potentially related to Linode credentials, bucket permissions, or network connectivity.
+
+### MongoDB Not Configured
+
+*   **Issue:** MongoDB is not configured correctly. The database name has changed from "handyman" to "cluster0", and specific parameters are required for the DB setup.
+*   **Next Steps:** Review and update MongoDB connection string and configuration parameters to reflect the correct database name and ensure all necessary settings are in place.
+
 ## Deployment
 
 ### Production vs Development
@@ -158,6 +169,19 @@ For native mobile apps (iOS/Android):
    - Android: Google Play Store
 
 Mobile apps connect directly to the backend API at `https://therealjohnson.com/api/`
+
+## Recent Progress
+
+### Color Scheme Update
+
+*   **Description:** The frontend's color scheme has been updated to a new palette derived from `sea.html` and `a_slow_uncovering.html` as per the instructions in `DESIGN_SYSTEM_GUIDE.md`.
+*   **Implementation:** The `colors` object in `frontend/src/constants/theme.ts` was modified to reflect the new primary, secondary, success, warning, and error colors. The typography was retained.
+*   **Documentation:** The `DESIGN_SYSTEM_GUIDE.md` file was updated to reflect the new color definitions.
+
+### AI Reference Files
+
+*   **Description:** All `.md` files in the project were copied into a new directory for AI reference.
+*   **Implementation:** A new directory `AI_REFERENCE_FILES` was created at the project root. All existing `.md` files were copied into this directory, with unique filenames generated to avoid conflicts (e.g., `frontend_README.md` for `frontend/README.md`).
 
 ## Features Under Development
 
