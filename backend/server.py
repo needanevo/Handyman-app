@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, date
 import uuid
 
 # Import models
-from .models import (
+from models import (
     User,
     UserCreate,
     UserLogin,
