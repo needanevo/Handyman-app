@@ -1,10 +1,10 @@
 from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Body, Request, UploadFile, File, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
-from .providers import EMAIL_PROVIDERS, AI_PROVIDERS, MAPS_PROVIDERS
+from providers import EMAIL_PROVIDERS, AI_PROVIDERS, MAPS_PROVIDERS
 from fastapi.responses import RedirectResponse
-from .providers.linode_storage_provider import LinodeObjectStorage
-from .providers.quote_email_service import QuoteEmailService
+from providers.linode_storage_provider import LinodeObjectStorage
+from providers.quote_email_service import QuoteEmailService
 
 
 
