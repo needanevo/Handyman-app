@@ -116,3 +116,7 @@ dist/
 metro-cache/
 backend/backend.log
 frontend/.env
+-e 
+# Environment files
+*.env
+*.env.*
