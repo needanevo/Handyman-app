@@ -2,6 +2,54 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CURRENT DIRECTIVE: Production Deployment & Stabilization
+
+**STATUS: Backend Deployed ✅ | Frontend Ready ⏳ | Testing In Progress**
+
+### Completed ✅
+1. **Backend Deployment**: Successfully deployed on server 172.234.70.157:8001
+   - Git repo updated to `merged` branch
+   - Python 3.12.3 with venv configured
+   - All dependencies installed
+   - MongoDB connected and running
+   - Systemd service active and enabled
+   - Health endpoint responding: `/api/health` returns healthy status
+
+2. **Linode Object Storage**: Credentials configured
+   - Fixed `S3_ENDPOINT_HOSTNAME` in providers.env (removed extra text)
+   - Bucket: photos.us-iad-10.linodeobjects.com
+   - Access key: KI6TNAOLFKWODXWX3M1I
+   - Region: us-iad-10
+   - **Action Required**: Re-enable storage_provider in server.py line 85 and restart service
+
+3. **Frontend Setup**: NPM dependencies installed
+   - Created frontend/.env with EXPO_PUBLIC_BACKEND_URL=http://172.234.70.157:8001
+   - Ready to start with `npx expo start`
+
+### In Progress ⏳
+4. **Expo Frontend Testing**: Need to start frontend and verify connection to backend
+5. **Contractor Dashboard Testing**: Verify dashboard functionality after frontend starts
+
+### Pending 📋
+6. **MongoDB Metadata Verification**: Test photo tracking, geomapping, mileage features
+7. **Branch Consolidation**: Merge to main after all tests pass
+
+**Next Steps:**
+1. Start frontend: `cd frontend && npx expo start`
+2. Test contractor dashboard and all features
+3. Verify Linode photo uploads work
+4. Push changes to merged branch
+5. Merge to main when stable
+
+**Server Details:**
+- Host: 172.234.70.157
+- Backend API: http://172.234.70.157:8001
+- API Docs: http://172.234.70.157:8001/docs
+- MongoDB: Atlas cluster connected
+- Service: handyman-api (systemd)
+
+---
+
 ## Project Overview
 
 **The Real Johnson Handyman Services** - A full-stack handyman booking platform with AI-powered quote generation. The application consists of:
