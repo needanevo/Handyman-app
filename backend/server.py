@@ -47,11 +47,11 @@ from auth.auth_handler import (
 
 # Import services
 # Import services
-from .services.pricing_engine import PricingEngine
+from services.pricing_engine import PricingEngine
 
 # Import providers
-from .providers.openai_provider import OpenAiProvider
-from .providers.base import AiQuoteSuggestion, ProviderError
+from providers.openai_provider import OpenAiProvider
+from providers.base import AiQuoteSuggestion, ProviderError
 
 # --- Environment Variable Loading ---
 # Build the absolute path to the providers.env file
