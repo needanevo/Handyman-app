@@ -126,8 +126,8 @@ class LinodeObjectStorage:
             self.s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
             logger.info("✅ HEAD object ok")
 
-            # Generate public URL
-            public_url = f"https://{self.bucket_name}.{self.region}.linodeobjects.com/{object_key}"
+            # Generate public URL - use the correct Linode endpoint format
+            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
             
             logger.info(f"Uploaded photo to: {public_url}")
             return public_url
@@ -246,10 +246,10 @@ class LinodeObjectStorage:
         self.s3_client.put_object(
             Bucket=self.bucket_name, Key=key, Body=data, ContentType="image/jpeg"
         )
-        return self.generate_signed_url(key)
-        logger.info(f"📦 PUT -> bucket={self.bucket_name} key={object_key}")
-        self.s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+        logger.info(f"📦 PUT -> bucket={self.bucket_name} key={key}")
+        self.s3_client.head_object(Bucket=self.bucket_name, Key=key)
         logger.info("✅ HEAD object ok")
+        return self.generate_signed_url(key)
 
     async def upload_photo_direct(
         self,
@@ -302,11 +302,11 @@ class LinodeObjectStorage:
                 ACL='public-read'  # Make publicly accessible
             )
             logger.info(f"📦 PUT -> bucket={self.bucket_name} key={object_key}")
-            self.s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+            s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
             logger.info("✅ HEAD object ok")
 
-            # Generate public URL
-            public_url = f"{self.endpoint_url}/{self.bucket_name}/{object_key}"
+            # Generate public URL - use correct Linode bucket URL format
+            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
             
             logger.info(f"Uploaded photo to: {public_url}")
             return public_url
