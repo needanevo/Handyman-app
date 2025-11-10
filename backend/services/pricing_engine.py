@@ -1,8 +1,8 @@
 from typing import Dict, List, Any, Optional
 from decimal import Decimal, ROUND_HALF_UP
-from ..models.service import Service, PricingModel
-from ..models.quote import QuoteItem
-from ..providers.base import AiQuoteSuggestion
+from models.service import Service, PricingModel
+from models.quote import QuoteItem
+from providers.base import AiQuoteSuggestion
 
 
 class PricingEngine:
