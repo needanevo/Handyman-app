@@ -264,11 +264,8 @@ async def upload_photo_immediately(
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")
         
-        logger.info(f"Received photo upload request: filename={file.filename}, content_type={file.content_type}, customer_id={customer_id}")
-
         # Read the file data
         file_data = await file.read()
-        logger.info(f"Read {len(file_data)} bytes from file {file.filename}")
         
         # Create temp quote ID (will be organized later when actual quote is created)
         temp_quote_id = f"temp_{str(uuid.uuid4())}"
@@ -276,7 +273,6 @@ async def upload_photo_immediately(
         # Get file extension
         file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
         filename = f"photo_{uuid.uuid4().hex[:8]}.{file_extension}"
-        logger.info(f"Generated filename: {filename}, temp_quote_id: {temp_quote_id}")
         
         # Upload using the NEW method in linode_storage_provider.py
         url = await storage_provider.upload_photo_direct(
@@ -759,12 +755,9 @@ async def startup_event():
         logger.warning(f"Index creation warning: {e}")
 
     # Insert default services if none exist
-    try:
-        service_count = await db.services.count_documents({})
-        if service_count == 0:
-            await seed_default_services()
-    except Exception as e:
-        logger.warning(f"Could not seed services (database may be unavailable): {e}")
+    service_count = await db.services.count_documents({})
+    if service_count == 0:
+        await seed_default_services()
 
 
 @app.on_event("shutdown")
@@ -832,6 +825,116 @@ async def seed_default_services():
             "typical_duration": 180,
             "min_charge": 120.0,
             "labor_multiplier": 1.0,
+        },
+        {
+            "category": ServiceCategory.HVAC,
+            "title": "HVAC Maintenance & Repair",
+            "description": "Heating, ventilation, and air conditioning maintenance and repair services",
+            "pricing_model": PricingModel.HOURLY,
+            "base_price": 125.0,
+            "unit_label": "per hour",
+            "typical_duration": 120,
+            "min_charge": 150.0,
+            "labor_multiplier": 1.3,
+        },
+        {
+            "category": ServiceCategory.FLOORING,
+            "title": "Flooring Installation & Repair",
+            "description": "Professional flooring installation and repair for hardwood, tile, laminate, and vinyl",
+            "pricing_model": PricingModel.UNIT,
+            "base_price": 8.0,
+            "unit_label": "per sqft",
+            "typical_duration": 480,
+            "min_charge": 200.0,
+            "labor_multiplier": 1.2,
+        },
+        {
+            "category": ServiceCategory.ROOFING,
+            "title": "Roof Repair & Maintenance",
+            "description": "Roof leak repair, shingle replacement, and general roof maintenance",
+            "pricing_model": PricingModel.HOURLY,
+            "base_price": 110.0,
+            "unit_label": "per hour",
+            "typical_duration": 240,
+            "min_charge": 200.0,
+            "labor_multiplier": 1.4,
+        },
+        {
+            "category": ServiceCategory.LANDSCAPING,
+            "title": "Landscaping & Yard Maintenance",
+            "description": "Lawn care, garden maintenance, trimming, and general landscaping services",
+            "pricing_model": PricingModel.HOURLY,
+            "base_price": 65.0,
+            "unit_label": "per hour",
+            "typical_duration": 180,
+            "min_charge": 100.0,
+            "labor_multiplier": 0.9,
+        },
+        {
+            "category": ServiceCategory.APPLIANCE_REPAIR,
+            "title": "Appliance Repair",
+            "description": "Repair and maintenance for household appliances including washers, dryers, refrigerators, and more",
+            "pricing_model": PricingModel.FLAT,
+            "base_price": 150.0,
+            "unit_label": "per appliance",
+            "typical_duration": 120,
+            "min_charge": 150.0,
+            "labor_multiplier": 1.2,
+        },
+        {
+            "category": ServiceCategory.WINDOW_DOOR_INSTALLATION,
+            "title": "Window & Door Installation",
+            "description": "Professional installation and replacement of windows and doors",
+            "pricing_model": PricingModel.FLAT,
+            "base_price": 350.0,
+            "unit_label": "per unit",
+            "typical_duration": 240,
+            "min_charge": 350.0,
+            "labor_multiplier": 1.3,
+        },
+        {
+            "category": ServiceCategory.TILE_WORK,
+            "title": "Tile Installation & Repair",
+            "description": "Tile installation and repair for bathrooms, kitchens, and floors",
+            "pricing_model": PricingModel.UNIT,
+            "base_price": 12.0,
+            "unit_label": "per sqft",
+            "typical_duration": 360,
+            "min_charge": 180.0,
+            "labor_multiplier": 1.2,
+        },
+        {
+            "category": ServiceCategory.DECK_FENCE,
+            "title": "Deck & Fence Construction/Repair",
+            "description": "Building and repairing decks, fences, and outdoor structures",
+            "pricing_model": PricingModel.HOURLY,
+            "base_price": 85.0,
+            "unit_label": "per hour",
+            "typical_duration": 480,
+            "min_charge": 200.0,
+            "labor_multiplier": 1.1,
+        },
+        {
+            "category": ServiceCategory.GUTTER_CLEANING,
+            "title": "Gutter Cleaning & Maintenance",
+            "description": "Professional gutter cleaning, debris removal, and downspout maintenance",
+            "pricing_model": PricingModel.FLAT,
+            "base_price": 120.0,
+            "unit_label": "per service",
+            "typical_duration": 90,
+            "min_charge": 120.0,
+            "labor_multiplier": 0.8,
+        },
+        {
+            "category": ServiceCategory.PRESSURE_WASHING,
+            "title": "Pressure Washing",
+            "description": "Power washing for driveways, siding, decks, patios, and exterior surfaces",
+            "pricing_model": PricingModel.HOURLY,
+            "base_price": 75.0,
+            "unit_label": "per hour",
+            "typical_duration": 120,
+            "min_charge": 100.0,
+            "labor_multiplier": 0.9,
         },
     ]
 
