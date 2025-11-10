@@ -14,9 +14,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Setup:**
 ```bash
-cd /root/Handyman-app
-python -m venv .venv
-source .venv/bin/activate  # or `.venv/bin/activate` on Windows
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# Unix/MacOS:
+source venv/bin/activate
+
+# Install dependencies
 pip install -r backend/requirements.txt
 ```
 
@@ -26,15 +33,10 @@ pip install -r backend/requirements.txt
 uvicorn backend.server:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-**Alternative (using start script):**
-```bash
-./start.sh
-```
-
 **Environment Setup:**
 - Backend environment variables are in `backend/providers/providers.env`
 - Required: `MONGO_URL`, `DB_NAME`, `JWT_SECRET`, provider API keys
-- Feature flags: `FEATURE_AI_QUOTE_ENABLED`, `ACTIVE_AI_PROVIDER`, `ACTIVE_EMAIL_PROVIDER`
+- Feature flags: `FEATURE_AI_QUOTE_ENABLED`, `ACTIVE_AI_PROVIDER`, `ACTIVE_EMAIL_PROVIDER`, `ACTIVE_SMS_PROVIDER`, `ACTIVE_MAPS_PROVIDER`
 
 **Testing:**
 - Integration tests for providers: `python test_email.py`, `python test_sms.py`, `python test_geocode.py`
@@ -63,12 +65,16 @@ yarn lint           # Run ESLint with Expo config
 
 **Clear Metro Cache (if issues):**
 ```bash
+# Windows:
+rmdir /s /q frontend\.metro-cache
+# Unix/MacOS:
 rm -rf frontend/.metro-cache
 ```
 
 **Frontend Environment:**
-- No `.env` file by default - API base URL is hardcoded in `frontend/src/services/api.ts`
-- Uses `react-native-dotenv` for environment variable support if needed
+- API base URL configured via `EXPO_PUBLIC_BACKEND_URL` environment variable
+- Defaults to `https://therealjohnson.com` in `frontend/src/services/api.ts`
+- Uses `react-native-dotenv` for environment variable support
 
 ## Code Architecture
 
@@ -87,12 +93,15 @@ The backend uses a **pluggable provider pattern** with abstract base classes for
 ├── services/
 │   └── pricing_engine.py       # Deterministic pricing calculations
 └── providers/                  # Strategy pattern for external services
+    ├── __init__.py             # Provider registration and factory
     ├── base.py                 # Abstract base classes
     ├── mock_providers.py       # Mock implementations for dev/test
+    ├── ai_provider.py          # OpenAI wrapper
     ├── openai_provider.py      # AI quote suggestions
     ├── google_maps_provider.py # Geocoding
     ├── linode_storage_provider.py # S3-compatible photo storage
     ├── sendgrid_email_provider.py # Email service
+    ├── mock_email_provider.py  # Mock email for testing
     ├── twilio_sms_provider.py  # SMS service
     ├── stripe_payment_provider.py # Payment processing
     └── quote_email_service.py  # Quote email HTML generation
@@ -101,15 +110,16 @@ The backend uses a **pluggable provider pattern** with abstract base classes for
 **Key Architectural Decisions:**
 
 1. **Async-First**: All I/O operations use `async`/`await` (MongoDB via Motor, HTTP calls)
-2. **Separate Password Storage**: User passwords stored in separate `user_passwords` collection
-3. **Two-Token JWT**: Access tokens (30 min) + refresh tokens (7 days)
+2. **Separate Password Storage**: User passwords stored in separate `user_passwords` collection for security
+3. **Two-Token JWT**: Access tokens (30 min) + refresh tokens (7 days) for secure session management
 4. **AI as Advisory**: OpenAI suggests hours/materials/complexity, but `PricingEngine` applies deterministic formulas
-5. **Immediate Photo Upload**: Photos upload directly to Linode S3 during form submission (not embedded in quote documents)
+5. **Immediate Photo Upload**: Photos upload directly to Linode S3 during form submission via `/api/photos/upload` (not embedded in quote documents)
 6. **Provider Switching**: Use environment variables (`ACTIVE_AI_PROVIDER=mock|openai`) to switch implementations
+7. **Provider Factory Pattern**: `providers/__init__.py` contains provider dictionaries (`AI_PROVIDERS`, `EMAIL_PROVIDERS`, etc.) that map names to classes
 
 **MongoDB Collections:**
 - `users` - Customer/technician profiles (indexed: email unique)
-- `user_passwords` - Hashed passwords (separate for security)
+- `user_passwords` - Hashed passwords (separate collection for security)
 - `services` - Service catalog with pricing models (FLAT|HOURLY|UNIT)
 - `quotes` - Quote requests with status workflow (DRAFT→SENT→VIEWED→ACCEPTED/REJECTED)
 
@@ -123,7 +133,8 @@ The backend uses a **pluggable provider pattern** with abstract base classes for
 
 **Role-Based Access:**
 - Three roles: `CUSTOMER`, `TECHNICIAN`, `ADMIN`
-- Use `get_current_user`, `require_admin`, `require_technician_or_admin` as FastAPI dependencies
+- Use `get_current_user_dependency`, `require_admin`, `require_technician_or_admin` as FastAPI dependencies
+- Auth handler provides `require_role()` decorator factory for custom role combinations
 
 ### Frontend Architecture (React Native + Expo)
 
@@ -139,6 +150,8 @@ The backend uses a **pluggable provider pattern** with abstract base classes for
 │   ├── auth/
 │   │   ├── login.tsx
 │   │   ├── register.tsx
+│   │   ├── contractor/         # Contractor-specific registration flow
+│   │   │   └── register-step4.tsx
 │   │   └── welcome.tsx
 │   └── quote/
 │       └── request.tsx         # Quote request form with image picker
@@ -148,8 +161,10 @@ The backend uses a **pluggable provider pattern** with abstract base classes for
     │   └── AuthContext.tsx     # Custom context for auth state (not Zustand)
     ├── services/
     │   └── api.ts              # Axios singleton with interceptors, API methods
-    └── utils/
-        └── storage.ts          # Cross-platform secure storage wrapper
+    ├── utils/
+    │   └── storage.ts          # Cross-platform secure storage wrapper
+    └── constants/
+        └── theme.ts            # Design system theme constants
 ```
 
 **Key Architectural Decisions:**
@@ -158,18 +173,20 @@ The backend uses a **pluggable provider pattern** with abstract base classes for
    - **Auth State**: Custom React Context (`AuthContext`) - stores `user`, `isLoading`, `isAuthenticated`
    - **Server State**: TanStack React Query (5 min stale time, retry: 2)
    - **Local State**: `useState` for form inputs
-   - **Token Storage**: Expo SecureStore (mobile) / localStorage (web)
+   - **Token Storage**: Expo SecureStore (mobile) / localStorage (web) via `storage.ts` wrapper
 
 2. **API Client Pattern** (`api.ts`):
    - Singleton `APIClient` class with Axios instance
    - **Request Interceptor**: Auto-adds Bearer token from storage
    - **Response Interceptor**: Handles 401 by clearing auth and redirecting
-   - Organized methods: `authAPI`, `servicesAPI`, `quotesAPI`, `profileAPI`
+   - Organized methods: `authAPI`, `servicesAPI`, `quotesAPI`, `profileAPI`, `healthAPI`
+   - Special `postFormData()` method for multipart uploads with 60s timeout
 
 3. **Authentication Flow**:
    - App load → check storage for token → fetch user → navigate to `/home` or `/auth/welcome`
    - Login/Register → store tokens → fetch user → update context → navigate
    - Logout → clear storage + context → navigate to welcome
+   - Data transformation: Backend snake_case → Frontend camelCase in `AuthContext.refreshUser()`
 
 4. **Cross-Platform Support**:
    - `Platform.OS === 'web'` checks for alerts and storage differences
@@ -180,6 +197,7 @@ The backend uses a **pluggable provider pattern** with abstract base classes for
    - Uses Expo Router's `useRouter()` for programmatic navigation
    - Typed routes enabled (`typedRoutes: true` in app.json)
    - No traditional navigator - routes defined by file structure
+   - Use `router.push()`, `router.replace()` for navigation
 
 **Data Flow:**
 1. Component calls `authAPI.login(credentials)` → API client
@@ -195,7 +213,7 @@ The backend uses a **pluggable provider pattern** with abstract base classes for
 1. Create abstract base in `providers/base.py` (if needed)
 2. Implement mock version in `providers/mock_providers.py`
 3. Create real implementation in `providers/<name>_provider.py`
-4. Register in `providers/__init__.py` provider dictionaries
+4. Register in `providers/__init__.py` provider dictionaries (e.g., `AI_PROVIDERS["name"] = YourProvider`)
 5. Add environment variable for activation (`ACTIVE_<TYPE>_PROVIDER`)
 6. Initialize in `server.py` based on env variable
 
@@ -203,9 +221,11 @@ The backend uses a **pluggable provider pattern** with abstract base classes for
 
 1. Define Pydantic models in `backend/models/`
 2. Add route handler in `server.py` under `api_router`
-3. Use `Depends(get_current_user)` for authenticated routes
+3. Use `Depends(get_current_user_dependency)` for authenticated routes
 4. Use `Depends(require_admin)` for admin-only routes
 5. Access MongoDB via `db.collection_name` (async operations)
+6. Convert datetime objects to ISO strings before saving to MongoDB
+7. Parse ISO strings back to datetime/date objects when loading from MongoDB
 
 ### Adding a New Screen (Frontend)
 
@@ -233,10 +253,14 @@ The backend uses a **pluggable provider pattern** with abstract base classes for
 ### Backend
 - **Always use async/await** for database and external API calls
 - **Password hashing**: Use `auth_handler.hash_password()` and `verify_password()`, never store plaintext
-- **Token generation**: Use `auth_handler.encode_token()` with appropriate expiry
+- **Token generation**: Use `auth_handler.create_access_token()` with appropriate expiry
 - **Provider errors**: Catch `ProviderError` exceptions and handle gracefully
 - **MongoDB**: Use `await db.collection.find_one()` syntax (Motor async driver)
 - **Feature flags**: Check `FEATURE_AI_QUOTE_ENABLED` before calling AI provider
+- **Date serialization**: Convert datetime objects to ISO strings before MongoDB insertion
+- **User ID handling**: Check both string and ObjectId formats when querying (`{"$or": [{"user_id": user.id}, {"user_id": str(user.id)}]}`)
+- **Photo uploads**: Use `LinodeObjectStorage.upload_photo_direct()` for immediate uploads during form submission
+- **Quote email flow**: Two emails sent - immediate confirmation via `send_quote_received_notification()`, then detailed quote via admin endpoint
 
 ### Frontend
 - **Token management**: Let `APIClient` handle token injection via interceptors
@@ -244,7 +268,9 @@ The backend uses a **pluggable provider pattern** with abstract base classes for
 - **Auth checks**: Use `useAuth()` hook, check `isAuthenticated` before protected screens
 - **Platform differences**: Always check `Platform.OS` for web-specific code (alerts, storage)
 - **Form validation**: Use React Hook Form for complex forms
-- **Image uploads**: Use `expo-image-picker` → FormData → `photosAPI.uploadPhotoImmediate()`
+- **Image uploads**: Use `expo-image-picker` → FormData → `quotesAPI.uploadPhotoImmediate()`
+- **Data transformation**: Transform backend snake_case to camelCase in API responses
+- **Error handling**: API client returns Axios errors - check `error.response?.data?.detail` for backend error messages
 
 ## Deployment
 
@@ -284,15 +310,18 @@ db.quotes.createIndex({ customer_id: 1, status: 1 })
 - Verify `backend/providers/providers.env` has all required variables
 - Test providers individually: `python test_email.py`, `python test_sms.py`
 - Check MongoDB connection: `python test_linode_connection.py`
+- ImportError for providers: Check if optional dependencies are installed (sendgrid, twilio, stripe)
 
 **Frontend Issues:**
-- Clear Metro cache: `rm -rf frontend/.metro-cache`
+- Clear Metro cache: `rmdir /s /q frontend\.metro-cache` (Windows) or `rm -rf frontend/.metro-cache` (Unix)
 - Check API base URL in `frontend/src/services/api.ts`
 - Verify backend is running and accessible
 - Check Expo logs for JavaScript errors
+- Token issues: Check `storage.ts` implementation for platform-specific behavior
 
 **Common Errors:**
 - `401 Unauthorized`: Token expired or invalid, check auth flow
 - `Provider not initialized`: Check environment variables in `providers.env`
 - `CORS errors`: Verify CORS middleware allows your origin in `server.py`
-- `Module not found`: Run `pip install -r requirements.txt` or `yarn install`
+- `Module not found`: Run `pip install -r backend/requirements.txt` or `yarn install`
+- Duplicate photo uploads: Photos are uploaded immediately to Linode, not re-uploaded during quote submission

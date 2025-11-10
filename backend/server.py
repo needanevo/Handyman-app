@@ -264,8 +264,11 @@ async def upload_photo_immediately(
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")
         
+        logger.info(f"Received photo upload request: filename={file.filename}, content_type={file.content_type}, customer_id={customer_id}")
+
         # Read the file data
         file_data = await file.read()
+        logger.info(f"Read {len(file_data)} bytes from file {file.filename}")
         
         # Create temp quote ID (will be organized later when actual quote is created)
         temp_quote_id = f"temp_{str(uuid.uuid4())}"
@@ -273,6 +276,7 @@ async def upload_photo_immediately(
         # Get file extension
         file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
         filename = f"photo_{uuid.uuid4().hex[:8]}.{file_extension}"
+        logger.info(f"Generated filename: {filename}, temp_quote_id: {temp_quote_id}")
         
         # Upload using the NEW method in linode_storage_provider.py
         url = await storage_provider.upload_photo_direct(

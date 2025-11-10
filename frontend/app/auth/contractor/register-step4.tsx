@@ -33,15 +33,18 @@ export default function ContractorRegisterStep4() {
       };
 
       // Call API to register contractor
-      await authAPI.register(registrationData);
+      const registerResponse = await authAPI.register(registrationData);
+
+      // Automatically log in the user after successful registration
+      authAPI.setAuthToken(registerResponse.access_token);
 
       Alert.alert(
         'Registration Complete',
-        'Your registration is complete. You can now log in.',
+        'You have been successfully registered and logged in.',
         [
           {
-            text: 'Log In',
-            onPress: () => router.replace('/auth/login'),
+            text: 'Continue',
+            onPress: () => router.replace('/(contractor)/dashboard'), // Navigate to contractor dashboard
           },
         ]
       );

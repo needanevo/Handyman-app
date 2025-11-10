@@ -8,50 +8,50 @@
 export const colors = {
   // Primary - Trust and action
   primary: {
-    main: '#2563EB', // Professional blue - trust, reliability
-    light: '#60A5FA',
-    dark: '#1E40AF',
-    lighter: '#DBEAFE',
-    lightest: '#EFF6FF',
+    main: '#E88035', // Kinder (from a_slow_uncovering.html)
+    light: '#FFA96B', // Hello Meows (from a_slow_uncovering.html)
+    dark: '#C26A2C', // Calculated darker shade of main
+    lighter: '#FADDCB', // Calculated lighter shade of main
+    lightest: '#FEF3ED', // Calculated lightest shade of main
   },
 
   // Secondary - Energy and calls-to-action
   secondary: {
-    main: '#F97316', // Warm orange - action, completion
-    light: '#FB923C',
-    dark: '#EA580C',
-    lighter: '#FED7AA',
-    lightest: '#FFEDD5',
+    main: '#2D8691', // Undressed (from a_slow_uncovering.html)
+    light: '#B3F2CC', // Sea foam (from sea.html)
+    dark: '#246B72', // Calculated darker shade of main
+    lighter: '#D1F0F2', // Calculated lighter shade of main
+    lightest: '#F0FAFA', // Calculated lightest shade of main
   },
 
   // Success - Approvals, completions
   success: {
-    main: '#10B981',
-    light: '#34D399',
-    dark: '#059669',
-    lighter: '#A7F3D0',
-    lightest: '#D1FAE5',
+    main: '#CCE699', // Baby leaves (from sea.html)
+    light: '#E0F2B3',
+    dark: '#A3B87A',
+    lighter: '#F0F8E0',
+    lightest: '#F8FCF0',
   },
 
   // Warning - Pending actions, alerts
   warning: {
-    main: '#F59E0B',
-    light: '#FBBF24',
-    dark: '#D97706',
-    lighter: '#FDE68A',
-    lightest: '#FEF3C7',
+    main: '#FFCC33', // Sunset (from sea.html)
+    light: '#FFE073',
+    dark: '#D9AD00',
+    lighter: '#FFF5CC',
+    lightest: '#FFFBEB',
   },
 
   // Error - Rejections, problems
   error: {
-    main: '#EF4444',
-    light: '#F87171',
-    dark: '#DC2626',
-    lighter: '#FCA5A5',
-    lightest: '#FEE2E2',
+    main: '#FF776B', // Burnt (from a_slow_uncovering.html)
+    light: '#FF9E96',
+    dark: '#D9645C',
+    lighter: '#FFDCDC',
+    lightest: '#FFF5F5',
   },
 
-  // Neutral - Text, borders, backgrounds
+  // Neutral - Text, borders, backgrounds (keeping existing for now, might adjust later if needed)
   neutral: {
     900: '#111827', // Darkest text
     800: '#1F2937',
@@ -74,9 +74,9 @@ export const colors = {
 
   // Escrow-specific colors
   escrow: {
-    held: '#F59E0B', // Money held in escrow
-    released: '#10B981', // Money released
-    pending: '#6B7280', // Pending approval
+    held: '#FFCC33', // Using new warning color
+    released: '#CCE699', // Using new success color
+    pending: '#6B7280', // Keeping existing neutral
   },
 };
 

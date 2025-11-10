@@ -145,6 +145,135 @@ export const profileAPI = {
     apiClient.get<any[]>('/profile/addresses'),
 };
 
+// Contractor API
+export const contractorAPI = {
+  // Dashboard stats
+  getDashboardStats: () => apiClient.get<any>('/contractor/dashboard/stats'),
+
+  // Jobs
+  getAvailableJobs: (filters?: any) =>
+    apiClient.get<any[]>('/contractor/jobs/available', filters),
+
+  getAcceptedJobs: () =>
+    apiClient.get<any[]>('/contractor/jobs/accepted'),
+
+  getScheduledJobs: () =>
+    apiClient.get<any[]>('/contractor/jobs/scheduled'),
+
+  getCompletedJobs: (filters?: { startDate?: string; endDate?: string }) =>
+    apiClient.get<any[]>('/contractor/jobs/completed', filters),
+
+  getJob: (id: string) =>
+    apiClient.get<any>(`/contractor/jobs/${id}`),
+
+  acceptJob: (id: string) =>
+    apiClient.post<any>(`/contractor/jobs/${id}/accept`, {}),
+
+  updateJobStatus: (id: string, status: string) =>
+    apiClient.put<any>(`/contractor/jobs/${id}/status`, { status }),
+
+  // Job Photos
+  uploadJobPhoto: async (jobId: string, photo: {
+    uri: string;
+    type: string;
+    name: string;
+    category: string;
+    caption?: string;
+    notes?: string;
+  }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: photo.uri,
+      type: photo.type,
+      name: photo.name,
+    } as any);
+    formData.append('category', photo.category);
+    if (photo.caption) formData.append('caption', photo.caption);
+    if (photo.notes) formData.append('notes', photo.notes);
+
+    return apiClient.postFormData<any>(`/contractor/jobs/${jobId}/photos`, formData);
+  },
+
+  getJobPhotos: (jobId: string, category?: string) =>
+    apiClient.get<any[]>(`/contractor/jobs/${jobId}/photos`, category ? { category } : undefined),
+
+  deleteJobPhoto: (jobId: string, photoId: string) =>
+    apiClient.delete<any>(`/contractor/jobs/${jobId}/photos/${photoId}`),
+
+  updatePhotoCaption: (jobId: string, photoId: string, caption: string, notes?: string) =>
+    apiClient.put<any>(`/contractor/jobs/${jobId}/photos/${photoId}`, { caption, notes }),
+
+  // Expenses
+  getExpenses: (jobId?: string) =>
+    apiClient.get<any[]>('/contractor/expenses', jobId ? { job_id: jobId } : undefined),
+
+  addExpense: (expense: {
+    jobId: string;
+    category: string;
+    description: string;
+    amount: number;
+    date: string;
+    vendor?: string;
+    notes?: string;
+  }) => apiClient.post<any>('/contractor/expenses', expense),
+
+  uploadReceiptPhoto: async (expenseId: string, photo: { uri: string; type: string; name: string }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: photo.uri,
+      type: photo.type,
+      name: photo.name,
+    } as any);
+
+    return apiClient.postFormData<any>(`/contractor/expenses/${expenseId}/receipt`, formData);
+  },
+
+  deleteExpense: (id: string) =>
+    apiClient.delete<any>(`/contractor/expenses/${id}`),
+
+  // Mileage
+  getMileageLogs: (filters?: { startDate?: string; endDate?: string; jobId?: string }) =>
+    apiClient.get<any[]>('/contractor/mileage', filters),
+
+  addMileageLog: (log: {
+    jobId?: string;
+    date: string;
+    startLocation: { address: string; latitude: number; longitude: number };
+    endLocation: { address: string; latitude: number; longitude: number };
+    miles: number;
+    purpose: string;
+    notes?: string;
+    autoTracked: boolean;
+  }) => apiClient.post<any>('/contractor/mileage', log),
+
+  deleteMileageLog: (id: string) =>
+    apiClient.delete<any>(`/contractor/mileage/${id}`),
+
+  // Time logs
+  startTimeLog: (jobId: string, notes?: string) =>
+    apiClient.post<any>(`/contractor/jobs/${jobId}/time/start`, { notes }),
+
+  stopTimeLog: (jobId: string, timeLogId: string, notes?: string) =>
+    apiClient.post<any>(`/contractor/jobs/${jobId}/time/${timeLogId}/stop`, { notes }),
+
+  getTimeLogs: (jobId: string) =>
+    apiClient.get<any[]>(`/contractor/jobs/${jobId}/time`),
+
+  // Reports
+  getMonthlyReport: (year: number, month: number) =>
+    apiClient.get<any>('/contractor/reports/monthly', { year, month }),
+
+  getYearlyReport: (year: number) =>
+    apiClient.get<any>('/contractor/reports/yearly', { year }),
+
+  getTaxReport: (startDate: string, endDate: string) =>
+    apiClient.get<any>('/contractor/reports/tax', { start_date: startDate, end_date: endDate }),
+
+  // Export reports as PDF (returns blob)
+  exportTaxReportPDF: (startDate: string, endDate: string) =>
+    apiClient.get<any>('/contractor/reports/tax/pdf', { start_date: startDate, end_date: endDate }),
+};
+
 // Health check
 export const healthAPI = {
   check: () => apiClient.get<{ status: string; timestamp: string }>('/health'),
