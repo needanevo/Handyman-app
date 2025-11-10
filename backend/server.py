@@ -38,7 +38,7 @@ from models import (
 )
 
 # Import authentication
-from .auth.auth_handler import (
+from auth.auth_handler import (
     AuthHandler,
     get_current_user,
     require_admin,
