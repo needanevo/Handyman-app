@@ -10,6 +10,16 @@ class ServiceCategory(str, Enum):
     ELECTRICAL = "electrical"
     PLUMBING = "plumbing"
     CARPENTRY = "carpentry"
+    HVAC = "hvac"
+    FLOORING = "flooring"
+    ROOFING = "roofing"
+    LANDSCAPING = "landscaping"
+    APPLIANCE_REPAIR = "appliance_repair"
+    WINDOW_DOOR_INSTALLATION = "window_door_installation"
+    TILE_WORK = "tile_work"
+    DECK_FENCE = "deck_fence"
+    GUTTER_CLEANING = "gutter_cleaning"
+    PRESSURE_WASHING = "pressure_washing"
     MISCELLANEOUS = "miscellaneous"
 
 class PricingModel(str, Enum):
