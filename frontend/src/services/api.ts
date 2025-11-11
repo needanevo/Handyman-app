@@ -42,6 +42,10 @@ class APIClient {
     this.authToken = token;
   }
 
+  getAuthToken(): string | null {
+    return this.authToken;
+  }
+
   clearAuthToken() {
     this.authToken = null;
   }
