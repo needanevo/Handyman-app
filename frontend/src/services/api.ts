@@ -136,7 +136,7 @@ export const quotesAPI = {
     formData.append('customer_id', customer_id);
     
     // Get auth token
-    const token = await apiClient.getAuthToken();
+    const token = apiClient.getAuthToken();
     
     // Use fetch for file upload (works better with React Native FormData)
     const response = await fetch(`${BACKEND_URL}/api/photos/upload`, {
