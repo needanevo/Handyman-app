@@ -119,17 +119,37 @@ export const quotesAPI = {
   
 // NEW METHOD: Upload photo immediately
   uploadPhotoImmediate: async (file: { uri: string; type: string; name: string }, customer_id: string) => {
+    // Use fetch instead of axios for React Native file uploads
+    // React Native's FormData works properly with fetch but not with axios
     const formData = new FormData();
     
     formData.append('file', {
       uri: file.uri,
-      type: file.type,
-      name: file.name,
+      type: file.type || 'image/jpeg',
+      name: file.name || 'photo.jpg',
     } as any);
     
     formData.append('customer_id', customer_id);
     
-    return apiClient.postFormData<any>('/photos/upload', formData);
+    // Get auth token
+    const token = await apiClient.getAuthToken();
+    
+    // Use fetch for file upload (works better with React Native FormData)
+    const response = await fetch(`${BACKEND_URL}/api/photos/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        // Don't set Content-Type - let browser/React Native set it with boundary
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+      throw new Error(error.detail || 'Failed to upload photo');
+    }
+    
+    return response.json();
   },
   
   respondToQuote: (id: string, response: { accept: boolean; customer_notes?: string }) => 
