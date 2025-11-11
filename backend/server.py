@@ -266,7 +266,13 @@ async def upload_photo_immediately(
         
         # Read the file data
         file_data = await file.read()
-        
+        file_size = len(file_data)
+        logger.info(f"📸 Photo upload: filename={file.filename}, content_type={file.content_type}, size={file_size} bytes")
+
+        if file_size == 0:
+            logger.error("⚠️ Empty file received - no data!")
+            raise HTTPException(status_code=400, detail="Empty file received")
+
         # Create temp quote ID (will be organized later when actual quote is created)
         temp_quote_id = f"temp_{str(uuid.uuid4())}"
         
