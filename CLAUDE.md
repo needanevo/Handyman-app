@@ -2,7 +2,268 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## CURRENT DIRECTIVE: Production Deployment & Stabilization
+## CURRENT DIRECTIVE: Complete Production MVP
+
+**STATUS: Core Features Working ✅ | Jobs System Needed 🔴 | Infrastructure Hardening Required 🟡**
+
+**Progress: 45% Complete** (25/55 tasks)
+
+---
+
+## 🔴 HIGH PRIORITY - BLOCKING MVP LAUNCH
+
+### Jobs Management System (CRITICAL)
+**Status**: Not Started | **Priority**: P0 - Blocking
+
+- [ ] Create Job model (`backend/models/job.py`)
+  - Fields: id, contractor_id, customer_id, quote_id, status, scheduled_date, completed_date
+  - Status enum: PENDING, SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+
+- [ ] Implement POST `/api/jobs` endpoint
+  - Accept quote acceptance
+  - Create job record
+  - Trigger contractor assignment workflow
+
+- [ ] Implement GET `/api/jobs/:id/quotes` endpoint
+  - Return all quotes associated with a job
+
+- [ ] Implement routing logic
+  - Skill matching algorithm
+  - Nearest zip code calculation
+  - Contractor capacity checks
+  - `routingEnabled` flag with email fallback
+
+- [ ] Email notifications
+  - Customer: Quote accepted, job scheduled
+  - Contractor: New job assigned
+  - Admin: Job created (if routingEnabled=false)
+
+**Why Critical**: Customers can request quotes but can't actually book jobs. This breaks the entire workflow.
+
+**Estimated Effort**: 2-3 days
+
+---
+
+### Database Schema & Constraints
+**Status**: Partially Complete | **Priority**: P0 - Blocking
+
+- [ ] Create `jobs` collection with indexes
+  ```javascript
+  db.jobs.createIndex({ contractor_id: 1, status: 1 })
+  db.jobs.createIndex({ customer_id: 1, created_at: -1 })
+  db.jobs.createIndex({ status: 1, scheduled_date: 1 })
+  ```
+
+- [ ] Create `events` collection for audit trail
+  ```javascript
+  db.events.createIndex({ entity_type: 1, entity_id: 1, created_at: -1 })
+  db.events.createIndex({ created_at: -1 })
+  ```
+
+- [ ] Add phone unique constraint
+  ```javascript
+  db.users.createIndex({ phone: 1 }, { unique: true, sparse: true })
+  ```
+
+- [ ] Create `photos` metadata collection
+  ```javascript
+  db.photos.createIndex({ customer_id: 1, created_at: -1 })
+  db.photos.createIndex({ quote_id: 1 })
+  db.photos.createIndex({ job_id: 1 })
+  ```
+
+- [ ] Verify and document all existing indexes
+  - Run `db.users.getIndexes()`, `db.quotes.getIndexes()`, etc.
+  - Document in ops/mongodb_commands.txt
+
+**Why Critical**: Missing indexes cause slow queries. Missing unique constraints allow duplicate data.
+
+**Estimated Effort**: 1 day
+
+---
+
+## 🟡 MEDIUM PRIORITY - PRODUCTION READINESS
+
+### Security & Infrastructure Hardening
+**Status**: Not Started | **Priority**: P1 - Pre-Launch
+
+- [ ] Install & configure Let's Encrypt SSL certificate
+  - Use certbot with nginx
+  - Auto-renewal setup
+  - Update frontend EXPO_PUBLIC_BACKEND_URL to https://
+
+- [ ] Test HTTPS configuration
+  - Verify SSL grade (ssllabs.com)
+  - Test CORS with HTTPS
+  - Update all API calls to https
+
+- [ ] Harden server security
+  - Verify UFW firewall rules (only 22, 80, 443 open)
+  - Verify fail2ban is active and configured
+  - Review SSH config (disable root login, key-only auth)
+
+- [ ] Finalize domain name
+  - Purchase/configure domain
+  - Point A record to 172.234.70.157
+  - Update all references from IP to domain
+
+**Why Important**: HTTP-only is insecure for production. Domain name is more professional than IP address.
+
+**Estimated Effort**: 1 day
+
+---
+
+### Backups & Monitoring
+**Status**: Not Started | **Priority**: P1 - Pre-Launch
+
+- [ ] Setup nightly MongoDB dumps to Linode Object Storage
+  - Create backup script (ops/backup_mongodb.sh)
+  - Add to crontab (2 AM daily)
+  - Retain last 30 days
+  - Test restore procedure
+
+- [ ] Enable system metrics
+  - CPU, memory, disk usage
+  - API response times
+  - Error rates
+  - Use simple monitoring (uptimerobot.com or similar)
+
+- [ ] Configure log rotation
+  - Setup logrotate for backend.log
+  - Rotate daily, keep 30 days
+  - Compress old logs
+
+- [ ] Create smoke test script
+  - Test all critical endpoints
+  - Run post-deployment
+  - Alert on failures
+
+**Why Important**: Data loss is unacceptable. Monitoring prevents downtime. Logs help debugging.
+
+**Estimated Effort**: 2 days
+
+---
+
+## 🟢 LOW PRIORITY - NICE TO HAVE
+
+### Customer Endpoints (Future)
+**Status**: Using Auth Endpoints | **Priority**: P2 - Post-Launch
+
+- [ ] Dedicated POST `/api/customers` endpoint
+  - Currently using `/api/auth/register`
+  - Create customer-specific registration
+
+- [ ] Dedicated GET `/api/customers/:id` endpoint
+  - Currently using `/api/auth/me`
+  - Add customer-specific fields
+
+**Why Low Priority**: Current auth endpoints work fine. This is code organization, not functionality.
+
+**Estimated Effort**: 4 hours
+
+---
+
+### Admin & Operations Tools
+**Status**: Not Started | **Priority**: P2 - Post-Launch
+
+- [ ] Verify MongoDB least privilege
+  - Review current user permissions
+  - Create read-only user for monitoring
+  - Create admin user separate from app user
+
+- [ ] Create admin user accounts
+  - Admin dashboard access
+  - Role-based permissions
+
+- [ ] Install mongo-express (development only)
+  - Docker container for DB browsing
+  - Only accessible via SSH tunnel
+  - NEVER expose publicly
+
+**Why Low Priority**: App works without this. Makes operations easier but not required for launch.
+
+**Estimated Effort**: 1 day
+
+---
+
+### Docker Migration (Future Consideration)
+**Status**: Not Started | **Priority**: P3 - Future
+
+- [ ] Install Docker & Docker Compose
+- [ ] Containerize backend API
+- [ ] Create docker-compose.yml for services
+- [ ] Update deployment scripts
+
+**Why Low Priority**: Current systemd setup works. Docker adds complexity without immediate benefit.
+
+**Estimated Effort**: 3 days
+
+---
+
+## 📊 COMPLETION TRACKING
+
+### Current Status (2025-11-12)
+
+**COMPLETED** (25 tasks - 45%):
+- ✅ Backend API deployment (uvicorn + systemd)
+- ✅ MongoDB Atlas connection
+- ✅ Linode Object Storage integration
+- ✅ Photo upload endpoints
+- ✅ Authentication system (register, login, JWT)
+- ✅ Quote generation with AI
+- ✅ Email system (SendGrid + templates)
+- ✅ Contractor registration (4-step flow)
+- ✅ Service categories (12 total)
+- ✅ CORS configuration
+- ✅ Collections: users, user_passwords, quotes, services
+- ✅ iPhone photo upload fix
+- ✅ Contractor profile page
+- ✅ Registration step navigation
+- ✅ Test contractor account
+
+**IN PROGRESS** (5 tasks - 10%):
+- 🟡 Contractor annual renewal system (documented, not implemented)
+- 🟡 Success criteria documentation (partially complete)
+- 🟡 Infrastructure testing (basic deployment done, hardening needed)
+
+**NOT STARTED** (25 tasks - 45%):
+- ❌ Jobs management system (CRITICAL)
+- ❌ Contractor routing logic (CRITICAL)
+- ❌ Database indexes and constraints (CRITICAL)
+- ❌ HTTPS/SSL setup (HIGH)
+- ❌ Backups and monitoring (HIGH)
+- ❌ Server hardening verification (MEDIUM)
+- ❌ Admin tools and users (LOW)
+- ❌ Docker migration (FUTURE)
+
+---
+
+## 🎯 NEXT SPRINT GOALS
+
+**Sprint 1 (This Week): Jobs System**
+1. Create Job model
+2. Implement POST /jobs endpoint
+3. Implement contractor routing (skill + zip + capacity)
+4. Add email notifications
+5. Create jobs collection with indexes
+
+**Sprint 2 (Next Week): Production Hardening**
+1. Install Let's Encrypt SSL
+2. Setup nightly backups
+3. Enable monitoring and alerts
+4. Configure log rotation
+5. Finalize domain name
+
+**Sprint 3 (Following Week): Polish & Launch**
+1. Complete contractor renewal system backend
+2. Create admin dashboard
+3. Final security audit
+4. Load testing
+5. Production launch
+
+---
+
+## PREVIOUS STATUS: Production Deployment & Stabilization
 
 **STATUS: Backend Deployed ✅ | Frontend Photo Upload FIXED ✅ | Testing In Progress**
 
