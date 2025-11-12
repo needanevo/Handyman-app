@@ -102,6 +102,8 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
                 editable={!isLoading && !authLoading}
               />
             </View>
@@ -115,6 +117,8 @@ export default function LoginScreen() {
                 placeholder="••••••••"
                 secureTextEntry
                 editable={!isLoading && !authLoading}
+                autoComplete="password"
+                textContentType="password"
               />
             </View>
           </View>

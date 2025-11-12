@@ -260,14 +260,25 @@ async def upload_photo_immediately(
     This uploads right away, not waiting for quote submission
     """
     try:
+        # Log incoming request details
+        logger.info(f"📥 Received upload request: customer_id={customer_id}")
+        logger.info(f"📄 File object: filename={file.filename}, content_type={file.content_type}")
+        
         # Validate it's an image
-        if not file.content_type.startswith('image/'):
+        if not file.content_type or not file.content_type.startswith('image/'):
+            logger.warning(f"⚠️ Invalid content type: {file.content_type}")
             raise HTTPException(status_code=400, detail="File must be an image")
         
         # Read the file data
+        logger.info("📖 Reading file data...")
         file_data = await file.read()
         file_size = len(file_data)
         logger.info(f"📸 Photo upload: filename={file.filename}, content_type={file.content_type}, size={file_size} bytes")
+        
+        if file_size > 0:
+            logger.info(f"📊 First 20 bytes (hex): {file_data[:20].hex()}")
+        else:
+            logger.error("⚠️ File data is completely EMPTY!")
 
         if file_size == 0:
             logger.error("⚠️ Empty file received - no data!")
@@ -314,21 +325,10 @@ async def request_quote(
     try:
         quote_id = str(uuid.uuid4())
         
-        # Step 1: Upload photos to Linode Object Storage
-        photo_urls = []
-        if quote_request.photos:
-            logger.info(f"Uploading {len(quote_request.photos)} photos to Linode...")
-            try:
-                photo_urls = await storage_provider.upload_multiple_photos(
-                    photos=quote_request.photos,
-                    customer_id=current_user.id,
-                    quote_id=quote_id
-                )
-                logger.info(f"Successfully uploaded photos: {photo_urls}")
-            except Exception as e:
-                logger.error(f"Photo upload failed: {e}")
-                # Continue without photos rather than failing the entire request
-                photo_urls = []
+        # Step 1: Use photo URLs from immediate upload (no re-upload needed)
+        # Photos were already uploaded via /api/photos/upload endpoint
+        photo_urls = quote_request.photos if quote_request.photos else []
+        logger.info(f"Using {len(photo_urls)} pre-uploaded photo URLs")
         
         # Step 2: Get AI suggestion if enabled
         ai_suggestion = None

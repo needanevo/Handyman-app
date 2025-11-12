@@ -24,36 +24,20 @@ export default function ContractorRegisterStep4() {
   const [isLoading, setIsLoading] = useState(false);
 
   const onSubmit = async () => {
-    setIsLoading(true);
-    try {
-      // Combine all params and portfolio photos
-      const registrationData = {
-        ...params,
-        portfolioPhotos: JSON.stringify(portfolioPhotos),
-      };
-
-      // Call API to register contractor
-      const registerResponse = await authAPI.register(registrationData);
-
-      // Automatically log in the user after successful registration
-      authAPI.setAuthToken(registerResponse.access_token);
-
-      Alert.alert(
-        'Registration Complete',
-        'You have been successfully registered and logged in.',
-        [
-          {
-            text: 'Continue',
-            onPress: () => router.replace('/(contractor)/dashboard'), // Navigate to contractor dashboard
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Contractor registration error:', error);
-      Alert.alert('Error', 'Failed to complete registration. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    // User is already registered and logged in from Step 1
+    // Portfolio photos are uploaded via PhotoUploader component (already authenticated)
+    // Just navigate to contractor dashboard
+    
+    Alert.alert(
+      'Registration Complete',
+      'Welcome! Your profile is now complete.',
+      [
+        {
+          text: 'Go to Dashboard',
+          onPress: () => router.replace('/(contractor)/dashboard'),
+        },
+      ]
+    );
   };
 
   const steps = [

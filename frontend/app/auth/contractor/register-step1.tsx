@@ -16,6 +16,7 @@ import { colors, spacing, typography } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
+import { useAuth } from '../../../src/contexts/AuthContext';
 
 interface Step1Form {
   firstName: string;
@@ -23,6 +24,8 @@ interface Step1Form {
   email: string;
   phone: string;
   businessName: string;
+  password: string;
+  confirmPassword: string;
 }
 
 export default function ContractorRegisterStep1() {
@@ -35,13 +38,46 @@ export default function ContractorRegisterStep1() {
     formState: { errors },
   } = useForm<Step1Form>();
 
+  const { register } = useAuth();
+
   const onSubmit = async (data: Step1Form) => {
-    // Store form data in context or local storage for later steps
-    // For now, navigate to next step
-    router.push({
-      pathname: '/auth/contractor/register-step2',
-      params: data,
-    });
+    // Validate passwords match
+    if (data.password !== data.confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Register the user immediately with basic info
+      // The register function from AuthContext handles token storage and user fetch
+      await register({
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        role: 'technician',
+      });
+
+      // Navigate to next step (now authenticated for photo uploads)
+      router.push({
+        pathname: '/auth/contractor/register-step2',
+        params: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          businessName: data.businessName
+        },
+      });
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      Alert.alert(
+        'Registration Failed',
+        error.response?.data?.detail || 'Please try again'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const steps = [
@@ -94,6 +130,8 @@ export default function ContractorRegisterStep1() {
                   onChangeText={onChange}
                   placeholder="John"
                   autoCapitalize="words"
+                  autoComplete="name-given"
+                  textContentType="givenName"
                   error={errors.firstName?.message}
                   required
                   icon="person-outline"
@@ -112,6 +150,8 @@ export default function ContractorRegisterStep1() {
                   onChangeText={onChange}
                   placeholder="Doe"
                   autoCapitalize="words"
+                  autoComplete="name-family"
+                  textContentType="familyName"
                   error={errors.lastName?.message}
                   required
                   icon="person-outline"
@@ -137,6 +177,8 @@ export default function ContractorRegisterStep1() {
                   placeholder="john@example.com"
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  autoComplete="email"
+                  textContentType="emailAddress"
                   error={errors.email?.message}
                   required
                   icon="mail-outline"
@@ -155,6 +197,8 @@ export default function ContractorRegisterStep1() {
                   onChangeText={onChange}
                   placeholder="(555) 123-4567"
                   keyboardType="phone-pad"
+                  autoComplete="tel"
+                  textContentType="telephoneNumber"
                   error={errors.phone?.message}
                   required
                   icon="call-outline"
@@ -174,10 +218,63 @@ export default function ContractorRegisterStep1() {
                   onChangeText={onChange}
                   placeholder="Johnson's Handyman Services"
                   autoCapitalize="words"
+                  autoComplete="organization"
+                  textContentType="organizationName"
                   error={errors.businessName?.message}
                   required
                   icon="briefcase-outline"
                   helpText="Your company name or DBA (Doing Business As)"
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="password"
+              rules={{ 
+                required: 'Password is required',
+                minLength: {
+                  value: 8,
+                  message: 'Password must be at least 8 characters'
+                }
+              }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Password"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Create a secure password"
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoComplete="password-new"
+                  textContentType="newPassword"
+                  error={errors.password?.message}
+                  required
+                  icon="lock-closed-outline"
+                  helpText="Minimum 8 characters"
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="confirmPassword"
+              rules={{ 
+                required: 'Please confirm your password'
+              }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Confirm Password"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Re-enter your password"
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoComplete="password-new"
+                  textContentType="newPassword"
+                  error={errors.confirmPassword?.message}
+                  required
+                  icon="lock-closed-outline"
                 />
               )}
             />

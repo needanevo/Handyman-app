@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -24,10 +25,7 @@ interface QuoteRequestForm {
   serviceCategory: string;
   description: string;
   urgency: string;
-  budgetRange: {
-    min: string;
-    max: string;
-  };
+  maxBudget: string;
 }
 interface PhotoUpload {
   id: string;
@@ -80,6 +78,54 @@ const serviceCategories = [
     fullDesc: 'Custom carpentry and woodworking services. Specializing in door installation and repair, trim work, crown molding, baseboards, shelving, cabinet repairs, and general wood repairs. Quality craftsmanship guaranteed.',
   },
   {
+    id: 'hvac',
+    title: 'HVAC',
+    icon: 'thermometer-outline',
+    color: '#E67E22',
+    shortDesc: 'Thermostats, filters, maintenance',
+    fullDesc: 'Heating and cooling system services including thermostat installation, air filter replacement, basic maintenance, vent cleaning, and troubleshooting common HVAC issues. Keeping your home comfortable year-round.',
+  },
+  {
+    id: 'flooring',
+    title: 'Flooring',
+    icon: 'grid-outline',
+    color: '#8E44AD',
+    shortDesc: 'Hardwood, tile, carpet repairs',
+    fullDesc: 'Flooring installation and repair services. From hardwood refinishing to tile replacement, carpet repairs, and vinyl plank installation. We handle minor repairs and small flooring projects with expert craftsmanship.',
+  },
+  {
+    id: 'roofing',
+    title: 'Roofing',
+    icon: 'home-outline',
+    color: '#16A085',
+    shortDesc: 'Shingles, gutters, leak repairs',
+    fullDesc: 'Residential roofing repairs including shingle replacement, minor leak repairs, gutter cleaning and repair, flashing installation, and roof maintenance. Quick response for emergency roof repairs.',
+  },
+  {
+    id: 'landscaping',
+    title: 'Landscaping',
+    icon: 'leaf-outline',
+    color: '#27AE60',
+    shortDesc: 'Fences, decks, outdoor work',
+    fullDesc: 'Outdoor handyman services including fence installation and repair, deck maintenance, pressure washing, outdoor lighting, mailbox installation, and general yard improvements. Enhance your outdoor living spaces.',
+  },
+  {
+    id: 'appliance',
+    title: 'Appliance',
+    icon: 'cube-outline',
+    color: '#C0392B',
+    shortDesc: 'Installation, repair, hookups',
+    fullDesc: 'Appliance installation and hookup services for dishwashers, washing machines, dryers, microwaves, and more. Includes water line connections, electrical hookups, and proper venting. Get your appliances running smoothly.',
+  },
+  {
+    id: 'windows',
+    title: 'Windows & Doors',
+    icon: 'square-outline',
+    color: '#2980B9',
+    shortDesc: 'Installation, screens, sealing',
+    fullDesc: 'Window and door services including screen repair, weatherstripping, caulking and sealing, minor adjustments, lock replacement, and storm door installation. Improve energy efficiency and home security.',
+  },
+  {
     id: 'miscellaneous',
     title: 'Other',
     icon: 'build-outline',
@@ -121,7 +167,7 @@ export default function QuoteRequestScreen() {
     defaultValues: {
       serviceCategory: (category as string) || '',
       urgency: 'normal',
-      budgetRange: { min: '', max: '' },
+      maxBudget: '',
     },
   });
   
@@ -173,7 +219,12 @@ export default function QuoteRequestScreen() {
         prev.map(p => p.id === photoId ? { ...p, status: 'success', url } : p)
       );
     } catch (error: any) {
-      console.error('Photo upload failed:', error);
+      console.error('❌ Photo upload FAILED:', error);
+      console.error('Error details:', { 
+        message: error.message, 
+        response: error.response?.data,
+        status: error.response?.status 
+      });
       
       setPhotos(prev =>
         prev.map(p => p.id === photoId ? { ...p, status: 'failed', error: error.message } : p)
@@ -295,8 +346,8 @@ export default function QuoteRequestScreen() {
         photos: photos.filter(p => p.status === 'success' && p.url).map(p => p.url!),
         preferred_dates: [], // Will be enhanced later with date picker
         budget_range: {
-          min: parseFloat(data.budgetRange.min) || 0,
-          max: parseFloat(data.budgetRange.max) || 0,
+          min: 0,
+          max: parseFloat(data.maxBudget) || 0,
         },
         urgency: data.urgency,
       };
@@ -460,29 +511,37 @@ export default function QuoteRequestScreen() {
                       photo.status === 'success' && styles.photoSuccess,
                       photo.status === 'failed' && styles.photoFailed,
                     ]}>
+                      {/* Show the actual image thumbnail */}
+                      <Image 
+                        source={{ uri: photo.uri }} 
+                        style={styles.photoThumbnail}
+                        resizeMode="cover"
+                      />
+                      
+                      {/* Overlay status indicators */}
                       {photo.status === 'uploading' && (
-                        <>
-                          <ActivityIndicator size="small" color="#FF6B35" />
-                          <Text style={styles.photoText}>Uploading...</Text>
-                        </>
+                        <View style={styles.photoOverlay}>
+                          <ActivityIndicator size="small" color="#fff" />
+                          <Text style={styles.photoOverlayText}>Uploading...</Text>
+                        </View>
                       )}
                       {photo.status === 'success' && (
-                        <>
-                          <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
-                          <Text style={styles.photoTextSuccess}>Photo {index + 1}</Text>
-                        </>
+                        <View style={styles.photoSuccessOverlay}>
+                          <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                        </View>
                       )}
                       {photo.status === 'failed' && (
-                        <>
-                          <Ionicons name="alert-circle" size={24} color="#E74C3C" />
-                          <Text style={styles.photoTextFailed}>Failed</Text>
+                        <View style={styles.photoOverlay}>
+                          <Ionicons name="alert-circle" size={24} color="#fff" />
+                          <Text style={styles.photoOverlayText}>Failed</Text>
                           <TouchableOpacity
                             onPress={() => retryUpload(photo.id)}
                             style={styles.retryButton}
                           >
                             <Text style={styles.retryText}>Retry</Text>
                           </TouchableOpacity>
-                        </>
+                        </View>
+                      )}
                       )}
                     </View>
                   </View>
@@ -523,49 +582,25 @@ export default function QuoteRequestScreen() {
             </View>
           </View>
 
-          {/* Budget Range */}
+          {/* Maximum Budget */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Budget Range (Optional)</Text>
+            <Text style={styles.sectionTitle}>Maximum Budget (Optional)</Text>
             <Text style={styles.sectionDescription}>
               Help us provide options within your budget
             </Text>
-            <View style={styles.budgetRow}>
-              <View style={styles.budgetInput}>
-                <Text style={styles.label}>Minimum</Text>
-                <Controller
-                  control={control}
-                  name="budgetRange.min"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      style={styles.input}
-                      onChangeText={onChange}
-                      value={value}
-                      placeholder="$100"
-                      keyboardType="numeric"
-                    />
-                  )}
+            <Controller
+              control={control}
+              name="maxBudget"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  style={styles.input}
+                  onChangeText={onChange}
+                  value={value}
+                  placeholder="$500"
+                  keyboardType="numeric"
                 />
-              </View>
-              <View style={styles.budgetSeparator}>
-                <Text style={styles.budgetSeparatorText}>to</Text>
-              </View>
-              <View style={styles.budgetInput}>
-                <Text style={styles.label}>Maximum</Text>
-                <Controller
-                  control={control}
-                  name="budgetRange.max"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      style={styles.input}
-                      onChangeText={onChange}
-                      value={value}
-                      placeholder="$500"
-                      keyboardType="numeric"
-                    />
-                  )}
-                />
-              </View>
-            </View>
+              )}
+            />
           </View>
 
           {/* Submit */}
@@ -780,6 +815,72 @@ const styles = StyleSheet.create({
     color: '#7F8C8D',
     marginTop: 4,
   },
+  photoThumbnail: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  photoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoSuccessOverlay: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(39, 174, 96, 0.9)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoOverlayText: {
+    fontSize: 10,
+    color: '#fff',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  photoThumbnail: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  photoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoSuccessOverlay: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(39, 174, 96, 0.9)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoOverlayText: {
+    fontSize: 10,
+    color: '#fff',
+    marginTop: 4,
+    fontWeight: '600',
+  },
   removePhoto: {
     position: 'absolute',
     top: -8,
@@ -824,22 +925,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#7F8C8D',
     marginTop: 2,
-  },
-  budgetRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  budgetInput: {
-    flex: 1,
-  },
-  budgetSeparator: {
-    width: 40,
-    alignItems: 'center',
-    paddingBottom: 12,
-  },
-  budgetSeparatorText: {
-    fontSize: 16,
-    color: '#7F8C8D',
   },
   label: {
     fontSize: 14,

@@ -120,15 +120,26 @@ export const quotesAPI = {
 // NEW METHOD: Upload photo immediately
   uploadPhotoImmediate: async (file: { uri: string; type: string; name: string }, customer_id: string) => {
     const formData = new FormData();
-    
-    formData.append('file', {
-      uri: file.uri,
-      type: file.type,
-      name: file.name,
-    } as any);
-    
+
+    // iOS/Android require the file object to have specific structure
+    // Ensure URI has proper format for native platforms
+    let fileUri = file.uri;
+
+    // On iOS, if URI doesn't start with file://, ensure it's properly formatted
+    if (!fileUri.startsWith('file://') && !fileUri.startsWith('http://') && !fileUri.startsWith('https://')) {
+      fileUri = `file://${fileUri}`;
+    }
+
+    // Create proper file object for React Native FormData
+    const fileToUpload: any = {
+      uri: fileUri,
+      type: file.type || 'image/jpeg', // Ensure type is always set
+      name: file.name || 'photo.jpg',   // Ensure name is always set
+    };
+
+    formData.append('file', fileToUpload);
     formData.append('customer_id', customer_id);
-    
+
     return apiClient.postFormData<any>('/photos/upload', formData);
   },
   
@@ -182,10 +193,16 @@ export const contractorAPI = {
     notes?: string;
   }) => {
     const formData = new FormData();
+    // iOS/Android require proper URI format
+    let fileUri = photo.uri;
+    if (!fileUri.startsWith('file://') && !fileUri.startsWith('http://') && !fileUri.startsWith('https://')) {
+      fileUri = `file://${fileUri}`;
+    }
+
     formData.append('file', {
-      uri: photo.uri,
-      type: photo.type,
-      name: photo.name,
+      uri: fileUri,
+      type: photo.type || 'image/jpeg',
+      name: photo.name || 'photo.jpg',
     } as any);
     formData.append('category', photo.category);
     if (photo.caption) formData.append('caption', photo.caption);
@@ -219,10 +236,16 @@ export const contractorAPI = {
 
   uploadReceiptPhoto: async (expenseId: string, photo: { uri: string; type: string; name: string }) => {
     const formData = new FormData();
+    // iOS/Android require proper URI format
+    let fileUri = photo.uri;
+    if (!fileUri.startsWith('file://') && !fileUri.startsWith('http://') && !fileUri.startsWith('https://')) {
+      fileUri = `file://${fileUri}`;
+    }
+
     formData.append('file', {
-      uri: photo.uri,
-      type: photo.type,
-      name: photo.name,
+      uri: fileUri,
+      type: photo.type || 'image/jpeg',
+      name: photo.name || 'photo.jpg',
     } as any);
 
     return apiClient.postFormData<any>(`/contractor/expenses/${expenseId}/receipt`, formData);

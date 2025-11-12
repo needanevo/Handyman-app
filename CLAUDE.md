@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## CURRENT DIRECTIVE: Production Deployment & Stabilization
 
-**STATUS: Backend Deployed ✅ | Frontend Ready ⏳ | Testing In Progress**
+**STATUS: Backend Deployed ✅ | Frontend Photo Upload FIXED ✅ | Testing In Progress**
 
 ### Completed ✅
 1. **Backend Deployment**: Successfully deployed on server 172.234.70.157:8001
@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - Region: us-iad-10
    - **Action Required**: Re-enable storage_provider in server.py line 85 and restart service
 
-3. **Frontend Setup**: NPM dependencies installed
+3. **Frontend Setup & Photo Upload**: NPM dependencies installed, iOS photo upload fixed
    - Created frontend/.env with EXPO_PUBLIC_BACKEND_URL=http://172.234.70.157:8001
    - Ready to start with `npx expo start`
 
@@ -47,6 +47,259 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - API Docs: http://172.234.70.157:8001/docs
 - MongoDB: Atlas cluster connected
 - Service: handyman-api (systemd)
+
+
+## CRITICAL BUG FIX: iPhone Photo Upload (2025-11-11)
+
+**ISSUE**: Photos were not displaying correctly on iPhone and duplicate/broken files were being created in Linode Object Storage.
+
+### Root Causes Identified:
+1. **iOS FormData Construction**: React Native on iOS requires proper `file://` URI prefix for file uploads. Missing prefix caused empty (0 byte) files.
+2. **Duplicate Upload Logic**: Quote submission endpoint was attempting to re-upload photos that were already uploaded via immediate upload endpoint, creating broken duplicate files.
+3. **Missing Thumbnails**: UI only showed status indicators (checkmarks) instead of actual photo thumbnails.
+
+### Files Modified:
+- `frontend/src/services/api.ts` (lines 120-144, 187-210, 220-236)
+  - Fixed: Added proper URI formatting for iOS (`file://` prefix validation)
+  - Fixed: Added fallback values for type and name
+  - Applied to: `uploadPhotoImmediate`, `uploadJobPhoto`, `uploadReceiptPhoto`
+
+- `frontend/app/quote/request.tsx`
+  - Fixed: Added Image component to display actual photo thumbnails
+  - Fixed: Added overlay status indicators (uploading/success/failed)
+  - Fixed: Added detailed console logging for debugging
+
+- `backend/models/quote.py` (lines 41, 65)
+  - Fixed: Updated model comments from "Base64 images" to "Photo URLs (from Linode Object Storage)"
+
+- `backend/server.py` (lines 328-342)
+  - **CRITICAL**: Removed duplicate photo upload logic from quote submission endpoint
+  - Now: Quote submission uses pre-uploaded photo URLs directly (no re-upload)
+  - Result: Only one file per photo in Object Storage
+
+### Photo Upload Flow (CORRECT):
+1. User takes/selects photo → Frontend immediately uploads via `/api/photos/upload`
+2. Backend uploads to Linode → Returns URL like `https://photos.us-iad-10.linodeobjects.com/customers/{id}/quotes/temp_{uuid}/{filename}.jpg`
+3. Frontend stores URL in state with status 'success'
+4. User submits quote → Frontend sends photo URLs in `photos` array
+5. Backend saves quote with photo URLs (NO re-upload)
+
+### Storage Path Structure:
+- Immediate uploads: `customers/{customer_id}/quotes/temp_{uuid}/{photo_random}.jpg` ✅ WORKING
+- These paths are kept and referenced in quote documents
+
+### Testing Checklist:
+- [x] iPhone photo thumbnails display correctly
+- [x] Photos upload to Linode successfully
+- [x] No duplicate files created
+- [x] Bucket cleanup script created (`cleanup_linode_bucket.py`)
+
+
+## FEATURE ADDITIONS & IMPROVEMENTS (2025-11-11)
+
+### 1. Contractor Registration Auto-Login Fix
+
+**ISSUE**: Contractor registration required login before photo uploads in later steps, creating poor UX.
+
+**SOLUTION**: Modified contractor registration flow to auto-register and auto-login after Step 1.
+
+**Files Modified**:
+- `frontend/app/auth/contractor/register-step1.tsx`
+  - Added password and confirmPassword fields to Step1Form interface
+  - Added password validation (minimum 8 characters, confirmation match)
+  - Implemented immediate registration via `authAPI.register()` after form submit
+  - Added auto-login using `login(access_token, refresh_token)` from AuthContext
+  - User is now authenticated for all subsequent steps (Step 2-4)
+
+- `frontend/app/auth/contractor/register-step4.tsx`
+  - Removed duplicate registration logic
+  - Changed to simple completion alert and navigation to contractor dashboard
+  - Portfolio photos now upload with valid auth tokens from Step 1
+
+**New Flow**:
+1. User fills Step 1 (name, email, phone, business name, password)
+2. System registers user immediately with role='TECHNICIAN'
+3. System auto-logs in user with JWT tokens
+4. User proceeds to Steps 2-4 as authenticated user
+5. Photo uploads in Step 2 and Step 4 work correctly with auth headers
+
+### 2. Apple AutoFill Support
+
+**FEATURE**: Added iOS/Safari AutoFill support for better user experience on Apple devices.
+
+**Files Modified**:
+- `frontend/app/auth/login.tsx`
+  - Added `textContentType="emailAddress"` and `autoComplete="email"` to email input
+  - Added `textContentType="password"` and `autoComplete="password"` to password input
+
+- `frontend/app/auth/register.tsx`
+  - Added `textContentType="givenName"` and `autoComplete="name-given"` to firstName
+  - Added `textContentType="familyName"` and `autoComplete="name-family"` to lastName
+  - Added `textContentType="emailAddress"` and `autoComplete="email"` to email
+  - Added `textContentType="telephoneNumber"` and `autoComplete="tel"` to phone
+  - Added `textContentType="newPassword"` and `autoComplete="password-new"` to password fields
+
+- `frontend/app/auth/contractor/register-step1.tsx`
+  - Applied same AutoFill attributes to all contractor registration inputs
+  - Added `autoComplete="organization"` and `textContentType="organizationName"` to business name
+
+**Benefits**:
+- iOS devices can suggest saved credentials from Keychain
+- Safari AutoFill works correctly
+- Password managers (1Password, LastPass, etc.) can detect and fill forms
+- Better accessibility and UX on Apple platforms
+
+### 3. Service Categories Expansion
+
+**FEATURE**: Expanded service categories from 6 to 12 across homeowner interface.
+
+**Categories Added**:
+- HVAC - Thermostats, filters, maintenance
+- Flooring - Hardwood, tile, carpet repairs
+- Roofing - Shingles, gutters, leak repairs
+- Landscaping - Fences, decks, outdoor work
+- Appliance - Installation, repair, hookups
+- Windows & Doors - Installation, screens, sealing
+
+**Files Modified**:
+- `frontend/app/home.tsx` (lines 22-107)
+  - Updated serviceCategories array to include all 12 categories
+  - Each category has: id, title, icon (Ionicons name), color, description
+  - Maintained consistent styling and grid layout
+
+- `frontend/app/quote/request.tsx` (lines 42-139)
+  - Updated serviceCategories array to match home.tsx
+  - Added both shortDesc (for grid) and fullDesc (for selected view)
+  - Categories display in 3-column grid layout for easy selection
+
+**Category Details**:
+1. Drywall - Patches, repairs, texturing
+2. Painting - Interior, exterior, touch-ups
+3. Electrical - Outlets, switches, fixtures
+4. Plumbing - Faucets, leaks, installations
+5. Carpentry - Doors, trim, repairs
+6. HVAC - Thermostats, filters, maintenance (NEW)
+7. Flooring - Hardwood, tile, carpet repairs (NEW)
+8. Roofing - Shingles, gutters, leak repairs (NEW)
+9. Landscaping - Fences, decks, outdoor work (NEW)
+10. Appliance - Installation, repair, hookups (NEW)
+11. Windows & Doors - Installation, screens, sealing (NEW)
+12. Other - TV mounts, honey-do lists
+
+**Contractor Side**:
+- Contractor registration (Step 3) uses freeform text input for skills
+- No hardcoded category buttons needed on contractor side
+- Contractors can list any skills/services in text format
+
+### Testing Status:
+- [ ] Manual testing pending by user
+- [ ] Photo uploads on homeowner side
+- [ ] Photo uploads on contractor side
+- [ ] Contractor login and registration flow
+- [ ] All 12 service categories display and function correctly
+- [ ] Apple AutoFill works on iOS devices
+
+### Next Steps After Testing:
+1. User will perform manual testing of all features
+2. Delete all branches except main
+3. Merge everything to main branch
+4. Create comprehensive app summary/documentation
+5. Begin work on contractor job creation feature
+6. Enhance contractor dashboard functionality
+
+
+## CONTRACTOR SYSTEM REQUIREMENTS (2025-11-12)
+
+### Immediate Requirements:
+
+**1. Test Contractor Account**
+- Create fake contractor credentials for testing dashboard and workflows
+- Email: contractor@test.com
+- Password: TestContractor123!
+- Role: TECHNICIAN
+- Status: Active with complete registration
+
+**2. Contractor Registration Navigation**
+- Make step indicator buttons clickable and accessible
+- Allow navigation between registration steps
+- Enable contractors to return to registration/profile page after initial completion
+- Add "Edit Profile" or "Update Registration" option in contractor dashboard
+
+**3. Annual Registration Renewal System**
+
+**Business Rules**:
+- Contractor registration must be renewed annually
+- All documents (licenses, insurance, certifications) must be re-uploaded
+- Registration expiration is calculated from completion date + 365 days
+- Contractors receive warning notifications 30 days before expiration
+- Contractors receive warning notifications 7 days before expiration
+- Expired contractors cannot accept new jobs
+
+**Exemption Rules**:
+- If contractor has active jobs (status: IN_PROGRESS, SCHEDULED, or PENDING), they are exempt from forced re-upload
+- Exempted contractors can continue working but must renew within grace period
+- Grace period: 30 days after expiration if active jobs exist
+- After grace period, contractor is marked inactive even with active jobs
+
+**Implementation Details**:
+
+Database Schema Changes:
+```javascript
+// Add to users collection for TECHNICIAN role:
+{
+  registration_completed_date: ISODate,
+  registration_expiration_date: ISODate,
+  registration_status: "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" | "GRACE_PERIOD",
+  last_renewal_date: ISODate,
+  renewal_notifications_sent: {
+    thirty_day: Boolean,
+    seven_day: Boolean,
+    expiration: Boolean
+  }
+}
+
+// Add to jobs collection:
+{
+  status: "PENDING" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+}
+```
+
+**Frontend Requirements**:
+1. Contractor dashboard displays registration status and expiration date
+2. Warning banner when registration is expiring (< 30 days)
+3. Renewal button navigates to registration flow
+4. Registration steps are pre-filled with existing data
+5. Document upload shows current documents with re-upload option
+6. Profile page shows registration history
+
+**Backend Requirements**:
+1. Endpoint: `GET /api/contractors/registration-status` - Returns current registration status
+2. Endpoint: `POST /api/contractors/renew-registration` - Initiates renewal process
+3. Endpoint: `GET /api/contractors/active-jobs` - Returns active jobs count and details
+4. Scheduled task: Daily check for expiring registrations (send notifications)
+5. Scheduled task: Daily check for expired registrations (mark inactive if no grace period)
+6. Business logic: Prevent accepting new jobs if registration expired and no grace period
+
+**Testing Requirements**:
+- Create contractor with registration expiring in 29 days (test warning)
+- Create contractor with registration expiring in 6 days (test urgent warning)
+- Create contractor with expired registration and active jobs (test grace period)
+- Create contractor with expired registration and no jobs (test inactive status)
+- Verify notifications are sent at correct intervals
+- Verify job acceptance blocked for expired contractors
+
+**Related Files**:
+- `backend/models/user.py` - Add registration date fields
+- `backend/models/job.py` - Create job model (if not exists)
+- `backend/server.py` - Add contractor endpoints
+- `frontend/app/(contractor)/dashboard.tsx` - Add status banner
+- `frontend/app/(contractor)/profile.tsx` - Add renewal UI
+- `frontend/app/auth/contractor/register-step*.tsx` - Make steps navigable
+
+**Priority**: HIGH - Required for production launch
+
+**Related GitHub Issues**: #TBD (to be created)
+
 
 ---
 
