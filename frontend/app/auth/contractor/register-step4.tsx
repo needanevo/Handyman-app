@@ -47,6 +47,26 @@ export default function ContractorRegisterStep4() {
     { label: 'Portfolio', completed: false },
   ];
 
+  const handleStepPress = (stepIndex: number) => {
+    if (stepIndex === 0) {
+      router.push({
+        pathname: '/auth/contractor/register-step1',
+        params,
+      });
+    } else if (stepIndex === 1) {
+      router.push({
+        pathname: '/auth/contractor/register-step2',
+        params,
+      });
+    } else if (stepIndex === 2) {
+      router.push({
+        pathname: '/auth/contractor/register-step3',
+        params,
+      });
+    }
+    // Step 3 is current step, no need for alert
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -67,7 +87,7 @@ export default function ContractorRegisterStep4() {
           </View>
 
           {/* Progress */}
-          <StepIndicator steps={steps} currentStep={3} />
+          <StepIndicator steps={steps} currentStep={3} onStepPress={handleStepPress} />
 
           {/* Title */}
           <View style={styles.titleSection}>

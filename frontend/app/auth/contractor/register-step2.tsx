@@ -6,6 +6,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -49,6 +50,19 @@ export default function ContractorRegisterStep2() {
     { label: 'Portfolio', completed: false },
   ];
 
+  const handleStepPress = (stepIndex: number) => {
+    if (stepIndex === 0) {
+      // Navigate back to step 1
+      router.push({
+        pathname: '/auth/contractor/register-step1',
+        params,
+      });
+    } else if (stepIndex > 1) {
+      // Prevent navigation forward
+      Alert.alert('Complete Current Step', 'Please complete this step before proceeding to the next.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -69,7 +83,7 @@ export default function ContractorRegisterStep2() {
           </View>
 
           {/* Progress */}
-          <StepIndicator steps={steps} currentStep={1} />
+          <StepIndicator steps={steps} currentStep={1} onStepPress={handleStepPress} />
 
           {/* Title */}
           <View style={styles.titleSection}>

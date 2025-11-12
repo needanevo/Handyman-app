@@ -6,6 +6,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -15,6 +16,7 @@ import { colors, spacing, typography } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
+import { useAuth } from '../../../src/contexts/AuthContext';
 
 interface Step3Form {
   skills: string;
@@ -26,12 +28,19 @@ export default function ContractorRegisterStep3() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
 
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<Step3Form>();
+  } = useForm<Step3Form>({
+    defaultValues: {
+      skills: user?.skills?.join(', ') || '',
+      serviceAreas: user?.serviceAreas?.join(', ') || '',
+      yearsExperience: user?.yearsExperience?.toString() || '',
+    },
+  });
 
   const onSubmit = async (data: Step3Form) => {
     router.push({
@@ -46,6 +55,22 @@ export default function ContractorRegisterStep3() {
     { label: 'Profile', completed: false },
     { label: 'Portfolio', completed: false },
   ];
+
+  const handleStepPress = (stepIndex: number) => {
+    if (stepIndex === 0) {
+      router.push({
+        pathname: '/auth/contractor/register-step1',
+        params,
+      });
+    } else if (stepIndex === 1) {
+      router.push({
+        pathname: '/auth/contractor/register-step2',
+        params,
+      });
+    } else if (stepIndex > 2) {
+      Alert.alert('Complete Current Step', 'Please complete this step before proceeding to the next.');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -67,7 +92,7 @@ export default function ContractorRegisterStep3() {
           </View>
 
           {/* Progress */}
-          <StepIndicator steps={steps} currentStep={2} />
+          <StepIndicator steps={steps} currentStep={2} onStepPress={handleStepPress} />
 
           {/* Title */}
           <View style={styles.titleSection}>

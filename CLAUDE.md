@@ -210,20 +210,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## CONTRACTOR SYSTEM REQUIREMENTS (2025-11-12)
 
-### Immediate Requirements:
+**STATUS: Phase 1 Complete ✅ | Backend Implementation In Progress ⏳**
 
-**1. Test Contractor Account**
-- Create fake contractor credentials for testing dashboard and workflows
+### Phase 1: Test Account & Navigation (COMPLETED ✅ 2025-11-12)
+
+**1. Test Contractor Account** ✅
+- Successfully created test contractor via `backend/create_test_contractor.py`
 - Email: contractor@test.com
 - Password: TestContractor123!
+- User ID: c94813be-e2a2-41c0-9a30-5dca8ffb6688
 - Role: TECHNICIAN
-- Status: Active with complete registration
+- Business: John's Handyman Services
+- Skills: Drywall, Painting, Electrical, Plumbing, Carpentry
+- Registration Status: ACTIVE
+- Registration Expires: 2026-11-12
 
-**2. Contractor Registration Navigation**
-- Make step indicator buttons clickable and accessible
-- Allow navigation between registration steps
-- Enable contractors to return to registration/profile page after initial completion
-- Add "Edit Profile" or "Update Registration" option in contractor dashboard
+**2. Contractor Registration Navigation** ✅
+- Updated `StepIndicator` component (frontend/src/components/StepIndicator.tsx)
+  - Added `onStepPress` prop for navigation callbacks
+  - Wrapped steps in TouchableOpacity for clickable interaction
+- Updated all registration steps with navigation handlers:
+  - `register-step1.tsx` - Prevents forward navigation without completion
+  - `register-step2.tsx` - Allows back to step 1, blocks forward until complete
+  - `register-step3.tsx` - Allows back to steps 1-2, blocks forward until complete
+  - `register-step4.tsx` - Allows navigation to all previous steps
+- Navigation preserves params between steps
+
+**3. Edit Profile & Dashboard Updates** ✅
+- Created comprehensive contractor profile page (frontend/app/(contractor)/profile.tsx)
+  - Displays contact information (email, phone)
+  - Shows business details (business name, skills, service areas)
+  - Displays registration status and expiration date
+  - "Edit Registration" button navigates to registration steps
+  - Logout functionality
+- Updated contractor dashboard (frontend/app/(contractor)/dashboard.tsx)
+  - Added Registration Status card at top
+  - Shows registration status badge (ACTIVE)
+  - Displays expiration date
+  - "Edit" button navigates to registration flow
+  - Existing profile button in header navigates to full profile page
+
+**4. Pre-filled Registration Forms** ✅
+- Step 1 (Basic Info) pre-fills from user context:
+  - First name, last name, email, phone, business name
+  - Password fields only required for new registrations
+  - Detects edit mode vs new registration
+- Step 3 (Profile Details) pre-fills from user context:
+  - Skills (comma-separated)
+  - Service areas (comma-separated)
+  - Years of experience
+- Forms use React Hook Form defaultValues for seamless editing
+
+### Phase 2: Backend Implementation (NEXT)
 
 **3. Annual Registration Renewal System**
 

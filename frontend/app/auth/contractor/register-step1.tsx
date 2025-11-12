@@ -31,44 +31,68 @@ interface Step1Form {
 export default function ContractorRegisterStep1() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const { user, register } = useAuth();
 
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<Step1Form>();
-
-  const { register } = useAuth();
+  } = useForm<Step1Form>({
+    defaultValues: {
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      businessName: user?.businessName || '',
+      password: '',
+      confirmPassword: '',
+    },
+  });
 
   const onSubmit = async (data: Step1Form) => {
-    // Validate passwords match
-    if (data.password !== data.confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-
     setIsLoading(true);
     try {
-      // Register the user immediately with basic info
-      // The register function from AuthContext handles token storage and user fetch
-      await register({
-        email: data.email,
-        password: data.password,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phone: data.phone,
-        role: 'technician',
-      });
+      // If user is already logged in, we're in edit mode
+      if (user) {
+        // TODO: Call API to update user profile
+        // For now, just navigate to next step
+        router.push({
+          pathname: '/auth/contractor/register-step2',
+          params: {
+            firstName: data.firstName,
+            lastName: data.lastName,
+            businessName: data.businessName
+          },
+        });
+      } else {
+        // Validate passwords match for new registration
+        if (data.password !== data.confirmPassword) {
+          Alert.alert('Error', 'Passwords do not match');
+          setIsLoading(false);
+          return;
+        }
 
-      // Navigate to next step (now authenticated for photo uploads)
-      router.push({
-        pathname: '/auth/contractor/register-step2',
-        params: {
+        // Register the user immediately with basic info
+        // The register function from AuthContext handles token storage and user fetch
+        await register({
+          email: data.email,
+          password: data.password,
           firstName: data.firstName,
           lastName: data.lastName,
-          businessName: data.businessName
-        },
-      });
+          phone: data.phone,
+          role: 'technician',
+        });
+
+        // Navigate to next step (now authenticated for photo uploads)
+        router.push({
+          pathname: '/auth/contractor/register-step2',
+          params: {
+            firstName: data.firstName,
+            lastName: data.lastName,
+            businessName: data.businessName
+          },
+        });
+      }
     } catch (error: any) {
       console.error('Registration error:', error);
       Alert.alert(
@@ -86,6 +110,14 @@ export default function ContractorRegisterStep1() {
     { label: 'Profile', completed: false },
     { label: 'Portfolio', completed: false },
   ];
+
+  const handleStepPress = (stepIndex: number) => {
+    // Navigation is handled inline; step 1 is the current step
+    // Users can't navigate forward without completing current step
+    if (stepIndex > 0) {
+      Alert.alert('Complete Current Step', 'Please complete this step before proceeding to the next.');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -107,7 +139,7 @@ export default function ContractorRegisterStep1() {
           </View>
 
           {/* Progress */}
-          <StepIndicator steps={steps} currentStep={0} />
+          <StepIndicator steps={steps} currentStep={0} onStepPress={handleStepPress} />
 
           {/* Title */}
           <View style={styles.titleSection}>

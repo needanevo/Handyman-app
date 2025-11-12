@@ -96,6 +96,30 @@ export default function ContractorDashboard() {
           </TouchableOpacity>
         </View>
 
+        {/* Registration Status Banner */}
+        <View style={styles.section}>
+          <Card style={styles.registrationCard}>
+            <View style={styles.registrationContent}>
+              <View style={styles.registrationInfo}>
+                <Ionicons name="shield-checkmark" size={32} color={colors.success.main} />
+                <View style={styles.registrationText}>
+                  <Text style={styles.registrationTitle}>Registration Active</Text>
+                  <Text style={styles.registrationSubtitle}>
+                    Expires: {/* TODO: Add actual expiration date */} Nov 12, 2026
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => router.push('/auth/contractor/register-step1')}
+              >
+                <Ionicons name="create-outline" size={20} color={colors.primary.main} />
+                <Text style={styles.editButtonText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
+        </View>
+
         {/* Job Status Cards */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Jobs</Text>
@@ -499,5 +523,46 @@ const styles = StyleSheet.create({
     ...typography.sizes.lg,
     fontWeight: typography.weights.bold,
     color: colors.primary.main,
+  },
+  registrationCard: {
+    padding: spacing.base,
+  },
+  registrationContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  registrationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  registrationText: {
+    marginLeft: spacing.md,
+    flex: 1,
+  },
+  registrationTitle: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
+    marginBottom: spacing.xs,
+  },
+  registrationSubtitle: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.primary.lightest,
+    borderRadius: borderRadius.md,
+  },
+  editButtonText: {
+    ...typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
+    color: colors.primary.main,
+    marginLeft: spacing.xs,
   },
 });
