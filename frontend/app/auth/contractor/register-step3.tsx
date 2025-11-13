@@ -7,19 +7,35 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '../../../src/constants/theme';
+import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
 import { useAuth } from '../../../src/contexts/AuthContext';
 
+const SERVICE_CATEGORIES = [
+  'Drywall',
+  'Painting',
+  'Electrical',
+  'Plumbing',
+  'Carpentry',
+  'HVAC',
+  'Flooring',
+  'Roofing',
+  'Landscaping',
+  'Appliance',
+  'Windows & Doors',
+  'Other',
+];
+
 interface Step3Form {
-  skills: string;
+  skills: string[];
   serviceAreas: string;
   yearsExperience: string;
 }
@@ -29,23 +45,40 @@ export default function ContractorRegisterStep3() {
   const params = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
+  const [selectedSkills, setSelectedSkills] = useState<string[]>(
+    user?.skills || []
+  );
 
   const {
     control,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<Step3Form>({
     defaultValues: {
-      skills: user?.skills?.join(', ') || '',
+      skills: user?.skills || [],
       serviceAreas: user?.serviceAreas?.join(', ') || '',
       yearsExperience: user?.yearsExperience?.toString() || '',
     },
   });
 
+  const toggleSkill = (skill: string) => {
+    const newSkills = selectedSkills.includes(skill)
+      ? selectedSkills.filter((s) => s !== skill)
+      : [...selectedSkills, skill];
+    setSelectedSkills(newSkills);
+    setValue('skills', newSkills);
+  };
+
   const onSubmit = async (data: Step3Form) => {
+    if (selectedSkills.length === 0) {
+      Alert.alert('Error', 'Please select at least one skill');
+      return;
+    }
+
     router.push({
       pathname: '/auth/contractor/register-step4',
-      params: { ...params, ...data },
+      params: { ...params, skills: selectedSkills.join(','), serviceAreas: data.serviceAreas, yearsExperience: data.yearsExperience },
     });
   };
 
@@ -104,23 +137,34 @@ export default function ContractorRegisterStep3() {
 
           {/* Form */}
           <View style={styles.form}>
-            <Controller
-              control={control}
-              name="skills"
-              rules={{ required: 'Please list your skills' }}
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Skills"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="e.g., Drywall, Painting, Electrical"
-                  error={errors.skills?.message}
-                  required
-                  icon="build-outline"
-                  helpText="Separate skills with commas"
-                />
-              )}
-            />
+            <Text style={styles.label}>
+              Skills <Text style={styles.required}>*</Text>
+            </Text>
+            <Text style={styles.helpText}>Select all services you provide</Text>
+            <View style={styles.skillsGrid}>
+              {SERVICE_CATEGORIES.map((skill) => (
+                <TouchableOpacity
+                  key={skill}
+                  style={[
+                    styles.skillChip,
+                    selectedSkills.includes(skill) && styles.skillChipSelected,
+                  ]}
+                  onPress={() => toggleSkill(skill)}
+                >
+                  <Text
+                    style={[
+                      styles.skillChipText,
+                      selectedSkills.includes(skill) && styles.skillChipTextSelected,
+                    ]}
+                  >
+                    {skill}
+                  </Text>
+                  {selectedSkills.includes(skill) && (
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary.main} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <Controller
               control={control}
@@ -218,6 +262,50 @@ const styles = StyleSheet.create({
   },
   form: {
     marginBottom: spacing.xl,
+  },
+  label: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
+    marginBottom: spacing.xs,
+  },
+  required: {
+    color: colors.error.main,
+  },
+  helpText: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    marginBottom: spacing.md,
+  },
+  skillsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  skillChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.neutral[300],
+    backgroundColor: colors.background.primary,
+    gap: spacing.xs,
+  },
+  skillChipSelected: {
+    borderColor: colors.primary.main,
+    backgroundColor: colors.primary.lightest,
+  },
+  skillChipText: {
+    ...typography.sizes.sm,
+    color: colors.neutral[700],
+    fontWeight: typography.weights.medium,
+  },
+  skillChipTextSelected: {
+    color: colors.primary.main,
+    fontWeight: typography.weights.semibold,
   },
   actions: {
     gap: spacing.md,

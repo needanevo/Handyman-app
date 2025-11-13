@@ -196,12 +196,7 @@ export default function ContractorDashboard() {
 
         {/* Financial Summary */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Financials</Text>
-            <TouchableOpacity onPress={() => router.push('/(contractor)/reports')}>
-              <Text style={styles.sectionLink}>View Reports</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.sectionTitle}>Financials</Text>
 
           <Card style={styles.financialCard}>
             {/* This Month */}

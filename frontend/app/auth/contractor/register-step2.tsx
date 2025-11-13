@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,15 +16,32 @@ import { Button } from '../../../src/components/Button';
 import { StepIndicator } from '../../../src/components/StepIndicator';
 import { PhotoUploader } from '../../../src/components/PhotoUploader';
 import { Card } from '../../../src/components/Card';
+import { useAuth } from '../../../src/contexts/AuthContext';
 
 export default function ContractorRegisterStep2() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { user } = useAuth();
 
   const [driversLicense, setDriversLicense] = useState<string[]>([]);
   const [businessLicenses, setBusinessLicenses] = useState<string[]>([]);
   const [insurance, setInsurance] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Pre-fill existing documents when editing
+  useEffect(() => {
+    if (user?.documents) {
+      if (user.documents.license) {
+        setDriversLicense([user.documents.license]);
+      }
+      if (user.documents.businessLicense) {
+        setBusinessLicenses(Array.isArray(user.documents.businessLicense) ? user.documents.businessLicense : [user.documents.businessLicense]);
+      }
+      if (user.documents.insurance) {
+        setInsurance([user.documents.insurance]);
+      }
+    }
+  }, [user]);
 
   const onContinue = () => {
     if (driversLicense.length === 0) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,21 @@ import { Button } from '../../../src/components/Button';
 import { StepIndicator } from '../../../src/components/StepIndicator';
 import { PhotoUploader } from '../../../src/components/PhotoUploader';
 import { authAPI } from '../../../src/services/api';
+import { useAuth } from '../../../src/contexts/AuthContext';
 
 export default function ContractorRegisterStep4() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { user } = useAuth();
   const [portfolioPhotos, setPortfolioPhotos] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Pre-fill existing portfolio photos when editing
+  useEffect(() => {
+    if (user?.portfolioPhotos && Array.isArray(user.portfolioPhotos)) {
+      setPortfolioPhotos(user.portfolioPhotos);
+    }
+  }, [user]);
 
   const onSubmit = async () => {
     // User is already registered and logged in from Step 1

@@ -20,6 +20,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { Expense, ExpenseCategory } from '../../../src/types/contractor';
 import { Card } from '../../../src/components/Card';
@@ -115,6 +116,12 @@ export default function ExpensesScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Expenses</Text>
         <Button
           title="Add Expense"
@@ -419,10 +426,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
     ...shadows.sm,
   },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
     ...typography.sizes['2xl'],
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
+    flex: 1,
+    marginLeft: spacing.sm,
   },
   summaryContainer: {
     marginTop: spacing.base,

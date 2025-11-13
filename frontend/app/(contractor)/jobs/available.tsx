@@ -13,10 +13,12 @@ import {
   FlatList,
   TextInput,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { Job } from '../../../src/types/contractor';
 import { JobCard } from '../../../src/components/contractor/JobCard';
@@ -122,7 +124,16 @@ export default function AvailableJobs() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Available Jobs</Text>
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Available Jobs</Text>
+          <View style={styles.backButton} />
+        </View>
         <Text style={styles.headerSubtitle}>
           {filteredJobs?.length || 0} jobs available
         </Text>
@@ -175,10 +186,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
     ...shadows.sm,
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
     ...typography.sizes['2xl'],
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
+    flex: 1,
+    textAlign: 'center',
   },
   headerSubtitle: {
     ...typography.sizes.sm,
