@@ -200,11 +200,137 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## 🔧 CONTRACTOR REGISTRATION & UX IMPROVEMENTS (2025-11-13)
+
+**STATUS: Testing Complete | Bugs Identified | Priority: P1**
+
+### Issues Identified During Testing
+
+**Navigation & UX Issues:**
+- [ ] **Issue #1**: Available jobs page has no back button to return to main dashboard
+  - **Priority**: P1 - High
+  - **Impact**: Users get stuck on available jobs page
+  - **Fix**: Add back button in header navigation
+  - **Files**: `frontend/app/(contractor)/jobs/available.tsx`
+
+- [ ] **Issue #2**: Tax Reports page shows no calculations on contractor dashboard
+  - **Priority**: P2 - Medium
+  - **Impact**: Dashboard shows incomplete financial data
+  - **Fix**: Implement tax calculation logic or remove placeholder
+  - **Files**: `frontend/app/(contractor)/dashboard.tsx`, `frontend/app/(contractor)/reports.tsx`
+
+- [ ] **Issue #3**: Check all pages for back/home button consistency
+  - **Priority**: P2 - Medium
+  - **Impact**: Inconsistent navigation experience
+  - **Fix**: Audit all contractor pages and add consistent navigation
+  - **Files**: All `frontend/app/(contractor)/**/*.tsx` files
+
+**Contractor Profile & Skills:**
+- [ ] **Issue #4**: Skills input is freeform text instead of checkboxes
+  - **Priority**: P1 - High
+  - **Impact**: Inconsistent skill data, hard to match with customer service categories
+  - **Current**: Text input in Step 3
+  - **Desired**: Checkbox/radio buttons matching 12 service categories (Drywall, Painting, Electrical, Plumbing, Carpentry, HVAC, Flooring, Roofing, Landscaping, Appliance, Windows & Doors, Other)
+  - **Files**: `frontend/app/auth/contractor/register-step3.tsx`
+  - **Backend**: Update `backend/models/user.py` skills field validation
+
+**Geo-Location & Service Areas:**
+- [ ] **Issue #5**: Service area zip codes need geo-boundary implementation
+  - **Priority**: P0 - Critical
+  - **Current**: Contractors manually enter zip codes (unclear UX)
+  - **Desired**:
+    - Use contractor's home address from Step 1 (zip code)
+    - Automatically create 50-mile radius geo-boundary using Google Maps API
+    - Remove "Service Areas" field from registration Step 3
+    - Add checkbox: "I work from this zip code" with disclaimer
+    - Disclaimer: "Service area limited to 50 miles from entered zip code"
+    - Implement geo-filtering for job visibility (only show jobs within 50 miles)
+  - **Technical Requirements**:
+    - Get coordinates from zip code (Google Maps Geocoding API)
+    - Calculate distance between contractor and customer addresses
+    - Filter jobs in available jobs endpoint by distance
+    - Request location services permission on iOS/Android for mileage tracking
+  - **Files**:
+    - `frontend/app/auth/contractor/register-step1.tsx` (add disclaimer)
+    - `frontend/app/auth/contractor/register-step3.tsx` (remove service areas)
+    - `backend/providers/google_maps_provider.py` (add distance calculation)
+    - `backend/server.py` (add geo-filtering to jobs endpoints)
+
+**Profile Pictures & Branding:**
+- [ ] **Issue #6**: No contractor logo/profile picture upload
+  - **Priority**: P2 - Medium
+  - **Desired**:
+    - Click on round profile icon to upload image
+    - Image picker with camera/gallery options
+    - Auto-crop feature with zoom, pan, and preview
+    - Store in Linode Object Storage
+    - Display in dashboard, profile, and job listings
+  - **Files**:
+    - `frontend/app/(contractor)/profile.tsx`
+    - `frontend/app/(contractor)/dashboard.tsx`
+    - `backend/server.py` (add profile photo upload endpoint)
+
+**Legal & Compliance:**
+- [ ] **Issue #7**: Terms and conditions page needed
+  - **Priority**: P1 - High
+  - **Desired**:
+    - Create terms of service page
+    - Add contractor service agreement
+    - Display at end of registration (Step 4)
+    - Require checkbox acceptance before completion
+    - Link from footer and registration
+  - **Files**:
+    - `frontend/app/legal/terms.tsx` (new)
+    - `frontend/app/legal/contractor-agreement.tsx` (new)
+    - `frontend/app/auth/contractor/register-step4.tsx` (add acceptance)
+
+**Marketing & Onboarding:**
+- [ ] **Issue #8**: Create beta contractor advertisement and QR code system
+  - **Priority**: P3 - Low
+  - **Desired**:
+    - Design advertisement for beta contractor program
+    - Generate QR code linking to contractor registration
+    - Host static page on web server for QR code landing
+    - Include instructions to install Expo Go app
+    - Deep link directly to contractor registration in app
+  - **Technical Notes**:
+    - QR code can link to: `exp://172.234.70.157:8001/auth/contractor/onboarding-intro`
+    - For production: Universal links (iOS) / App links (Android)
+    - Alternative: Web-based registration that syncs to app
+  - **Files**:
+    - Create marketing materials (design assets)
+    - `frontend/app/contractor-beta.tsx` (QR code landing page)
+
+**Profile Editing Issues:**
+- [ ] **Issue #9**: Contractor profile editing doesn't recall uploaded documents
+  - **Priority**: P1 - High
+  - **Impact**: Contractors lose uploaded files when editing
+  - **Current Behavior**:
+    - Documents not displayed when returning to registration steps
+    - Navigation buttons don't work unless all fields re-completed
+    - Lost work frustrates users
+  - **Desired Behavior**:
+    - Display existing uploaded documents with thumbnails
+    - Allow re-upload/replace individual documents
+    - Show "Previously uploaded: [filename]" indicator
+    - Allow navigation without re-completing all fields
+  - **Files**:
+    - `frontend/app/auth/contractor/register-step2.tsx` (license/insurance docs)
+    - `frontend/app/auth/contractor/register-step4.tsx` (portfolio photos)
+    - `backend/server.py` (ensure user data includes document URLs)
+
+### Technical Debt Created Today
+- Test contractor account had incorrect role casing (TECHNICIAN vs technician)
+- Test contractor account had incorrect password field name (hashed_password vs password_hash)
+- These issues should be prevented in create scripts with validation
+
+---
+
 ## 📊 COMPLETION TRACKING
 
-### Current Status (2025-11-12)
+### Current Status (2025-11-13)
 
-**COMPLETED** (25 tasks - 45%):
+**COMPLETED** (30 tasks - 55%):
 - ✅ Backend API deployment (uvicorn + systemd)
 - ✅ MongoDB Atlas connection
 - ✅ Linode Object Storage integration
@@ -220,6 +346,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ✅ Contractor profile page
 - ✅ Registration step navigation
 - ✅ Test contractor account
+- ✅ **NEW (2025-11-13)**: Role-based routing (customer vs contractor login)
+- ✅ **NEW (2025-11-13)**: Fixed contractor login authentication (role field casing)
+- ✅ **NEW (2025-11-13)**: Fixed password hash field mismatch in database
+- ✅ **NEW (2025-11-13)**: Added missing Ionicons import to contractor dashboard
+- ✅ **NEW (2025-11-13)**: Fixed syntax error in quote request page
 
 **IN PROGRESS** (5 tasks - 10%):
 - 🟡 Contractor annual renewal system (documented, not implemented)

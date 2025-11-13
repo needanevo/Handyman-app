@@ -37,7 +37,7 @@ TEST_CONTRACTOR = {
     'first_name': 'John',
     'last_name': 'Contractor',
     'phone': '555-0123',
-    'role': 'TECHNICIAN',
+    'role': 'technician',  # Must be lowercase to match UserRole enum
     'business_name': "John's Handyman Services",
     'skills': ['Drywall', 'Painting', 'Electrical', 'Plumbing', 'Carpentry'],
     'service_areas': ['21201', '21202', '21203', '21224', '21231'],
@@ -109,7 +109,7 @@ async def create_test_contractor():
         # Create password document
         password_doc = {
             'user_id': user_id,
-            'hashed_password': hashed_password,
+            'password_hash': hashed_password,  # Must be 'password_hash' not 'hashed_password'
             'created_at': datetime.utcnow().isoformat(),
             'updated_at': datetime.utcnow().isoformat()
         }

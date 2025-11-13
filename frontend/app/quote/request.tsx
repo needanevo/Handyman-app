@@ -542,7 +542,6 @@ export default function QuoteRequestScreen() {
                           </TouchableOpacity>
                         </View>
                       )}
-                      )}
                     </View>
                   </View>
                 ))}
