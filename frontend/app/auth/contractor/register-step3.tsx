@@ -36,8 +36,11 @@ const SERVICE_CATEGORIES = [
 
 interface Step3Form {
   skills: string[];
-  serviceAreas: string;
   yearsExperience: string;
+  businessStreet: string;
+  businessCity: string;
+  businessState: string;
+  businessZip: string;
 }
 
 export default function ContractorRegisterStep3() {
@@ -57,8 +60,11 @@ export default function ContractorRegisterStep3() {
   } = useForm<Step3Form>({
     defaultValues: {
       skills: user?.skills || [],
-      serviceAreas: user?.serviceAreas?.join(', ') || '',
       yearsExperience: user?.yearsExperience?.toString() || '',
+      businessStreet: user?.addresses?.[0]?.street || '',
+      businessCity: user?.addresses?.[0]?.city || '',
+      businessState: user?.addresses?.[0]?.state || '',
+      businessZip: user?.addresses?.[0]?.zipCode || '',
     },
   });
 
@@ -76,10 +82,37 @@ export default function ContractorRegisterStep3() {
       return;
     }
 
-    router.push({
-      pathname: '/auth/contractor/register-step4',
-      params: { ...params, skills: selectedSkills.join(','), serviceAreas: data.serviceAreas, yearsExperience: data.yearsExperience },
-    });
+    setIsLoading(true);
+    try {
+      // Save business address (will be geocoded by backend)
+      const { profileAPI } = await import('../../../src/services/api');
+      await profileAPI.addAddress({
+        street: data.businessStreet,
+        city: data.businessCity,
+        state: data.businessState,
+        zipCode: data.businessZip,
+        isDefault: true,
+      });
+
+      // TODO: Also update user skills and years of experience
+      // For now, just navigate to next step
+      router.push({
+        pathname: '/auth/contractor/register-step4',
+        params: {
+          ...params,
+          skills: selectedSkills.join(','),
+          yearsExperience: data.yearsExperience
+        },
+      });
+    } catch (error: any) {
+      console.error('Address save error:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to save business address'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const steps = [
@@ -166,23 +199,84 @@ export default function ContractorRegisterStep3() {
               ))}
             </View>
 
+            <Text style={styles.sectionTitle}>Business Address</Text>
+            <Text style={styles.helpText}>
+              This address determines your 50-mile service radius
+            </Text>
+
             <Controller
               control={control}
-              name="serviceAreas"
-              rules={{ required: 'Please list your service areas' }}
+              name="businessStreet"
+              rules={{ required: 'Street address is required' }}
               render={({ field: { onChange, value } }) => (
                 <Input
-                  label="Service Areas"
+                  label="Street Address"
                   value={value}
                   onChangeText={onChange}
-                  placeholder="e.g., 21201, 21202, 21203"
-                  error={errors.serviceAreas?.message}
+                  placeholder="123 Main St"
+                  error={errors.businessStreet?.message}
                   required
-                  icon="location-outline"
-                  helpText="Enter zip codes separated by commas"
+                  icon="home-outline"
                 />
               )}
             />
+
+            <Controller
+              control={control}
+              name="businessCity"
+              rules={{ required: 'City is required' }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="City"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Baltimore"
+                  error={errors.businessCity?.message}
+                  required
+                  icon="location-outline"
+                />
+              )}
+            />
+
+            <View style={styles.row}>
+              <View style={styles.halfWidth}>
+                <Controller
+                  control={control}
+                  name="businessState"
+                  rules={{ required: 'State is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="State"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="MD"
+                      error={errors.businessState?.message}
+                      required
+                      maxLength={2}
+                    />
+                  )}
+                />
+              </View>
+              <View style={styles.halfWidth}>
+                <Controller
+                  control={control}
+                  name="businessZip"
+                  rules={{ required: 'ZIP code is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="ZIP Code"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="21201"
+                      keyboardType="numeric"
+                      error={errors.businessZip?.message}
+                      required
+                      maxLength={5}
+                    />
+                  )}
+                />
+              </View>
+            </View>
 
             <Controller
               control={control}
@@ -306,6 +400,20 @@ const styles = StyleSheet.create({
   skillChipTextSelected: {
     color: colors.primary.main,
     fontWeight: typography.weights.semibold,
+  },
+  sectionTitle: {
+    ...typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
+    marginTop: spacing.xl,
+    marginBottom: spacing.xs,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  halfWidth: {
+    flex: 1,
   },
   actions: {
     gap: spacing.md,
