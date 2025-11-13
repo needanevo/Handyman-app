@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../../src/constants/theme';
@@ -30,6 +30,7 @@ interface Step1Form {
 
 export default function ContractorRegisterStep1() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const { user, register } = useAuth();
 
