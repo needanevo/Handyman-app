@@ -11,6 +11,17 @@ export interface User {
   phone: string;
   addresses: Address[];
   isActive: boolean;
+  // Contractor-specific fields (optional)
+  businessName?: string;
+  skills?: string[];
+  yearsExperience?: number;
+  serviceAreas?: string[];
+  documents?: {
+    license?: string;
+    businessLicense?: string | string[];
+    insurance?: string;
+  };
+  portfolioPhotos?: string[];
 }
 
 export interface Address {
@@ -146,6 +157,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         phone: userData.phone,
         addresses: userData.addresses || [],
         isActive: userData.is_active,
+        // Contractor-specific fields
+        businessName: userData.business_name,
+        skills: userData.skills,
+        yearsExperience: userData.years_experience,
+        serviceAreas: userData.service_areas,
+        documents: userData.documents,
+        portfolioPhotos: userData.portfolio_photos,
       };
       
       console.log('Transformed user data:', transformedUser);

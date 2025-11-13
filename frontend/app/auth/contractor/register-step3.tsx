@@ -123,6 +123,7 @@ export default function ContractorRegisterStep3() {
   ];
 
   const handleStepPress = (stepIndex: number) => {
+    // Allow free navigation between all steps
     if (stepIndex === 0) {
       router.push({
         pathname: '/auth/contractor/register-step1',
@@ -133,8 +134,11 @@ export default function ContractorRegisterStep3() {
         pathname: '/auth/contractor/register-step2',
         params,
       });
-    } else if (stepIndex > 2) {
-      Alert.alert('Complete Current Step', 'Please complete this step before proceeding to the next.');
+    } else if (stepIndex === 3) {
+      router.push({
+        pathname: '/auth/contractor/register-step4',
+        params,
+      });
     }
   };
 

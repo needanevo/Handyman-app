@@ -112,10 +112,22 @@ export default function ContractorRegisterStep1() {
   ];
 
   const handleStepPress = (stepIndex: number) => {
-    // Navigation is handled inline; step 1 is the current step
-    // Users can't navigate forward without completing current step
-    if (stepIndex > 0) {
-      Alert.alert('Complete Current Step', 'Please complete this step before proceeding to the next.');
+    // Allow free navigation between steps when editing profile
+    if (stepIndex === 1) {
+      router.push({
+        pathname: '/auth/contractor/register-step2',
+        params,
+      });
+    } else if (stepIndex === 2) {
+      router.push({
+        pathname: '/auth/contractor/register-step3',
+        params,
+      });
+    } else if (stepIndex === 3) {
+      router.push({
+        pathname: '/auth/contractor/register-step4',
+        params,
+      });
     }
   };
 
@@ -260,56 +272,61 @@ export default function ContractorRegisterStep1() {
               )}
             />
 
-            <Controller
-              control={control}
-              name="password"
-              rules={{ 
-                required: 'Password is required',
-                minLength: {
-                  value: 8,
-                  message: 'Password must be at least 8 characters'
-                }
-              }}
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Password"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="Create a secure password"
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoComplete="password-new"
-                  textContentType="newPassword"
-                  error={errors.password?.message}
-                  required
-                  icon="lock-closed-outline"
-                  helpText="Minimum 8 characters"
+            {/* Password fields only shown for new registration, not profile editing */}
+            {!user && (
+              <>
+                <Controller
+                  control={control}
+                  name="password"
+                  rules={{
+                    required: 'Password is required',
+                    minLength: {
+                      value: 8,
+                      message: 'Password must be at least 8 characters'
+                    }
+                  }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="Password"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Create a secure password"
+                      secureTextEntry
+                      autoCapitalize="none"
+                      autoComplete="password-new"
+                      textContentType="newPassword"
+                      error={errors.password?.message}
+                      required
+                      icon="lock-closed-outline"
+                      helpText="Minimum 8 characters"
+                    />
+                  )}
                 />
-              )}
-            />
 
-            <Controller
-              control={control}
-              name="confirmPassword"
-              rules={{ 
-                required: 'Please confirm your password'
-              }}
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Confirm Password"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="Re-enter your password"
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoComplete="password-new"
-                  textContentType="newPassword"
-                  error={errors.confirmPassword?.message}
-                  required
-                  icon="lock-closed-outline"
+                <Controller
+                  control={control}
+                  name="confirmPassword"
+                  rules={{
+                    required: 'Please confirm your password'
+                  }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="Confirm Password"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Re-enter your password"
+                      secureTextEntry
+                      autoCapitalize="none"
+                      autoComplete="password-new"
+                      textContentType="newPassword"
+                      error={errors.confirmPassword?.message}
+                      required
+                      icon="lock-closed-outline"
+                    />
+                  )}
                 />
-              )}
-            />
+              </>
+            )}
           </View>
 
           {/* Actions */}

@@ -68,15 +68,22 @@ export default function ContractorRegisterStep2() {
   ];
 
   const handleStepPress = (stepIndex: number) => {
+    // Allow free navigation between all steps
     if (stepIndex === 0) {
-      // Navigate back to step 1
       router.push({
         pathname: '/auth/contractor/register-step1',
         params,
       });
-    } else if (stepIndex > 1) {
-      // Prevent navigation forward
-      Alert.alert('Complete Current Step', 'Please complete this step before proceeding to the next.');
+    } else if (stepIndex === 2) {
+      router.push({
+        pathname: '/auth/contractor/register-step3',
+        params,
+      });
+    } else if (stepIndex === 3) {
+      router.push({
+        pathname: '/auth/contractor/register-step4',
+        params,
+      });
     }
   };
 
