@@ -62,6 +62,11 @@ class APIClient {
     return response.data;
   }
 
+  async patch<T>(url: string, data?: any): Promise<T> {
+    const response: AxiosResponse<T> = await this.client.patch(url, data);
+    return response.data;
+  }
+
   async delete<T>(url: string): Promise<T> {
     const response: AxiosResponse<T> = await this.client.delete(url);
     return response.data;
@@ -295,6 +300,22 @@ export const contractorAPI = {
   // Export reports as PDF (returns blob)
   exportTaxReportPDF: (startDate: string, endDate: string) =>
     apiClient.get<any>('/contractor/reports/tax/pdf', { start_date: startDate, end_date: endDate }),
+
+  // Contractor Registration & Profile
+  updateDocuments: (documents: {
+    license?: string;
+    business_license?: string[];
+    insurance?: string;
+  }) => apiClient.patch<any>('/contractors/documents', documents),
+
+  updatePortfolio: (portfolio_photos: string[]) =>
+    apiClient.patch<any>('/contractors/portfolio', { portfolio_photos }),
+
+  updateProfile: (profile_data: {
+    skills?: string[];
+    years_experience?: number;
+    business_name?: string;
+  }) => apiClient.patch<any>('/contractors/profile', profile_data),
 };
 
 // Health check

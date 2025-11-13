@@ -15,7 +15,7 @@ import { colors, spacing, typography } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { StepIndicator } from '../../../src/components/StepIndicator';
 import { PhotoUploader } from '../../../src/components/PhotoUploader';
-import { authAPI } from '../../../src/services/api';
+import { authAPI, contractorAPI } from '../../../src/services/api';
 import { useAuth } from '../../../src/contexts/AuthContext';
 
 export default function ContractorRegisterStep4() {
@@ -33,20 +33,34 @@ export default function ContractorRegisterStep4() {
   }, [user]);
 
   const onSubmit = async () => {
-    // User is already registered and logged in from Step 1
-    // Portfolio photos are uploaded via PhotoUploader component (already authenticated)
-    // Just navigate to contractor dashboard
-    
-    Alert.alert(
-      'Registration Complete',
-      'Welcome! Your profile is now complete.',
-      [
-        {
-          text: 'Go to Dashboard',
-          onPress: () => router.replace('/(contractor)/dashboard'),
-        },
-      ]
-    );
+    try {
+      setIsLoading(true);
+
+      // Save portfolio photos to database (if any were uploaded)
+      if (portfolioPhotos.length > 0) {
+        await contractorAPI.updatePortfolio(portfolioPhotos);
+      }
+
+      // Registration complete - navigate to contractor dashboard
+      Alert.alert(
+        'Registration Complete',
+        'Welcome! Your profile is now complete.',
+        [
+          {
+            text: 'Go to Dashboard',
+            onPress: () => router.replace('/(contractor)/dashboard'),
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error('Failed to save portfolio:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to save portfolio photos. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const steps = [

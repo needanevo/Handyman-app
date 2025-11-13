@@ -18,6 +18,7 @@ import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
 import { useAuth } from '../../../src/contexts/AuthContext';
+import { contractorAPI } from '../../../src/services/api';
 
 const SERVICE_CATEGORIES = [
   'Drywall',
@@ -94,8 +95,14 @@ export default function ContractorRegisterStep3() {
         isDefault: true,
       });
 
-      // TODO: Also update user skills and years of experience
-      // For now, just navigate to next step
+      // Save contractor profile (skills, experience, business name)
+      await contractorAPI.updateProfile({
+        skills: selectedSkills,
+        years_experience: parseInt(data.yearsExperience) || 0,
+        business_name: user?.businessName,
+      });
+
+      // Navigate to next step
       router.push({
         pathname: '/auth/contractor/register-step4',
         params: {
@@ -105,10 +112,10 @@ export default function ContractorRegisterStep3() {
         },
       });
     } catch (error: any) {
-      console.error('Address save error:', error);
+      console.error('Profile save error:', error);
       Alert.alert(
         'Error',
-        error.response?.data?.detail || 'Failed to save business address'
+        error.response?.data?.detail || 'Failed to save profile information'
       );
     } finally {
       setIsLoading(false);

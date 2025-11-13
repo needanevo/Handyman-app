@@ -17,6 +17,7 @@ import { StepIndicator } from '../../../src/components/StepIndicator';
 import { PhotoUploader } from '../../../src/components/PhotoUploader';
 import { Card } from '../../../src/components/Card';
 import { useAuth } from '../../../src/contexts/AuthContext';
+import { contractorAPI } from '../../../src/services/api';
 
 export default function ContractorRegisterStep2() {
   const router = useRouter();
@@ -43,21 +44,41 @@ export default function ContractorRegisterStep2() {
     }
   }, [user]);
 
-  const onContinue = () => {
+  const onContinue = async () => {
     if (driversLicense.length === 0) {
-      alert("Please upload your driver's license");
+      Alert.alert('Required', "Please upload your driver's license");
       return;
     }
 
-    router.push({
-      pathname: '/auth/contractor/register-step3',
-      params: {
-        ...params,
-        driversLicense: JSON.stringify(driversLicense),
-        businessLicenses: JSON.stringify(businessLicenses),
-        insurance: JSON.stringify(insurance),
-      },
-    });
+    try {
+      setIsLoading(true);
+
+      // Save documents to database
+      await contractorAPI.updateDocuments({
+        license: driversLicense[0],
+        business_license: businessLicenses,
+        insurance: insurance[0],
+      });
+
+      // Navigate to next step
+      router.push({
+        pathname: '/auth/contractor/register-step3',
+        params: {
+          ...params,
+          driversLicense: JSON.stringify(driversLicense),
+          businessLicenses: JSON.stringify(businessLicenses),
+          insurance: JSON.stringify(insurance),
+        },
+      });
+    } catch (error: any) {
+      console.error('Failed to save documents:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to save documents. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const steps = [

@@ -942,6 +942,138 @@ async def get_addresses(current_user: User = Depends(get_current_user_dependency
     return current_user.addresses
 
 
+# ==================== CONTRACTOR PROFILE ROUTES ====================
+
+
+@api_router.patch("/contractors/documents")
+async def update_contractor_documents(
+    documents: dict,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Update contractor documents (license, business licenses, insurance).
+
+    Expected structure:
+    {
+        "license": "https://...",  # Driver's license (single URL)
+        "business_license": ["https://...", "https://..."],  # Professional licenses (array)
+        "insurance": "https://..."  # Insurance certificate (single URL)
+    }
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can update documents")
+
+    # Validate document URLs
+    for key, value in documents.items():
+        if value and not (isinstance(value, str) or isinstance(value, list)):
+            raise HTTPException(400, detail=f"Invalid document format for {key}")
+
+    # Update documents in database
+    result = await db.users.update_one(
+        {"id": current_user.id},
+        {
+            "$set": {
+                "documents": documents,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        }
+    )
+
+    if result.modified_count > 0:
+        logger.info(f"Updated documents for contractor {current_user.id}")
+        return {"message": "Documents updated successfully", "documents": documents}
+    else:
+        raise HTTPException(500, detail="Failed to update documents")
+
+
+@api_router.patch("/contractors/portfolio")
+async def update_contractor_portfolio(
+    portfolio_photos: List[str],
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Update contractor portfolio photos.
+
+    Expected structure:
+    {
+        "portfolio_photos": ["https://...", "https://...", ...]
+    }
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can update portfolio")
+
+    # Validate photo URLs
+    if not isinstance(portfolio_photos, list):
+        raise HTTPException(400, detail="portfolio_photos must be an array")
+
+    for url in portfolio_photos:
+        if not isinstance(url, str) or not url.startswith("http"):
+            raise HTTPException(400, detail="All portfolio photos must be valid URLs")
+
+    # Update portfolio in database
+    result = await db.users.update_one(
+        {"id": current_user.id},
+        {
+            "$set": {
+                "portfolio_photos": portfolio_photos,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        }
+    )
+
+    if result.modified_count > 0:
+        logger.info(f"Updated portfolio for contractor {current_user.id} ({len(portfolio_photos)} photos)")
+        return {"message": "Portfolio updated successfully", "count": len(portfolio_photos)}
+    else:
+        raise HTTPException(500, detail="Failed to update portfolio")
+
+
+@api_router.patch("/contractors/profile")
+async def update_contractor_profile(
+    profile_data: dict,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Update contractor profile (skills, experience, business info).
+
+    Expected structure:
+    {
+        "skills": ["Drywall", "Painting", ...],
+        "years_experience": 10,
+        "business_name": "John's Handyman Services"
+    }
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can update profile")
+
+    # Build update dict with only provided fields
+    update_fields = {}
+    if "skills" in profile_data:
+        update_fields["skills"] = profile_data["skills"]
+    if "years_experience" in profile_data:
+        update_fields["years_experience"] = profile_data["years_experience"]
+    if "business_name" in profile_data:
+        update_fields["business_name"] = profile_data["business_name"]
+
+    if not update_fields:
+        raise HTTPException(400, detail="No fields to update")
+
+    update_fields["updated_at"] = datetime.utcnow().isoformat()
+
+    # Update profile in database
+    result = await db.users.update_one(
+        {"id": current_user.id},
+        {"$set": update_fields}
+    )
+
+    if result.modified_count > 0:
+        logger.info(f"Updated profile for contractor {current_user.id}: {list(update_fields.keys())}")
+        return {"message": "Profile updated successfully", "updated_fields": list(update_fields.keys())}
+    else:
+        # No changes made (fields were same as before)
+        return {"message": "No changes made", "updated_fields": []}
+
+
 # ==================== ADMIN ROUTES ====================
 
 
