@@ -308,17 +308,40 @@ scp file.py root@172.234.70.157:/srv/handyman-app/
     - `frontend/app/contractor-beta.tsx` ✅ Created
 
 **Profile Editing Issues:**
-- [x] **Issue #9**: Contractor profile editing doesn't recall uploaded documents ✅ FIXED
-  - **Priority**: P1 - High
+- [x] **Issue #9**: Contractor profile editing doesn't recall uploaded documents (PHANTOM PHOTOS BUG) ✅ FIXED
+  - **Priority**: P0 - Critical
+  - **Root Cause**: Photos uploaded to Linode Object Storage but URLs never saved to MongoDB
+    - PhotoUploader uploaded files to Linode successfully ✅
+    - URLs stored in React component state only ✅
+    - URLs passed as route params ✅
+    - **URLs never persisted to database** ❌
+    - Result: UI showed photos exist but couldn't display or access them
   - **Solution**:
-    - Added useEffect hooks to pre-fill existing documents from user context
-    - Step 2 now displays existing license, business license, insurance docs
-    - Step 4 now displays existing portfolio photos
-    - Documents persist when navigating between steps
-    - Prevents data loss when editing profile
-  - **Files**:
-    - `frontend/app/auth/contractor/register-step2.tsx` ✅ Fixed
-    - `frontend/app/auth/contractor/register-step4.tsx` ✅ Fixed
+    - **Backend**: Created 3 new PATCH endpoints to save contractor data:
+      - `PATCH /contractors/documents` - Saves license, business licenses, insurance
+      - `PATCH /contractors/portfolio` - Saves portfolio photos array
+      - `PATCH /contractors/profile` - Saves skills, experience, business name
+    - **Frontend APIClient**: Added `patch()` method to support PATCH requests
+    - **Frontend API**: Added `contractorAPI.updateDocuments()`, `updatePortfolio()`, `updateProfile()`
+    - **Step 2**: Now calls `updateDocuments()` to persist license, business licenses, insurance to DB
+    - **Step 3**: Now calls `updateProfile()` to persist skills, experience, business name to DB
+    - **Step 4**: Now calls `updatePortfolio()` to persist portfolio photos to DB
+    - **Data Recall**: Added useEffect hooks to pre-fill existing documents from user context
+    - **AuthContext**: Extended User interface with contractor-specific fields (documents, portfolioPhotos, skills, etc.)
+  - **Testing**:
+    - Backend endpoints deployed and API restarted ✅
+    - Frontend changes committed to dev branch ✅
+    - Ready for end-to-end testing with contractor account
+  - **Files Modified**:
+    - `backend/server.py` ✅ Added contractor profile endpoints (lines 948-1074)
+    - `frontend/src/services/api.ts` ✅ Added patch method and contractorAPI methods
+    - `frontend/src/contexts/AuthContext.tsx` ✅ Extended User interface with contractor fields
+    - `frontend/app/auth/contractor/register-step2.tsx` ✅ Added document persistence
+    - `frontend/app/auth/contractor/register-step3.tsx` ✅ Added profile persistence
+    - `frontend/app/auth/contractor/register-step4.tsx` ✅ Added portfolio persistence
+  - **Documentation**:
+    - `CONTRACTOR_DATA_GUIDE.md` ✅ Created comprehensive guide to contractor data storage
+    - `check_contractor_data.py` ✅ Created diagnostic script for inspecting contractor data
 
 ### Technical Debt Created Today
 - Test contractor account had incorrect role casing (TECHNICIAN vs technician)
