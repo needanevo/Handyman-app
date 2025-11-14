@@ -101,6 +101,7 @@ export default function ContractorDashboard() {
 
         {/* Registration Status Banner */}
         {!isLoading && !error && (
+        <>
         <View style={styles.section}>
           <Card style={styles.registrationCard}>
             <View style={styles.registrationContent}>
@@ -304,7 +305,7 @@ export default function ContractorDashboard() {
               </View>
             </Card>
           </View>
-        )}
+        </>
         )}
       </ScrollView>
     </SafeAreaView>
