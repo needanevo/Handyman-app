@@ -316,6 +316,38 @@ export const contractorAPI = {
     years_experience?: number;
     business_name?: string;
   }) => apiClient.patch<any>('/contractors/profile', profile_data),
+
+  // Contractor photo uploads (new proper folder structure)
+  uploadDocument: (file: { uri: string; type: string; name: string }, documentType: 'license' | 'insurance' | 'business_license') => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri.startsWith('file://') ? file.uri : `file://${file.uri}`,
+      type: file.type || 'image/jpeg',
+      name: file.name || 'document.jpg',
+    } as any);
+    formData.append('document_type', documentType);
+    return apiClient.postFormData<any>('/contractor/photos/document', formData);
+  },
+
+  uploadPortfolioPhoto: (file: { uri: string; type: string; name: string }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri.startsWith('file://') ? file.uri : `file://${file.uri}`,
+      type: file.type || 'image/jpeg',
+      name: file.name || 'portfolio.jpg',
+    } as any);
+    return apiClient.postFormData<any>('/contractor/photos/portfolio', formData);
+  },
+
+  uploadJobPhoto: (jobId: string, file: { uri: string; type: string; name: string }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri.startsWith('file://') ? file.uri : `file://${file.uri}`,
+      type: file.type || 'image/jpeg',
+      name: file.name || 'job_photo.jpg',
+    } as any);
+    return apiClient.postFormData<any>(`/contractor/photos/job/${jobId}`, formData);
+  },
 };
 
 // Health check
