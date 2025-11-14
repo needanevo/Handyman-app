@@ -231,11 +231,11 @@ async def create_service(
     service_data: ServiceCreate, current_user: User = Depends(require_admin)
 ):
     """Create a new service (admin only)"""
-    service = Service(**service_data.dict())
+    service = Service(**service_data.model_dump())
     service.created_at = datetime.utcnow()
     service.updated_at = datetime.utcnow()
 
-    await db.services.insert_one(service.dict())
+    await db.services.insert_one(service.model_dump())
     return service
 
 
@@ -1169,7 +1169,7 @@ async def add_address(
 
     # Add address to user
     await db.users.update_one(
-        {"id": current_user.id}, {"$push": {"addresses": address.dict()}}
+        {"id": current_user.id}, {"$push": {"addresses": address.model_dump()}}
     )
 
     return {"message": "Address added successfully", "address_id": address.id}
@@ -1602,7 +1602,7 @@ async def seed_default_services():
         service = Service(**service_data)
         service.created_at = datetime.utcnow()
         service.updated_at = datetime.utcnow()
-        await db.services.insert_one(service.dict())
+        await db.services.insert_one(service.model_dump())
 
     logger.info(f"Seeded {len(default_services)} default services")
 
