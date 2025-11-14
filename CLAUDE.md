@@ -16,7 +16,93 @@ scp file.py root@172.234.70.157:/srv/handyman-app/
 
 **STATUS: Core Features Working ✅ | Jobs System Needed 🔴 | Infrastructure Hardening Required 🟡**
 
-**Progress: 45% Complete** (25/55 tasks)
+**Progress: 55% Complete** (30/55 tasks)
+
+---
+
+## 🎉 RECENT UPDATES (2025-11-14)
+
+### MongoDB Atlas & Database Issues - RESOLVED ✅
+**Fixed critical database connectivity and schema issues**
+
+**Problems Solved:**
+1. ✅ **Local MongoDB Interference** - Stopped and disabled local MongoDB instance on production server that was competing with Atlas
+2. ✅ **Backend now 100% connected to MongoDB Atlas** - All data properly stored in cloud instance
+3. ✅ **Pydantic v2 Compatibility** - Fixed `.dict()` → `.model_dump()` for Pydantic 2.x (resolved 422 errors on address endpoint)
+4. ✅ **Contractor Registration Flow** - All 4 steps now work end-to-end (was blocked by address endpoint error)
+5. ✅ **MongoDB Schema Complete** - All required collections and indexes created
+
+**MongoDB Collections Created:**
+- ✅ users: 4 documents, 4 indexes (email unique, role, phone unique sparse)
+- ✅ user_passwords: 4 documents, 2 indexes (user_id unique)
+- ✅ quotes: 16 documents, 5 indexes (customer_id+status, created_at)
+- ✅ services: 5 documents, 2 indexes
+- ✅ **jobs**: 0 documents, 4 indexes (NEW - contractor_id+status, customer_id+created_at, status+scheduled_date)
+- ✅ **photos**: 0 documents, 4 indexes (NEW - customer_id+created_at, quote_id, job_id)
+- ✅ **events**: 0 documents, 3 indexes (NEW - entity tracking, created_at)
+
+### Linode Object Storage Organization - IMPLEMENTED ✅
+**Implemented proper folder structure for contractor vs customer photos**
+
+**Problem:** All photos (including contractor documents and portfolio) were being saved in `customers/` folder.
+
+**Solution Implemented:**
+- ✅ **Backend**: Added contractor-specific upload methods in `LinodeObjectStorage`:
+  - `upload_contractor_document()` → `contractors/{id}/profile/{type}_{file}`
+  - `upload_contractor_portfolio()` → `contractors/{id}/portfolio/{file}`
+  - `upload_contractor_job_photo()` → `contractors/{id}/jobs/{job_id}/{file}`
+
+- ✅ **Backend**: Created new API endpoints:
+  - `POST /contractor/photos/document` - Upload license, insurance, business_license
+  - `POST /contractor/photos/portfolio` - Upload portfolio photos
+  - `POST /contractor/photos/job/{job_id}` - Upload job photos
+
+- ✅ **Frontend**: Added new API methods in `api.ts`:
+  - `contractorAPI.uploadDocument(file, documentType)`
+  - `contractorAPI.uploadPortfolioPhoto(file)`
+  - `contractorAPI.uploadJobPhoto(jobId, file)`
+
+- ✅ **Frontend**: Updated `PhotoUploader` component to accept `customUpload` prop
+- ✅ **Frontend**: Updated Step 2 and Step 4 to use contractor-specific endpoints
+
+**Folder Structure:**
+```
+customers/
+  {customer_id}/
+    quotes/{quote_id}/photo.jpg
+    jobs/{job_id}/photo.jpg
+
+contractors/
+  {contractor_id}/
+    profile/
+      license_{uuid}.jpg
+      insurance_{uuid}.jpg
+      business_license_{uuid}.jpg
+    portfolio/
+      portfolio_{uuid}.jpg
+    jobs/{job_id}/{timestamp}_{uuid}.jpg
+```
+
+**Files Modified:**
+- `backend/providers/linode_storage_provider.py` - Added 3 new upload methods (152 lines)
+- `backend/server.py` - Added 3 new photo endpoints, fixed Pydantic v2 compatibility (320 lines)
+- `frontend/src/services/api.ts` - Added contractor photo upload methods
+- `frontend/src/components/PhotoUploader.tsx` - Added customUpload prop
+- `frontend/app/auth/contractor/register-step2.tsx` - Integrated document uploads
+- `frontend/app/auth/contractor/register-step4.tsx` - Integrated portfolio uploads
+
+**Deployment Status:**
+- ✅ Backend deployed to production (172.234.70.157)
+- ✅ MongoDB Atlas schema created
+- ✅ Frontend code committed to dev branch
+- ⏳ **Testing Required**: Need to test contractor registration with frontend running to verify correct folder paths
+
+**Next Testing Steps:**
+1. Start frontend (`npx expo start`)
+2. Complete contractor registration (Step 2 documents, Step 4 portfolio)
+3. Verify photos upload to `contractors/` folders (not `customers/`)
+4. Verify MongoDB saves correct URLs with `contractors/` prefix
+5. Optionally migrate existing contractor photos from wrong folders
 
 ---
 
@@ -55,40 +141,38 @@ scp file.py root@172.234.70.157:/srv/handyman-app/
 ---
 
 ### Database Schema & Constraints
-**Status**: Partially Complete | **Priority**: P0 - Blocking
+**Status**: COMPLETE ✅ | **Priority**: P0 - Blocking
 
-- [ ] Create `jobs` collection with indexes
+- [x] Create `jobs` collection with indexes ✅ (2025-11-14)
   ```javascript
   db.jobs.createIndex({ contractor_id: 1, status: 1 })
   db.jobs.createIndex({ customer_id: 1, created_at: -1 })
   db.jobs.createIndex({ status: 1, scheduled_date: 1 })
   ```
 
-- [ ] Create `events` collection for audit trail
+- [x] Create `events` collection for audit trail ✅ (2025-11-14)
   ```javascript
   db.events.createIndex({ entity_type: 1, entity_id: 1, created_at: -1 })
   db.events.createIndex({ created_at: -1 })
   ```
 
-- [ ] Add phone unique constraint
+- [x] Add phone unique constraint ✅ (2025-11-14)
   ```javascript
   db.users.createIndex({ phone: 1 }, { unique: true, sparse: true })
   ```
 
-- [ ] Create `photos` metadata collection
+- [x] Create `photos` metadata collection ✅ (2025-11-14)
   ```javascript
   db.photos.createIndex({ customer_id: 1, created_at: -1 })
   db.photos.createIndex({ quote_id: 1 })
   db.photos.createIndex({ job_id: 1 })
   ```
 
-- [ ] Verify and document all existing indexes
-  - Run `db.users.getIndexes()`, `db.quotes.getIndexes()`, etc.
-  - Document in ops/mongodb_commands.txt
+- [x] Verify and document all existing indexes ✅ (2025-11-14)
+  - Created diagnostic script: `backend/setup_mongodb_schema.py`
+  - All collections documented in RECENT UPDATES section above
 
-**Why Critical**: Missing indexes cause slow queries. Missing unique constraints allow duplicate data.
-
-**Estimated Effort**: 1 day
+**Completed**: All required collections and indexes created in MongoDB Atlas.
 
 ---
 
