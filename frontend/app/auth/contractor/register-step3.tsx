@@ -96,10 +96,13 @@ export default function ContractorRegisterStep3() {
       });
 
       // Save contractor profile (skills, experience, business name)
+      // Get business name from params (set in Step 1) or user context
+      const businessName = (params.businessName as string) || user?.businessName;
+
       await contractorAPI.updateProfile({
         skills: selectedSkills,
         years_experience: parseInt(data.yearsExperience) || 0,
-        business_name: user?.businessName,
+        ...(businessName && { business_name: businessName }),
       });
 
       // Navigate to next step
