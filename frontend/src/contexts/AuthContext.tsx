@@ -70,14 +70,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Checking auth state...');
       const token = await storage.getItem('accessToken');
       console.log('Found stored token:', !!token);
-      
+
       if (token) {
         // Set the token in API client
         authAPI.setAuthToken(token);
         await refreshUser();
       }
-    } catch (error) {
-      console.error('Auth state check failed:', error);
+    } catch (error: any) {
+      // Silently handle 401 errors (expected when token expired)
+      if (error.response?.status !== 401) {
+        console.error('Auth state check failed:', error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -170,8 +173,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(transformedUser);
       console.log('User set in context - isAuthenticated should now be true');
       
-    } catch (error) {
-      console.error('Failed to refresh user:', error);
+    } catch (error: any) {
+      // Silently handle 401 errors (expected when auth fails)
+      if (error.response?.status !== 401) {
+        console.error('Failed to refresh user:', error);
+      }
       // If refresh fails, clear auth state
       await logout();
       throw error;
