@@ -283,6 +283,8 @@ export default function ContractorDashboard() {
             </TouchableOpacity>
           </View>
         </View>
+        </>
+        )}
 
         {/* Mileage Summary */}
         {stats && (
@@ -305,7 +307,6 @@ export default function ContractorDashboard() {
               </View>
             </Card>
           </View>
-        </>
         )}
       </ScrollView>
     </SafeAreaView>
