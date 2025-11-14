@@ -24,36 +24,22 @@ import { Card } from '../../src/components/Card';
 import { Badge } from '../../src/components/Badge';
 import { Button } from '../../src/components/Button';
 import { DashboardStats, JobStatus } from '../../src/types/contractor';
+import { contractorAPI } from '../../src/services/api';
 
 export default function ContractorDashboard() {
   const router = useRouter();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
-  // In production, this would fetch from API
-  // For now, we'll use mock data
-  const { data: stats, refetch } = useQuery<DashboardStats>({
+  // Fetch real dashboard stats from API
+  const { data: stats, refetch, isLoading, error } = useQuery<DashboardStats>({
     queryKey: ['contractor', 'stats'],
     queryFn: async () => {
-      // Mock data - replace with actual API call
-      return {
-        availableJobsCount: 8,
-        acceptedJobsCount: 3,
-        scheduledJobsCount: 5,
-        completedThisMonth: 12,
-        completedYearToDate: 47,
-        revenueThisMonth: 8500,
-        revenueYearToDate: 42300,
-        expensesThisMonth: 2100,
-        expensesYearToDate: 9800,
-        profitThisMonth: 6400,
-        profitYearToDate: 32500,
-        milesThisMonth: 245,
-        milesYearToDate: 1823,
-        milesAllTime: 5642,
-      };
+      const response = await contractorAPI.getDashboardStats();
+      return response as DashboardStats;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
   });
 
   const handleRefresh = async () => {
@@ -97,7 +83,24 @@ export default function ContractorDashboard() {
           </TouchableOpacity>
         </View>
 
+        {/* Loading State */}
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading dashboard...</Text>
+          </View>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>
+              Failed to load dashboard data. Pull down to refresh.
+            </Text>
+          </View>
+        )}
+
         {/* Registration Status Banner */}
+        {!isLoading && !error && (
         <View style={styles.section}>
           <Card style={styles.registrationCard}>
             <View style={styles.registrationContent}>
@@ -301,6 +304,7 @@ export default function ContractorDashboard() {
               </View>
             </Card>
           </View>
+        )}
         )}
       </ScrollView>
     </SafeAreaView>
@@ -560,5 +564,25 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
     color: colors.primary.main,
     marginLeft: spacing.xs,
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    ...typography.sizes.base,
+    color: colors.neutral[600],
+  },
+  errorContainer: {
+    padding: spacing.xl,
+    backgroundColor: colors.error.lightest,
+    borderRadius: borderRadius.md,
+    margin: spacing.md,
+  },
+  errorText: {
+    ...typography.sizes.base,
+    color: colors.error.main,
+    textAlign: 'center',
   },
 });

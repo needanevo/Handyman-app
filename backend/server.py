@@ -811,6 +811,183 @@ async def update_job(
     return Job(**updated_job)
 
 
+@api_router.get("/contractor/dashboard/stats")
+async def get_contractor_dashboard_stats(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Get dashboard statistics for contractor.
+
+    Returns job counts, revenue, expenses, and mileage data.
+    """
+    # Only contractors can access this endpoint
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access dashboard stats")
+
+    # Get current month start and end dates
+    now = datetime.utcnow()
+    month_start = datetime(now.year, now.month, 1)
+    year_start = datetime(now.year, 1, 1)
+
+    # Count available jobs (pending, within 50 miles, matching skills)
+    # For simplicity, we'll count all pending jobs
+    # The frontend can call /contractor/jobs/available for the exact count
+    available_jobs_count = await db.jobs.count_documents({
+        "$or": [
+            {"contractor_id": None},
+            {"contractor_id": {"$exists": False}}
+        ],
+        "status": "pending"
+    })
+
+    # Count accepted jobs (assigned to this contractor, not yet scheduled)
+    accepted_jobs_count = await db.jobs.count_documents({
+        "contractor_id": current_user.id,
+        "status": {"$in": ["pending", "accepted"]}
+    })
+
+    # Count scheduled jobs (assigned to this contractor with scheduled date)
+    scheduled_jobs_count = await db.jobs.count_documents({
+        "contractor_id": current_user.id,
+        "status": "scheduled"
+    })
+
+    # Count completed jobs this month
+    completed_this_month = await db.jobs.count_documents({
+        "contractor_id": current_user.id,
+        "status": "completed",
+        "completed_at": {"$gte": month_start.isoformat()}
+    })
+
+    # Count completed jobs year to date
+    completed_year_to_date = await db.jobs.count_documents({
+        "contractor_id": current_user.id,
+        "status": "completed",
+        "completed_at": {"$gte": year_start.isoformat()}
+    })
+
+    # Calculate revenue from completed jobs
+    # This month
+    revenue_pipeline_month = [
+        {
+            "$match": {
+                "contractor_id": current_user.id,
+                "status": "completed",
+                "completed_at": {"$gte": month_start.isoformat()}
+            }
+        },
+        {
+            "$group": {
+                "_id": None,
+                "total": {"$sum": "$agreed_amount"}
+            }
+        }
+    ]
+
+    revenue_month_result = await db.jobs.aggregate(revenue_pipeline_month).to_list(1)
+    revenue_this_month = revenue_month_result[0]["total"] if revenue_month_result else 0
+
+    # Year to date
+    revenue_pipeline_year = [
+        {
+            "$match": {
+                "contractor_id": current_user.id,
+                "status": "completed",
+                "completed_at": {"$gte": year_start.isoformat()}
+            }
+        },
+        {
+            "$group": {
+                "_id": None,
+                "total": {"$sum": "$agreed_amount"}
+            }
+        }
+    ]
+
+    revenue_year_result = await db.jobs.aggregate(revenue_pipeline_year).to_list(1)
+    revenue_year_to_date = revenue_year_result[0]["total"] if revenue_year_result else 0
+
+    # Get expenses (if expenses collection exists)
+    try:
+        expenses_month = await db.expenses.aggregate([
+            {"$match": {
+                "contractor_id": current_user.id,
+                "date": {"$gte": month_start.isoformat()}
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        ]).to_list(1)
+        expenses_this_month = expenses_month[0]["total"] if expenses_month else 0
+
+        expenses_year = await db.expenses.aggregate([
+            {"$match": {
+                "contractor_id": current_user.id,
+                "date": {"$gte": year_start.isoformat()}
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        ]).to_list(1)
+        expenses_year_to_date = expenses_year[0]["total"] if expenses_year else 0
+    except Exception as e:
+        logger.warning(f"Expenses collection not available: {e}")
+        expenses_this_month = 0
+        expenses_year_to_date = 0
+
+    # Get mileage (if mileage collection exists)
+    try:
+        mileage_month = await db.mileage.aggregate([
+            {"$match": {
+                "contractor_id": current_user.id,
+                "date": {"$gte": month_start.isoformat()}
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$miles"}}}
+        ]).to_list(1)
+        miles_this_month = mileage_month[0]["total"] if mileage_month else 0
+
+        mileage_year = await db.mileage.aggregate([
+            {"$match": {
+                "contractor_id": current_user.id,
+                "date": {"$gte": year_start.isoformat()}
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$miles"}}}
+        ]).to_list(1)
+        miles_year_to_date = mileage_year[0]["total"] if mileage_year else 0
+
+        # All time mileage
+        mileage_all = await db.mileage.aggregate([
+            {"$match": {"contractor_id": current_user.id}},
+            {"$group": {"_id": None, "total": {"$sum": "$miles"}}}
+        ]).to_list(1)
+        miles_all_time = mileage_all[0]["total"] if mileage_all else 0
+    except Exception as e:
+        logger.warning(f"Mileage collection not available: {e}")
+        miles_this_month = 0
+        miles_year_to_date = 0
+        miles_all_time = 0
+
+    # Calculate profit
+    profit_this_month = revenue_this_month - expenses_this_month
+    profit_year_to_date = revenue_year_to_date - expenses_year_to_date
+
+    stats = {
+        "availableJobsCount": available_jobs_count,
+        "acceptedJobsCount": accepted_jobs_count,
+        "scheduledJobsCount": scheduled_jobs_count,
+        "completedThisMonth": completed_this_month,
+        "completedYearToDate": completed_year_to_date,
+        "revenueThisMonth": revenue_this_month,
+        "revenueYearToDate": revenue_year_to_date,
+        "expensesThisMonth": expenses_this_month,
+        "expensesYearToDate": expenses_year_to_date,
+        "profitThisMonth": profit_this_month,
+        "profitYearToDate": profit_year_to_date,
+        "milesThisMonth": miles_this_month,
+        "milesYearToDate": miles_year_to_date,
+        "milesAllTime": miles_all_time,
+    }
+
+    logger.info(f"Dashboard stats for contractor {current_user.id}: {stats}")
+    return stats
+
+
 @api_router.get("/contractor/jobs/available")
 async def get_available_jobs(
     current_user: User = Depends(get_current_user_dependency)
