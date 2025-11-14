@@ -23,18 +23,67 @@ import { colors, spacing, typography, borderRadius, shadows } from '../../../src
 import { Job } from '../../../src/types/contractor';
 import { JobCard } from '../../../src/components/contractor/JobCard';
 import { EmptyState } from '../../../src/components/EmptyState';
+import { contractorAPI } from '../../../src/services/api';
 
 export default function AvailableJobs() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Mock data - replace with API call
-  const { data: jobs, refetch } = useQuery<Job[]>({
+  // Fetch real available jobs from API
+  const { data: jobs, refetch, isLoading, error } = useQuery<Job[]>({
     queryKey: ['contractor', 'jobs', 'available'],
     queryFn: async () => {
-      // Mock available jobs
-      return [
+      const response = await contractorAPI.getAvailableJobs();
+      // Backend returns { jobs: [], count, max_distance_miles, contractor_location }
+      const jobsData = response.jobs || [];
+
+      // Map backend job format to frontend Job type
+      return jobsData.map((job: any) => ({
+        id: job.id,
+        customerId: job.customer_id,
+        contractorId: job.contractor_id,
+        quoteId: job.quote_id,
+        status: job.status?.toUpperCase() || 'PENDING',
+        title: job.description?.substring(0, 50) || 'Untitled Job',
+        description: job.description || '',
+        category: job.service_category || 'Other',
+        location: job.customer_address || {},
+        quotedAmount: job.agreed_amount || 0,
+        estimatedDuration: job.estimated_hours || 0,
+        distance: job.distance_miles,
+        photos: [],
+        customerPhotos: [],
+        expenses: [],
+        timeLogs: [],
+        totalExpenses: 0,
+        totalLaborHours: 0,
+        depositPaid: false,
+        createdAt: job.created_at,
+        updatedAt: job.updated_at,
+      })) as Job[];
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 2,
+  });
+
+  // Fallback to empty array if no data
+  const jobsList = jobs || [];
+
+  // Filter by search query
+  const filteredJobs = jobsList.filter((job) => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      job.title?.toLowerCase().includes(searchLower) ||
+      job.description?.toLowerCase().includes(searchLower) ||
+      job.category?.toLowerCase().includes(searchLower) ||
+      job.location?.city?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Remove the old mock data array
+  /*
+  const oldMockData = [
         {
           id: '1',
           customerId: 'c1',
@@ -100,25 +149,13 @@ export default function AvailableJobs() {
           updatedAt: '2025-11-11T14:30:00',
         },
       ];
-    },
-  });
+  */
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await refetch();
     setRefreshing(false);
   };
-
-  const filteredJobs = jobs?.filter((job) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      job.title.toLowerCase().includes(query) ||
-      job.description.toLowerCase().includes(query) ||
-      job.category.toLowerCase().includes(query) ||
-      `${job.customer.firstName} ${job.customer.lastName}`.toLowerCase().includes(query)
-    );
-  });
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

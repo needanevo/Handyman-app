@@ -624,7 +624,68 @@ async def respond_to_quote(
         },
     )
 
-    return {"message": f"Quote {new_status}", "quote_id": quote_id}
+    # If quote was accepted, create a job
+    job_id = None
+    if response.accept:
+        try:
+            # Create job from accepted quote
+            job = Job(
+                customer_id=current_user.id,
+                quote_id=quote_id,
+                service_category=quote["service_category"],
+                description=quote["description"],
+                address_id=quote["address_id"],
+                agreed_amount=quote["total_amount"],
+                customer_notes=response.customer_notes,
+            )
+
+            # Attempt contractor routing
+            try:
+                contractor_id = await contractor_router.find_best_contractor(
+                    service_category=quote["service_category"],
+                    customer_address_id=quote["address_id"],
+                    customer_id=current_user.id,
+                    job_id=job.id
+                )
+
+                if contractor_id:
+                    job.contractor_id = contractor_id
+                    job.status = JobStatus.SCHEDULED
+                    logger.info(f"Job {job.id} auto-assigned to contractor {contractor_id}")
+                    # TODO: Send email to contractor about new job
+                else:
+                    logger.info(f"Job {job.id} created, awaiting manual routing")
+                    # TODO: Send email to admin for manual assignment
+
+            except Exception as e:
+                logger.error(f"Contractor routing failed for job {job.id}: {e}")
+                # Continue with job creation even if routing fails
+
+            # Save job to database
+            job_doc = job.model_dump()
+            job_doc["created_at"] = job_doc["created_at"].isoformat()
+            job_doc["updated_at"] = job_doc["updated_at"].isoformat()
+            if job_doc.get("scheduled_date"):
+                job_doc["scheduled_date"] = job_doc["scheduled_date"].isoformat()
+            if job_doc.get("completed_at"):
+                job_doc["completed_at"] = job_doc["completed_at"].isoformat()
+
+            await db.jobs.insert_one(job_doc)
+            job_id = job.id
+
+            logger.info(f"Job {job_id} created from accepted quote {quote_id}")
+            # TODO: Send email to customer confirming job creation
+
+        except Exception as e:
+            logger.error(f"Failed to create job from quote {quote_id}: {e}")
+            # Don't fail the quote acceptance if job creation fails
+            # Admin can manually create job later
+
+    return {
+        "message": f"Quote {new_status}",
+        "quote_id": quote_id,
+        "job_id": job_id if response.accept else None
+    }
 
 
 # ==================== JOB ROUTES ====================
