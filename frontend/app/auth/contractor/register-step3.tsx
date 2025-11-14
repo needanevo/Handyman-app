@@ -91,8 +91,8 @@ export default function ContractorRegisterStep3() {
         street: data.businessStreet,
         city: data.businessCity,
         state: data.businessState,
-        zipCode: data.businessZip,
-        isDefault: true,
+        zip_code: data.businessZip,  // Backend expects snake_case
+        is_default: true,  // Backend expects snake_case
       });
 
       // Save contractor profile (skills, experience, business name)

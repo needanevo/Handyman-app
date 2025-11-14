@@ -82,6 +82,7 @@ export default function ContractorRegisterStep1() {
           lastName: data.lastName,
           phone: data.phone,
           role: 'technician',
+          businessName: data.businessName,
         });
 
         // Navigate to next step (now authenticated for photo uploads)

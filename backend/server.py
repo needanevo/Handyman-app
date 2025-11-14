@@ -112,16 +112,17 @@ async def register_user(user_data: UserCreate):
         
         # Generate user_id FIRST before creating the User object
         user_id = str(uuid.uuid4())
-        
+
         user = User(
             id=user_id,  # ← Explicitly set the ID
-            email=user_data.email, 
-            phone=user_data.phone, 
+            email=user_data.email,
+            phone=user_data.phone,
             first_name=user_data.firstName,
-            last_name=user_data.lastName, 
-            role=user_data.role, 
+            last_name=user_data.lastName,
+            role=user_data.role,
             marketing_opt_in=user_data.marketingOptIn,
-            created_at=datetime.utcnow(), 
+            business_name=user_data.businessName if user_data.businessName else None,
+            created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
         

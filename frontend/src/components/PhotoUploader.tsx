@@ -22,6 +22,7 @@ interface PhotoUploaderProps {
   label?: string;
   helpText?: string;
   required?: boolean;
+  aspectRatio?: [number, number];  // For image cropping (e.g., [16, 9] or [8.5, 5.3])
 }
 
 export function PhotoUploader({
@@ -31,6 +32,7 @@ export function PhotoUploader({
   label,
   helpText,
   required = false,
+  aspectRatio = [4, 3],  // Default to 4:3
 }: PhotoUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const { user } = useAuth();
@@ -88,7 +90,7 @@ export function PhotoUploader({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
         allowsEditing: true,
-        aspect: [4, 3],
+        aspect: aspectRatio,  // Use dynamic aspect ratio
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -122,7 +124,7 @@ export function PhotoUploader({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
         allowsEditing: true,
-        aspect: [4, 3],
+        aspect: aspectRatio,  // Use dynamic aspect ratio
         allowsMultipleSelection: true,
       });
 

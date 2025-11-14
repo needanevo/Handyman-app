@@ -160,6 +160,7 @@ export default function ContractorRegisterStep2() {
               label="Driver's License"
               helpText="Front and back of your valid driver's license"
               required
+              aspectRatio={[16, 10]}  // Standard driver's license aspect ratio
             />
 
             <View style={styles.divider} />

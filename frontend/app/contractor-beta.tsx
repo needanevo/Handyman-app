@@ -31,7 +31,7 @@ export default function ContractorBeta() {
     {
       icon: 'calendar-outline',
       title: 'Flexible Schedule',
-      description: 'Choose your own hours and service area. You're the boss.',
+      description: "Choose your own hours and service area. You're the boss.",
     },
     {
       icon: 'card-outline',

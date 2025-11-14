@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wsl --install:*)",
+      "Bash(xcopy:*)",
+      "Bash(robocopy:*)",
+      "Bash(python -m venv:*)",
+      "Bash(D:handyman-venvScriptsactivate)",
+      "Bash(pip install:*)",
+      "Bash(venv/Scripts/pip.exe install:*)",
+      "Bash(ls:*)",
+      "Bash(git merge:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(ssh:*)",
+      "Bash(npm install)",
+      "Bash(sshpass -p '$1Jennifer$1Joshua' ssh -o StrictHostKeyChecking=no root@172.234.70.157 'cat /srv/handyman-app/Handyman-app-main/backend/providers/providers.env')",
+      "Bash(scp:*)",
+      "Bash(sshpass -p '$1Jennifer$1Joshua' ssh -o StrictHostKeyChecking=no root@172.234.70.157 \"journalctl -u handyman-api -n 50 --no-pager | grep -i linode\")",
+      "Bash(git pull:*)",
+      "Bash(npx expo start --web)",
+      "Bash(python:*)",
+      "Bash(sshpass -p '$1Jennifer$1Joshua' ssh -o StrictHostKeyChecking=no root@172.234.70.157 'cd /srv/handyman-app/Handyman-app-main && git branch -a')",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npx tsc:*)",
+      "Bash(done)",
+      "Bash(git reset:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(gh issue list:*)",
+      "Bash(sshpass -p '$1Jennifer$1Joshua' ssh -o StrictHostKeyChecking=no root@172.234.70.157 'cd /srv/handyman-app/Handyman-app-main && git pull origin dev && systemctl restart handyman-api && systemctl status handyman-api --no-pager')"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
