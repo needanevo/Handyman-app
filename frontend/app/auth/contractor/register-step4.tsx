@@ -128,6 +128,7 @@ export default function ContractorRegisterStep4() {
               maxPhotos={10}
               label="Portfolio Photos"
               helpText="Upload up to 10 photos"
+              customUpload={(file) => contractorAPI.uploadPortfolioPhoto(file)}
             />
           </View>
 

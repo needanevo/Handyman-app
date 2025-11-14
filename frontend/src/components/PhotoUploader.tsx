@@ -23,6 +23,7 @@ interface PhotoUploaderProps {
   helpText?: string;
   required?: boolean;
   aspectRatio?: [number, number];  // For image cropping (e.g., [16, 9] or [8.5, 5.3])
+  customUpload?: (file: { uri: string; type: string; name: string }) => Promise<{ url: string }>;  // Custom upload function
 }
 
 export function PhotoUploader({
@@ -33,6 +34,7 @@ export function PhotoUploader({
   helpText,
   required = false,
   aspectRatio = [4, 3],  // Default to 4:3
+  customUpload,  // Optional custom upload function
 }: PhotoUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const { user } = useAuth();
@@ -55,7 +57,10 @@ export function PhotoUploader({
         name: filename,
       };
 
-      const response = await quotesAPI.uploadPhotoImmediate(file, user.id);
+      // Use custom upload function if provided, otherwise use default quotesAPI
+      const response = customUpload
+        ? await customUpload(file)
+        : await quotesAPI.uploadPhotoImmediate(file, user.id);
       return response.url;
     } catch (error) {
       console.error('Error uploading photo:', error);

@@ -161,6 +161,7 @@ export default function ContractorRegisterStep2() {
               helpText="Front and back of your valid driver's license"
               required
               aspectRatio={[16, 10]}  // Standard driver's license aspect ratio
+              customUpload={(file) => contractorAPI.uploadDocument(file, 'license')}
             />
 
             <View style={styles.divider} />
@@ -171,6 +172,7 @@ export default function ContractorRegisterStep2() {
               maxPhotos={5}
               label="Professional Licenses"
               helpText="Upload any relevant contractor, trade, or business licenses (optional)"
+              customUpload={(file) => contractorAPI.uploadDocument(file, 'business_license')}
             />
 
             <View style={styles.divider} />
@@ -181,6 +183,7 @@ export default function ContractorRegisterStep2() {
               maxPhotos={3}
               label="Insurance Documentation"
               helpText="Liability insurance, workers compensation (optional but recommended)"
+              customUpload={(file) => contractorAPI.uploadDocument(file, 'insurance')}
             />
           </View>
 
