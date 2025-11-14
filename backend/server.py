@@ -1313,6 +1313,322 @@ async def update_contractor_profile(
         return {"message": "No changes made", "updated_fields": []}
 
 
+
+@api_router.post("/contractor/photos/document")
+async def upload_contractor_document(
+    file: UploadFile = File(...),
+    document_type: str = Form(...),  # 'license', 'insurance', 'business_license'
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor document (license, insurance, business license)
+    Saves to: contractors/{contractor_id}/profile/{document_type}_{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload documents")
+
+    try:
+        # Validate document type
+        valid_types = ['license', 'insurance', 'business_license']
+        if document_type not in valid_types:
+            raise HTTPException(400, detail=f"Invalid document type. Must be one of: {valid_types}")
+
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor-specific path
+        url = await storage_provider.upload_contractor_document(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            document_type=document_type,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor document uploaded: {document_type} for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "document_type": document_type
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+@api_router.post("/contractor/photos/portfolio")
+async def upload_contractor_portfolio_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor portfolio photo
+    Saves to: contractors/{contractor_id}/portfolio/{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload portfolio photos")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"portfolio_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor portfolio path
+        url = await storage_provider.upload_contractor_portfolio(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor portfolio photo uploaded for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+@api_router.post("/contractor/photos/job/{job_id}")
+async def upload_contractor_job_photo(
+    job_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor job photo (progress, completion, etc.)
+    Saves to: contractors/{contractor_id}/jobs/{job_id}/{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload job photos")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor job path
+        url = await storage_provider.upload_contractor_job_photo(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            job_id=job_id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor job photo uploaded: job={job_id}, contractor={current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "job_id": job_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+
+
+@api_router.post("/contractor/photos/document")
+async def upload_contractor_document(
+    file: UploadFile = File(...),
+    document_type: str = Form(...),  # 'license', 'insurance', 'business_license'
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor document (license, insurance, business license)
+    Saves to: contractors/{contractor_id}/profile/{document_type}_{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload documents")
+
+    try:
+        # Validate document type
+        valid_types = ['license', 'insurance', 'business_license']
+        if document_type not in valid_types:
+            raise HTTPException(400, detail=f"Invalid document type. Must be one of: {valid_types}")
+
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor-specific path
+        url = await storage_provider.upload_contractor_document(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            document_type=document_type,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor document uploaded: {document_type} for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "document_type": document_type
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+@api_router.post("/contractor/photos/portfolio")
+async def upload_contractor_portfolio_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor portfolio photo
+    Saves to: contractors/{contractor_id}/portfolio/{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload portfolio photos")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"portfolio_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor portfolio path
+        url = await storage_provider.upload_contractor_portfolio(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor portfolio photo uploaded for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+@api_router.post("/contractor/photos/job/{job_id}")
+async def upload_contractor_job_photo(
+    job_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor job photo (progress, completion, etc.)
+    Saves to: contractors/{contractor_id}/jobs/{job_id}/{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload job photos")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor job path
+        url = await storage_provider.upload_contractor_job_photo(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            job_id=job_id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor job photo uploaded: job={job_id}, contractor={current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "job_id": job_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+
 # ==================== ADMIN ROUTES ====================
 
 

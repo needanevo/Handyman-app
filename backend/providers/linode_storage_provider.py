@@ -314,3 +314,155 @@ class LinodeObjectStorage:
         except Exception as e:
             logger.error(f"Failed to upload photo: {e}")
             raise Exception(f"Photo upload failed: {str(e)}")
+
+    async def upload_contractor_document(
+        self,
+        file_data: bytes,
+        contractor_id: str,
+        document_type: str,  # 'license', 'insurance', 'business_license'
+        filename: str,
+        content_type: str = 'image/jpeg'
+    ) -> str:
+        """
+        Upload contractor document (license, insurance, certifications) to profile folder
+        
+        Path: contractors/{contractor_id}/profile/{document_type}_{filename}
+        """
+        try:
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_key,
+                endpoint_url=self.endpoint_url,
+                region_name=self.region,
+                config=Config(
+                    signature_version='s3v4',
+                    s3={'addressing_style': 'path'},
+                    retries={'max_attempts': 3, 'mode': 'adaptive'},
+                    connect_timeout=60,
+                    read_timeout=60
+                )
+            )
+
+            # Organize: contractors/{contractor_id}/profile/{document_type}_{filename}
+            object_key = f"contractors/{contractor_id}/profile/{document_type}_{filename}"
+
+            s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=object_key,
+                Body=file_data,
+                ContentType=content_type,
+                ACL='public-read'
+            )
+            logger.info(f"📦 PUT contractor document -> bucket={self.bucket_name} key={object_key}")
+            s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+            logger.info("✅ HEAD object ok")
+
+            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
+            logger.info(f"Uploaded contractor document to: {public_url}")
+            return public_url
+
+        except Exception as e:
+            logger.error(f"Failed to upload contractor document: {e}")
+            raise Exception(f"Contractor document upload failed: {str(e)}")
+
+    async def upload_contractor_portfolio(
+        self,
+        file_data: bytes,
+        contractor_id: str,
+        filename: str,
+        content_type: str = 'image/jpeg'
+    ) -> str:
+        """
+        Upload contractor portfolio photo
+        
+        Path: contractors/{contractor_id}/portfolio/{filename}
+        """
+        try:
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_key,
+                endpoint_url=self.endpoint_url,
+                region_name=self.region,
+                config=Config(
+                    signature_version='s3v4',
+                    s3={'addressing_style': 'path'},
+                    retries={'max_attempts': 3, 'mode': 'adaptive'},
+                    connect_timeout=60,
+                    read_timeout=60
+                )
+            )
+
+            # Organize: contractors/{contractor_id}/portfolio/{filename}
+            object_key = f"contractors/{contractor_id}/portfolio/{filename}"
+
+            s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=object_key,
+                Body=file_data,
+                ContentType=content_type,
+                ACL='public-read'
+            )
+            logger.info(f"📦 PUT contractor portfolio -> bucket={self.bucket_name} key={object_key}")
+            s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+            logger.info("✅ HEAD object ok")
+
+            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
+            logger.info(f"Uploaded contractor portfolio photo to: {public_url}")
+            return public_url
+
+        except Exception as e:
+            logger.error(f"Failed to upload contractor portfolio photo: {e}")
+            raise Exception(f"Contractor portfolio upload failed: {str(e)}")
+
+    async def upload_contractor_job_photo(
+        self,
+        file_data: bytes,
+        contractor_id: str,
+        job_id: str,
+        filename: str,
+        content_type: str = 'image/jpeg'
+    ) -> str:
+        """
+        Upload contractor job photo (progress, completion, etc.)
+        
+        Path: contractors/{contractor_id}/jobs/{job_id}/{filename}
+        """
+        try:
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_key,
+                endpoint_url=self.endpoint_url,
+                region_name=self.region,
+                config=Config(
+                    signature_version='s3v4',
+                    s3={'addressing_style': 'path'},
+                    retries={'max_attempts': 3, 'mode': 'adaptive'},
+                    connect_timeout=60,
+                    read_timeout=60
+                )
+            )
+
+            # Organize: contractors/{contractor_id}/jobs/{job_id}/{filename}
+            object_key = f"contractors/{contractor_id}/jobs/{job_id}/{filename}"
+
+            s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=object_key,
+                Body=file_data,
+                ContentType=content_type,
+                ACL='public-read'
+            )
+            logger.info(f"📦 PUT contractor job photo -> bucket={self.bucket_name} key={object_key}")
+            s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+            logger.info("✅ HEAD object ok")
+
+            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
+            logger.info(f"Uploaded contractor job photo to: {public_url}")
+            return public_url
+
+        except Exception as e:
+            logger.error(f"Failed to upload contractor job photo: {e}")
+            raise Exception(f"Contractor job photo upload failed: {str(e)}")
