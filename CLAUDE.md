@@ -106,37 +106,404 @@ contractors/
 
 ---
 
+## 🎯 CURRENT FOCUS (2025-11-16)
+
+**STATUS: Quote-to-Job System Architecture | Testing & Infrastructure Planning**
+
+### 1. Jobs Frontend Architecture (P0 - CRITICAL)
+
+**Three User Flows Required:**
+
+**A. Homeowner Flow:**
+- Create Job (currently "request quote") → See Job Status / Messages → Edit / Cancel
+- Mental model shift: "Quote" is just a job status, not a separate thing
+- Job object fields: `{ service_category, address_id, description, photos, budget_min, budget_max, urgency, preferred_dates, source: 'app', status: 'requested' }`
+
+**B. Contractor Flow:**
+- See Available Jobs → Claim Job → Update Status / Chat with Customer
+- Status transitions: `requested → quoted → accepted → in_progress → completed`
+- Track: `start_odometer, end_odometer, start_time, end_time, materials_cost`
+
+**C. Admin/Owner Flow:**
+- See All Jobs → Force-assign to Contractor → Override status / Add notes
+- View: `distance_miles, time_on_site_minutes, materials_cost, contractor_invoice_amount`
+
+**Implementation Plan:**
+- [ ] Rename quote request screen to "Create Job Request" mentally
+- [ ] Change `quotesAPI.requestQuote` → `jobsAPI.createJob`
+- [ ] POST to `/api/jobs` instead of `/api/quotes`
+- [ ] Backend response: `{ job_id, status, estimated_total, created_at }`
+- [ ] Update success message from "quote" to "job"
+
+---
+
+### 2. Notification System Design (P0 - CRITICAL)
+
+**Trigger → Recipient → Channel Matrix:**
+
+| Trigger | Recipient(s) | Channel | Message Content |
+|---------|-------------|---------|-----------------|
+| Job Created | Homeowner | Email + SMS | "New Job Request #{job_id}" - category, description, budget, link |
+| Job Created | Admin/You | Email | Full job details for manual assignment |
+| Job Claimed | Homeowner | SMS | "Your [category] job has been claimed by [contractor]" |
+| Job Claimed | Contractor | Email | Job details, customer contact, estimated completion |
+| Status → Scheduled | Homeowner | Email + SMS | "Your job is scheduled for [date]" |
+| Status → In Progress | Homeowner | Email | "Work has started on your [category] job" |
+| Status → Complete | Homeowner | Email + SMS | "Your job is complete! Please review and confirm" |
+
+**SendGrid Email Templates Needed:**
+1. `job_created_homeowner.html` - Confirmation to customer
+2. `job_created_admin.html` - Alert to you with job details
+3. `job_claimed_contractor.html` - Assignment notification
+4. `job_scheduled_homeowner.html` - Scheduling confirmation
+5. `job_completed_homeowner.html` - Completion + review request
+
+**Twilio SMS Templates Needed:**
+1. Job created: "We got your request for [category]. Est: $X–$Y. We'll follow up soon. –The Real Johnson"
+2. Job claimed: "Your [category] job has been claimed. Updates coming soon!"
+3. Job completed: "Your job is complete! Check your email for details."
+
+**Implementation Priority:**
+- [ ] Design all trigger points in backend job workflow
+- [ ] Create SendGrid email templates
+- [ ] Create Twilio SMS templates
+- [ ] Wire triggers to backend POST `/api/jobs` endpoint
+- [ ] Test notification delivery for each trigger
+
+---
+
+### 3. Frontend/Backend Connectivity Testing (P1 - HIGH)
+
+**Test Plan - Next Laptop Session:**
+1. Start frontend: `cd frontend && npx expo start`
+2. Open DevTools Network tab in browser
+3. Perform ONE action (health check or login)
+4. Confirm `200 OK` from `https://therealjohnson.com/api/...`
+5. Verify: No IP addresses, no `http://`, all HTTPS
+
+**Success Criteria:**
+- ✅ Frontend connects to production backend via HTTPS
+- ✅ CORS headers allow requests
+- ✅ JWT tokens persist and refresh correctly
+- ✅ No mixed content warnings (HTTP resources on HTTPS page)
+
+**If Tests Fail:**
+- Check `EXPO_PUBLIC_BACKEND_URL` in `frontend/.env`
+- Verify SSL certificate is installed and valid
+- Check nginx CORS configuration
+- Review browser console for specific errors
+
+---
+
+### 4. Welcome Tutorial & First-Run Experience (P2 - MEDIUM)
+
+**User Profile Field Addition:**
+```javascript
+// Add to users collection:
+{
+  has_seen_tutorial: Boolean,  // default: false
+  tutorial_completed_date: ISODate
+}
+```
+
+**Tutorial Flow Design:**
+- 3-4 cards maximum, ~2 minutes total
+- Card 1: "How requests work" - Submit jobs with photos, get estimates
+- Card 2: "How estimates work" - Transparent pricing, change order process
+- Card 3: "How scheduling works" - Contractor claims, you confirm dates
+- Card 4: "How payments work" - Pay after completion, review contractors
+
+**UI Components:**
+- Skip button on every card
+- Exit tutorial button (always visible)
+- Progress dots (1 of 4, 2 of 4, etc.)
+- "Watch tutorial again" link in Settings
+
+**Implementation:**
+- [ ] Create `TutorialModal` component with card carousel
+- [ ] Add `has_seen_tutorial` check on first login
+- [ ] Store tutorial completion in user profile
+- [ ] Add "Tutorial" option to Settings menu
+
+---
+
+### 5. Contractor Accounting & Mileage Tracking (P1 - HIGH)
+
+**Data Backend Must Store:**
+
+```javascript
+// Jobs collection additions:
+{
+  // Contractor tracking fields
+  distance_miles: Number,          // Auto-calculated from addresses
+  time_on_site_minutes: Number,    // Contractor enters start/end time
+  materials_cost: Number,           // Contractor itemizes materials
+  contractor_invoice_amount: Number, // Final amount contractor charges
+
+  // Mileage tracking
+  contractor_start_odometer: Number,
+  contractor_end_odometer: Number,
+  contractor_mileage_notes: String,
+
+  // Time tracking
+  contractor_clock_in: ISODate,
+  contractor_clock_out: ISODate,
+
+  // Materials tracking
+  materials: [{
+    item: String,
+    quantity: Number,
+    unit_cost: Number,
+    total_cost: Number,
+    receipt_photo_url: String
+  }]
+}
+```
+
+**Frontend Tests Required:**
+1. Create fake jobs in dev environment
+2. Run "complete job" flow where contractor enters:
+   - Start odometer: 12345
+   - End odometer: 12375 → Computes 30 miles
+   - Start time: 9:00 AM
+   - End time: 11:30 AM → Computes 2.5 hours
+3. Verify API receives expected numbers in logs/database
+4. Contractor sees summary: "30 miles, 2.5 hours, $150 materials = $XXX invoice"
+
+**Dashboard Views Needed:**
+- Contractor: "Your Jobs" - total miles, total hours, total materials this month
+- Admin: "All Contractors" - aggregated stats per contractor per month
+
+**Legal Disclaimers (CRITICAL):**
+- All reports labeled: "For your records only"
+- "Not official tax documentation"
+- "Consult your tax professional"
+- Never use terms: "1099", "W-2", "K-1"
+- Only say: "Payout summary" or "Earnings report"
+
+---
+
+### 6. Legal Framework & Independent Contractor Model (P1 - HIGH)
+
+**Platform Legal Positioning:**
+
+**What We Are:**
+- Lead-generation and workflow platform
+- Connection service between homeowners and contractors
+- Record-keeping and communication tools provider
+- Transparent pricing and process facilitator
+
+**What We Are NOT:**
+- NOT an employer (contractors are independent)
+- NOT a financial institution or bank
+- NOT tax advisors or accountants
+- NOT legal service or authority
+- NOT insurance provider
+- NOT party to work contracts
+
+**Contractor Onboarding Legal Copy:**
+
+```
+INDEPENDENT CONTRACTOR ACKNOWLEDGEMENT
+
+We connect you with customers as an independent contractor lead platform.
+
+YOU ARE RESPONSIBLE FOR:
+✓ Tracking and reporting your income and taxes
+✓ Managing your mileage and expense records
+✓ Maintaining required licenses and insurance
+✓ Setting your own pricing and terms
+✓ Filing all tax returns (1099-NEC, Schedule C, etc.)
+
+WE PROVIDE:
+✓ Lead generation and customer connections
+✓ Job tracking and workflow tools
+✓ Record-keeping dashboards (informational only)
+✓ Payment processing facilitation
+
+DISCLAIMER: We do not provide accounting, payroll, or tax services.
+All reports in the app are informational only and not official tax
+documentation. Consult your tax professional.
+
+By checking this box, I acknowledge that I am an independent contractor,
+not an employee, and I am solely responsible for all tax obligations.
+
+□ I Accept - [version 1.0, date, IP logged]
+```
+
+**Homeowner Onboarding Legal Copy:**
+
+```
+SERVICE USE TERMS
+
+You contract directly with the contractor for all work performed.
+We are not a party to the work agreement.
+
+PLATFORM ROLE:
+• We help you find vetted professionals
+• We show clear estimates and pricing
+• We track jobs from request to completion
+• We facilitate secure payments
+
+YOUR AGREEMENT:
+• The work contract is between you and the contractor
+• We are not liable for work quality or outcomes
+• Contractors carry their own insurance (when applicable)
+• You can review and rate contractors after completion
+
+By tapping Confirm, you agree to these terms.
+[Link to full Terms of Service]
+```
+
+**Implementation Checklist:**
+- [ ] Add `accepted_contractor_terms_version` field to users collection
+- [ ] Add `accepted_contractor_terms_date` field to users collection
+- [ ] Add `accepted_contractor_terms_ip` field to users collection
+- [ ] Create scrollable terms screen in contractor registration
+- [ ] Add checkbox + "I Accept" button (disabled until scrolled)
+- [ ] Log acceptance: version + timestamp + IP + device
+- [ ] Add similar homeowner acceptance at first checkout/booking
+- [ ] Create full Terms of Service page (linked from footer)
+- [ ] Create Privacy Policy page
+- [ ] Have real lawyer review all legal copy
+
+---
+
+### 7. Brand Positioning & Value Proposition (P2 - MEDIUM)
+
+**Tagline:** "Assurance, Not Insurance"
+
+**Core Message:**
+We bring transparency and structure to home repairs. You get clear pricing,
+vetted contractors, and tools to track everything. We're not your insurance
+policy—we're your assurance that the process is fair and documented.
+
+---
+
+**Contractor Promise:**
+
+**"Real Leads. Real Tools. Real Independence."**
+
+✓ We bring you qualified leads that match your skills
+✓ You get direct access to customers who actually need work done (not random clicks)
+✓ We give you tools to track expenses, mileage, materials, and scheduling
+✓ We help you generate take-offs and compare material pricing (Home Depot, Lowe's data)
+✓ Customers submit photos up front so you can verify estimates before stepping on site
+✓ We give you a simple way to submit and document change orders
+✓ You stay fully independent—set your own pricing, manage your own taxes
+
+**What we protect:**
+- Your time (no fake leads)
+- Your reputation (structured review system)
+- Your records (mileage, time, materials tracked automatically)
+- Your growth (start without insurance, build your business, graduate to licensed pro)
+
+---
+
+**Homeowner Promise:**
+
+**"Fair Pricing. Clear Communication. Verified Contractors."**
+
+✓ You deserve to know what a fair price is
+✓ You deserve to see who's doing the work
+✓ You deserve solid workmanship and clear explanations
+
+**How we help:**
+- We match you with contractors and skilled handymen
+- Some are new to business (lower pricing, may not have insurance—we always tell you)
+- Some are licensed pros (higher pricing, fully insured—we always tell you)
+- Everyone gets a chance to build a business; you get competitive pricing and motivated workers
+- We show estimates based on photos you submit
+- We explain that quotes can change as the job progresses
+- We give contractors a clear way to document change orders
+- We keep pricing, communication, and financial records transparent
+
+**What we protect:**
+- Your budget (transparent estimates)
+- Your trust (reviews and ratings matter)
+- Your time (structured process from quote to completion)
+- Your home (only vetted contractors can claim jobs)
+
+---
+
+**Implementation:**
+- [ ] Add "About" page with brand positioning
+- [ ] Update landing page hero section with tagline
+- [ ] Create contractor recruitment page with value prop
+- [ ] Create homeowner FAQ page addressing common concerns
+- [ ] Add brand voice guidelines to design system docs
+
+---
+
 ## 🔴 HIGH PRIORITY - BLOCKING MVP LAUNCH
 
 ### Jobs Management System (CRITICAL)
-**Status**: Not Started | **Priority**: P0 - Blocking
+**Status**: Architecture Defined, Implementation Needed | **Priority**: P0 - Blocking
 
-- [ ] Create Job model (`backend/models/job.py`)
-  - Fields: id, contractor_id, customer_id, quote_id, status, scheduled_date, completed_date
-  - Status enum: PENDING, SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+**See Section "1. Jobs Frontend Architecture" above for complete three-flow design (Homeowner, Contractor, Admin)**
+
+**Backend Implementation Tasks:**
+
+- [ ] Expand Job model in `backend/models/job.py`
+  - Core fields: id, contractor_id, customer_id, address_id, status, service_category
+  - Status enum: `requested → quoted → accepted → in_progress → completed → cancelled`
+  - Accounting fields: distance_miles, time_on_site_minutes, materials_cost, contractor_invoice_amount
+  - Tracking fields: contractor_start_odometer, contractor_end_odometer, contractor_clock_in, contractor_clock_out
+  - Materials array: item, quantity, unit_cost, total_cost, receipt_photo_url
+  - Customer fields: description, photos, budget_min, budget_max, urgency, preferred_dates
 
 - [ ] Implement POST `/api/jobs` endpoint
-  - Accept quote acceptance
-  - Create job record
-  - Trigger contractor assignment workflow
+  - Replace quote creation flow
+  - Create job record with status='requested'
+  - Trigger notification system (see Section 2 above)
+  - Return: { job_id, status, estimated_total, created_at }
 
-- [ ] Implement GET `/api/jobs/:id/quotes` endpoint
-  - Return all quotes associated with a job
+- [ ] Implement GET `/api/jobs/available` endpoint (Contractor)
+  - Filter by contractor skills
+  - Filter by 50-mile radius from business address
+  - Sort by distance (closest first)
+  - Only show jobs with status='requested' or 'quoted'
 
-- [ ] Implement routing logic
-  - Skill matching algorithm
-  - Nearest zip code calculation
-  - Contractor capacity checks
-  - `routingEnabled` flag with email fallback
+- [ ] Implement PATCH `/api/jobs/:id/claim` endpoint (Contractor)
+  - Assign contractor_id to job
+  - Change status to 'accepted'
+  - Trigger notifications (homeowner SMS, contractor email)
 
-- [ ] Email notifications
-  - Customer: Quote accepted, job scheduled
-  - Contractor: New job assigned
-  - Admin: Job created (if routingEnabled=false)
+- [ ] Implement PATCH `/api/jobs/:id/status` endpoint (Contractor)
+  - Update status (in_progress, completed)
+  - Trigger appropriate notifications
+  - Validate status transitions
 
-**Why Critical**: Customers can request quotes but can't actually book jobs. This breaks the entire workflow.
+- [ ] Implement PATCH `/api/jobs/:id/tracking` endpoint (Contractor)
+  - Update odometer readings, clock in/out times
+  - Update materials list
+  - Calculate derived values (distance, duration)
 
-**Estimated Effort**: 2-3 days
+- [ ] Implement GET `/api/jobs` endpoint (Admin)
+  - List all jobs with filtering
+  - Aggregated stats per contractor
+  - Override capabilities for status and assignment
+
+- [ ] Integrate notification triggers (see Section 2 above)
+  - Job created → Email + SMS to homeowner, Email to admin
+  - Job claimed → SMS to homeowner, Email to contractor
+  - Status changed → Email + optional SMS to homeowner
+
+**Frontend Implementation Tasks:**
+
+- [ ] Rename "Quote Request" to "Job Request" in UI
+- [ ] Change API call from `quotesAPI.requestQuote` to `jobsAPI.createJob`
+- [ ] Create homeowner job list/status screen
+- [ ] Create contractor "Available Jobs" screen
+- [ ] Create contractor "My Jobs" screen with tracking inputs
+- [ ] Create admin job management dashboard
+- [ ] Add odometer/time tracking UI for contractors
+- [ ] Add materials itemization UI for contractors
+- [ ] Add job status update UI for contractors
+
+**Why Critical**: Customers can request quotes but can't actually book and track jobs. Contractors can't claim or complete work. This breaks the entire workflow.
+
+**Estimated Effort**: 5-7 days (includes notification system)
 
 ---
 
@@ -436,9 +803,9 @@ contractors/
 
 ## 📊 COMPLETION TRACKING
 
-### Current Status (2025-11-13)
+### Current Status (2025-11-16)
 
-**COMPLETED** (30 tasks - 55%):
+**COMPLETED** (30 tasks - 50%):
 - ✅ Backend API deployment (uvicorn + systemd)
 - ✅ MongoDB Atlas connection
 - ✅ Linode Object Storage integration
@@ -449,56 +816,88 @@ contractors/
 - ✅ Contractor registration (4-step flow)
 - ✅ Service categories (12 total)
 - ✅ CORS configuration
-- ✅ Collections: users, user_passwords, quotes, services
+- ✅ Collections: users, user_passwords, quotes, services, jobs, photos, events
 - ✅ iPhone photo upload fix
 - ✅ Contractor profile page
 - ✅ Registration step navigation
 - ✅ Test contractor account
-- ✅ **NEW (2025-11-13)**: Role-based routing (customer vs contractor login)
-- ✅ **NEW (2025-11-13)**: Fixed contractor login authentication (role field casing)
-- ✅ **NEW (2025-11-13)**: Fixed password hash field mismatch in database
-- ✅ **NEW (2025-11-13)**: Added missing Ionicons import to contractor dashboard
-- ✅ **NEW (2025-11-13)**: Fixed syntax error in quote request page
+- ✅ Role-based routing (customer vs contractor login)
+- ✅ Contractor login authentication fixes
+- ✅ 50-mile radius job filtering with geodesic distance
 
-**IN PROGRESS** (5 tasks - 10%):
+**IN PROGRESS** (10 tasks - 17%):
+- 🟡 Jobs system architecture (defined, needs implementation)
+- 🟡 Notification system design (planned, needs templates)
+- 🟡 Legal framework (copy written, needs lawyer review)
+- 🟡 Brand positioning (defined, needs pages)
+- 🟡 Contractor accounting/mileage (schema designed, needs UI)
+- 🟡 Frontend/backend connectivity testing (pending next session)
+- 🟡 Welcome tutorial (designed, needs implementation)
 - 🟡 Contractor annual renewal system (documented, not implemented)
-- 🟡 Success criteria documentation (partially complete)
+- 🟡 SSL/HTTPS setup (needed for production)
 - 🟡 Infrastructure testing (basic deployment done, hardening needed)
 
-**NOT STARTED** (25 tasks - 45%):
-- ❌ Jobs management system (CRITICAL)
-- ❌ Contractor routing logic (CRITICAL)
-- ❌ Database indexes and constraints (CRITICAL)
-- ❌ HTTPS/SSL setup (HIGH)
+**NOT STARTED** (20 tasks - 33%):
+- ❌ Jobs backend endpoints (POST /jobs, PATCH /jobs/:id/claim, etc.)
+- ❌ Jobs frontend screens (homeowner, contractor, admin)
+- ❌ SendGrid email templates (7 templates needed)
+- ❌ Twilio SMS templates (3 templates needed)
+- ❌ Contractor tracking UI (odometer, time, materials)
+- ❌ Legal acceptance screens (contractor + homeowner terms)
+- ❌ Brand pages (About, FAQ, contractor recruitment)
+- ❌ Tutorial modal component
 - ❌ Backups and monitoring (HIGH)
 - ❌ Server hardening verification (MEDIUM)
-- ❌ Admin tools and users (LOW)
+- ❌ Admin job management dashboard
 - ❌ Docker migration (FUTURE)
 
 ---
 
-## 🎯 NEXT SPRINT GOALS
+## 🎯 REVISED SPRINT GOALS (2025-11-16)
 
-**Sprint 1 (This Week): Jobs System**
-1. Create Job model
-2. Implement POST /jobs endpoint
-3. Implement contractor routing (skill + zip + capacity)
-4. Add email notifications
-5. Create jobs collection with indexes
+**Sprint 1 (Week of 2025-11-18): Core Jobs System**
+1. ✅ Test frontend/backend HTTPS connectivity
+2. Expand Job model with accounting/tracking fields
+3. Implement POST `/api/jobs` endpoint (replaces quote creation)
+4. Implement GET `/api/jobs/available` endpoint (contractor view)
+5. Implement PATCH `/api/jobs/:id/claim` endpoint (contractor claims job)
+6. Create basic notification triggers (job created, job claimed)
+7. Update frontend: quotesAPI → jobsAPI
 
-**Sprint 2 (Next Week): Production Hardening**
-1. Install Let's Encrypt SSL
-2. Setup nightly backups
-3. Enable monitoring and alerts
+**Sprint 2 (Week of 2025-11-25): Contractor Workflow**
+1. Implement PATCH `/api/jobs/:id/status` endpoint
+2. Implement PATCH `/api/jobs/:id/tracking` endpoint (odometer, time, materials)
+3. Create contractor "My Jobs" screen with tracking inputs
+4. Create contractor "Available Jobs" screen
+5. Create SendGrid email templates (3 priority templates)
+6. Create Twilio SMS templates (3 templates)
+7. Wire all notification triggers
+
+**Sprint 3 (Week of 2025-12-02): Legal & Polish**
+1. Create legal acceptance screens (contractor + homeowner)
+2. Add accepted_terms fields to users collection
+3. Create Terms of Service and Privacy Policy pages
+4. Create brand pages (About, FAQ)
+5. Implement welcome tutorial modal
+6. Create homeowner job status screen
+7. **Legal review**: Have attorney review all legal copy
+
+**Sprint 4 (Week of 2025-12-09): Production Hardening**
+1. Install Let's Encrypt SSL certificate
+2. Setup nightly MongoDB backups to Linode
+3. Enable system monitoring (UptimeRobot or similar)
 4. Configure log rotation
-5. Finalize domain name
+5. Create smoke test script
+6. Final security audit
+7. Load testing
 
-**Sprint 3 (Following Week): Polish & Launch**
-1. Complete contractor renewal system backend
-2. Create admin dashboard
-3. Final security audit
-4. Load testing
-5. Production launch
+**Sprint 5 (Week of 2025-12-16): Admin & Launch Prep**
+1. Create admin job management dashboard
+2. Implement admin job override capabilities
+3. Create contractor stats aggregation views
+4. Final end-to-end testing (homeowner → contractor → completion)
+5. Production launch checklist
+6. **LAUNCH** 🚀
 
 ---
 
