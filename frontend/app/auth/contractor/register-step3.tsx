@@ -48,7 +48,7 @@ export default function ContractorRegisterStep3() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [selectedSkills, setSelectedSkills] = useState<string[]>(
     user?.skills || []
   );
@@ -104,6 +104,9 @@ export default function ContractorRegisterStep3() {
         years_experience: parseInt(data.yearsExperience) || 0,
         ...(businessName && { business_name: businessName }),
       });
+
+      // Refresh user context to get updated profile
+      await refreshUser();
 
       // Navigate to next step
       router.push({

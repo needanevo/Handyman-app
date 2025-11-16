@@ -170,6 +170,84 @@ export default function ContractorProfile() {
           </Card>
         </View>
 
+        {/* Documents */}
+        {user?.documents && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Verification Documents</Text>
+            <Card style={styles.infoCard}>
+              {user.documents.license && (
+                <>
+                  <View style={styles.infoRow}>
+                    <Ionicons name="card-outline" size={20} color={colors.neutral[600]} />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Driver's License</Text>
+                      <Text style={styles.infoValue}>Uploaded ✓</Text>
+                    </View>
+                  </View>
+                  <View style={styles.divider} />
+                </>
+              )}
+
+              {user.documents.businessLicense && (
+                <>
+                  <View style={styles.infoRow}>
+                    <Ionicons name="document-outline" size={20} color={colors.neutral[600]} />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Professional Licenses</Text>
+                      <Text style={styles.infoValue}>
+                        {Array.isArray(user.documents.businessLicense)
+                          ? `${user.documents.businessLicense.length} file(s) uploaded`
+                          : 'Uploaded ✓'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.divider} />
+                </>
+              )}
+
+              {user.documents.insurance && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color={colors.neutral[600]} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Insurance</Text>
+                    <Text style={styles.infoValue}>Uploaded ✓</Text>
+                  </View>
+                </View>
+              )}
+
+              {!user.documents.license && !user.documents.businessLicense && !user.documents.insurance && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="alert-circle-outline" size={20} color={colors.warning.main} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>No documents uploaded</Text>
+                    <Text style={[styles.infoValue, { color: colors.neutral[600] }]}>
+                      Complete registration to upload documents
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </Card>
+          </View>
+        )}
+
+        {/* Portfolio */}
+        {user?.portfolioPhotos && user.portfolioPhotos.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Portfolio</Text>
+            <Card style={styles.infoCard}>
+              <View style={styles.infoRow}>
+                <Ionicons name="images-outline" size={20} color={colors.neutral[600]} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Portfolio Photos</Text>
+                  <Text style={styles.infoValue}>
+                    {user.portfolioPhotos.length} photo{user.portfolioPhotos.length !== 1 ? 's' : ''} uploaded
+                  </Text>
+                </View>
+              </View>
+            </Card>
+          </View>
+        )}
+
         {/* Registration Management */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Registration</Text>

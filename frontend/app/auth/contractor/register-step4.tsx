@@ -21,7 +21,7 @@ import { useAuth } from '../../../src/contexts/AuthContext';
 export default function ContractorRegisterStep4() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [portfolioPhotos, setPortfolioPhotos] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -40,6 +40,9 @@ export default function ContractorRegisterStep4() {
       if (portfolioPhotos.length > 0) {
         await contractorAPI.updatePortfolio(portfolioPhotos);
       }
+
+      // Refresh user context to get updated portfolio
+      await refreshUser();
 
       // Registration complete - navigate to contractor dashboard
       Alert.alert(

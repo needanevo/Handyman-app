@@ -22,7 +22,7 @@ import { contractorAPI } from '../../../src/services/api';
 export default function ContractorRegisterStep2() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const [driversLicense, setDriversLicense] = useState<string[]>([]);
   const [businessLicenses, setBusinessLicenses] = useState<string[]>([]);
@@ -59,6 +59,9 @@ export default function ContractorRegisterStep2() {
         business_license: businessLicenses,
         insurance: insurance[0],
       });
+
+      // Refresh user context to get updated documents
+      await refreshUser();
 
       // Navigate to next step
       router.push({
