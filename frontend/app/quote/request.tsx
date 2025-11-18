@@ -18,10 +18,10 @@ import { Button } from '../../src/components/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { useForm, Controller } from 'react-hook-form';
 import * as ImagePicker from 'expo-image-picker';
-import { quotesAPI } from '../../src/services/api';
+import { jobsAPI, quotesAPI } from '../../src/services/api';
 import { useAuth } from '../../src/contexts/AuthContext';
 
-interface QuoteRequestForm {
+interface JobRequestForm {
   serviceCategory: string;
   description: string;
   urgency: string;
@@ -150,20 +150,20 @@ const showAlert = (title: string, message: string, buttons?: any[]) => {
   }
 };
 
-export default function QuoteRequestScreen() {
+export default function JobRequestScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const { category } = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
-  
+
   const {
     control,
     handleSubmit,
     formState: { errors },
     watch,
     setValue,
-  } = useForm<QuoteRequestForm>({
+  } = useForm<JobRequestForm>({
     defaultValues: {
       serviceCategory: (category as string) || '',
       urgency: 'normal',
@@ -312,7 +312,7 @@ export default function QuoteRequestScreen() {
     setPhotos(prev => prev.filter(p => p.id !== photoId));
   };
 
-  const onSubmit = async (data: QuoteRequestForm) => {
+  const onSubmit = async (data: JobRequestForm) => {
     if (!data.serviceCategory) {
       showAlert('Error', 'Please select a service category');
       return;
@@ -329,7 +329,7 @@ export default function QuoteRequestScreen() {
 
     try {
       setIsLoading(true);
-      
+
       // Get user's default address or create a mock one
       let addressId = user?.addresses?.find(addr => addr.isDefault)?.id;
       if (!addressId && user?.addresses && user.addresses.length > 0) {
@@ -339,29 +339,29 @@ export default function QuoteRequestScreen() {
         addressId = 'temp-address-id';
       }
 
-      const quoteRequest = {
+      const jobRequest = {
         service_category: data.serviceCategory,
         address_id: addressId,
         description: data.description,
         photos: photos.filter(p => p.status === 'success' && p.url).map(p => p.url!),
         preferred_dates: [], // Will be enhanced later with date picker
-        budget_range: {
-          min: 0,
-          max: parseFloat(data.maxBudget) || 0,
-        },
+        budget_min: 0,
+        budget_max: parseFloat(data.maxBudget) || 0,
         urgency: data.urgency,
+        source: 'app',
+        status: 'requested',
       };
 
-      const response = await quotesAPI.requestQuote(quoteRequest);
-      console.log('Quote response:', response);
-      
+      const response = await jobsAPI.createJob(jobRequest);
+      console.log('Job response:', response);
+
       showAlert(
-        'Quote Generated!',
-        `Your quote has been generated. Estimated total: $${response.estimated_total}.\n\nThis is a preliminary AI-generated estimate. Our team will review and send the final quote within 24-48 hours.`,
+        'Job Request Submitted!',
+        `Your job request has been submitted successfully. Job ID: ${response.job_id}.\n\nWe'll match you with an available contractor and send you updates soon.`,
         [
           {
-            text: 'View Quotes',
-            onPress: () => router.push('/quotes'),
+            text: 'View Jobs',
+            onPress: () => router.push('/home'),
           },
           {
             text: 'OK',
@@ -370,7 +370,7 @@ export default function QuoteRequestScreen() {
         ]
       );
     } catch (error: any) {
-      console.error('Quote request error:', error);
+      console.error('Job request error:', error);
       showAlert(
         'Request Failed',
         error.response?.data?.detail || error.message || 'Please try again later'
@@ -392,7 +392,7 @@ export default function QuoteRequestScreen() {
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color="#2C3E50" />
             </TouchableOpacity>
-            <Text style={styles.title}>Request Quote</Text>
+            <Text style={styles.title}>Create Job Request</Text>
             <View style={styles.placeholder} />
           </View>
 
@@ -449,7 +449,7 @@ export default function QuoteRequestScreen() {
 
           {/* Description */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Describe the issue</Text>
+            <Text style={styles.sectionTitle}>Describe the work needed</Text>
             <Controller
               control={control}
               name="description"
@@ -475,7 +475,7 @@ export default function QuoteRequestScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Add Photos (Optional)</Text>
             <Text style={styles.sectionDescription}>
-              Photos help us provide more accurate estimates
+              Photos help contractors understand your project better
             </Text>
             
             <View style={styles.photoActions}>
@@ -605,15 +605,15 @@ export default function QuoteRequestScreen() {
           {/* Submit */}
           <View style={styles.submitSection}>
             <Button
-              title="Get AI-Powered Quote"
+              title="Submit Job Request"
               onPress={handleSubmit(onSubmit)}
               loading={isLoading}
               fullWidth
               size="large"
-              icon={<Ionicons name="flash" size={20} color="#fff" />}
+              icon={<Ionicons name="hammer" size={20} color="#fff" />}
             />
             <Text style={styles.submitNote}>
-              You'll receive an AI-generated estimate in minutes. Our team will review and send the final quote within 24-48 hours.
+              We'll match you with an available contractor and send you updates within 24 hours.
             </Text>
           </View>
         </ScrollView>

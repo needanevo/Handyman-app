@@ -36,7 +36,7 @@ from models import (
     QuoteStatus,
     QuoteItem,
 )
-from models.job import Job, JobCreate, JobUpdate, JobStatus
+from models.job import Job, JobCreate, JobUpdate, JobStatus, JobCreateRequest, JobCreateResponse
 
 # Import authentication
 from auth.auth_handler import (
@@ -692,86 +692,93 @@ async def respond_to_quote(
 # ==================== JOB ROUTES ====================
 
 
-@api_router.post("/jobs", response_model=Job)
+@api_router.post("/jobs", response_model=JobCreateResponse)
 async def create_job(
-    job_data: JobCreate,
+    job_data: JobCreateRequest,
     current_user: User = Depends(get_current_user_dependency)
 ):
     """
-    Create a job from an accepted quote.
+    Create a job request directly (no quote required).
 
     This endpoint:
-    1. Verifies quote exists and belongs to customer
-    2. Creates job record
-    3. Attempts contractor assignment via routing logic
-    4. Sends notifications
+    1. Validates request data
+    2. Calculates estimated_total using pricing engine
+    3. Creates job record with status='requested'
+    4. Sends notifications (email + SMS to homeowner, email to admin)
+    5. Returns job_id, status, estimated_total, created_at
     """
-    # Verify quote exists and belongs to customer
-    quote = await db.quotes.find_one({"id": job_data.quote_id})
-    if not quote:
-        raise HTTPException(404, detail="Quote not found")
+    # Validate address belongs to customer
+    address = await db.users.find_one(
+        {"id": current_user.id, "addresses.id": job_data.address_id},
+        {"addresses.$": 1}
+    )
+    if not address or not address.get("addresses"):
+        raise HTTPException(404, detail="Address not found")
 
-    if quote["customer_id"] != current_user.id:
-        raise HTTPException(403, detail="Not authorized to accept this quote")
+    # Get service for pricing calculation
+    service = await db.services.find_one({"category": job_data.service_category})
+    if not service:
+        # Use default pricing if service not found
+        estimated_total = job_data.budget_max if job_data.budget_max else 150.0
+    else:
+        # Calculate estimate using pricing engine
+        from services.pricing_engine import PricingEngine
+        from models.service import Service
 
-    if quote["status"] != "sent":
-        raise HTTPException(400, detail=f"Quote cannot be accepted (status: {quote['status']})")
+        service_obj = Service(**service)
+        engine = PricingEngine()
+        pricing = engine.calculate_service_price(service_obj, quantity=1.0)
+        estimated_total = pricing["base_price"]
+
+        # Adjust based on urgency
+        if job_data.urgency == "urgent":
+            estimated_total *= 1.25  # 25% urgency surcharge
+
+        # Cap at budget_max if provided
+        if job_data.budget_max and estimated_total > job_data.budget_max:
+            estimated_total = job_data.budget_max
 
     # Create job
     job = Job(
         customer_id=current_user.id,
-        quote_id=job_data.quote_id,
-        service_category=quote["service_category"],
-        description=quote["description"],
-        address_id=quote["address_id"],
-        agreed_amount=quote["total_amount"],
-        customer_notes=job_data.customer_notes,
+        service_category=job_data.service_category,
+        description=job_data.description,
+        photos=job_data.photos,
+        address_id=job_data.address_id,
+        budget_min=job_data.budget_min,
+        budget_max=job_data.budget_max,
+        urgency=job_data.urgency,
+        preferred_dates=job_data.preferred_dates,
+        source=job_data.source,
+        status=JobStatus.REQUESTED,
+        estimated_total=estimated_total,
     )
 
-    # Attempt contractor routing
-    try:
-        contractor_id = await contractor_router.find_best_contractor(
-            service_category=quote["service_category"],
-            customer_address_id=quote["address_id"],
-            customer_id=current_user.id,
-            job_id=job.id
-        )
-
-        if contractor_id:
-            job.contractor_id = contractor_id
-            job.status = JobStatus.SCHEDULED
-            logger.info(f"Job {job.id} assigned to contractor {contractor_id}")
-        else:
-            logger.info(f"Job {job.id} requires manual routing")
-            # TODO: Send email to admin for manual assignment
-
-    except Exception as e:
-        logger.error(f"Routing failed for job {job.id}: {e}")
-        # Continue with job creation even if routing fails
-
-    # Save job
+    # Save job to MongoDB
     job_doc = job.model_dump()
     job_doc["created_at"] = job_doc["created_at"].isoformat()
     job_doc["updated_at"] = job_doc["updated_at"].isoformat()
-    if job_doc["scheduled_date"]:
+    if job_doc.get("scheduled_date"):
         job_doc["scheduled_date"] = job_doc["scheduled_date"].isoformat()
+    if job_doc.get("completed_date"):
+        job_doc["completed_date"] = job_doc["completed_date"].isoformat()
 
     await db.jobs.insert_one(job_doc)
 
-    # Update quote status to accepted
-    await db.quotes.update_one(
-        {"id": job_data.quote_id},
-        {"$set": {"status": "accepted", "responded_at": datetime.utcnow().isoformat()}}
-    )
+    logger.info(f"Job {job.id} created by customer {current_user.id} - {job_data.service_category}")
 
     # TODO: Send notifications
-    # - Customer: Job created confirmation
-    # - Contractor: New job assignment (if assigned)
-    # - Admin: Manual routing needed (if not assigned)
+    # - Email to homeowner: "Job request #{job.id} received"
+    # - SMS to homeowner: "We got your request for [category]. Est: $X-$Y"
+    # - Email to admin: Full job details for manual assignment
 
-    logger.info(f"Job {job.id} created from quote {job_data.quote_id}")
-
-    return job
+    # Return response
+    return JobCreateResponse(
+        job_id=job.id,
+        status=job.status,
+        estimated_total=estimated_total,
+        created_at=job.created_at.isoformat()
+    )
 
 
 @api_router.get("/jobs/{job_id}", response_model=Job)

@@ -111,17 +111,50 @@ export const servicesAPI = {
     apiClient.get<any>(`/services/${id}`),
 };
 
+// Jobs API
+export const jobsAPI = {
+  createJob: (jobData: {
+    service_category: string;
+    address_id: string;
+    description: string;
+    photos: string[];
+    preferred_dates: string[];
+    budget_min: number;
+    budget_max: number;
+    urgency: string;
+    source: string;
+    status: string;
+  }) => apiClient.post<{
+    job_id: string;
+    status: string;
+    estimated_total: number;
+    created_at: string;
+  }>('/jobs', jobData),
+
+  getJobs: (status?: string) =>
+    apiClient.get<any[]>('/jobs', status ? { status_filter: status } : undefined),
+
+  getJob: (id: string) =>
+    apiClient.get<any>(`/jobs/${id}`),
+
+  updateJobStatus: (id: string, status: string) =>
+    apiClient.patch<any>(`/jobs/${id}/status`, { status }),
+
+  cancelJob: (id: string, reason?: string) =>
+    apiClient.patch<any>(`/jobs/${id}/cancel`, { reason }),
+};
+
 // Quotes API
 export const quotesAPI = {
-  requestQuote: (quoteData: any) => 
+  requestQuote: (quoteData: any) =>
     apiClient.post<any>('/quotes/request', quoteData),
-  
-  getQuotes: (status?: string) => 
+
+  getQuotes: (status?: string) =>
     apiClient.get<any[]>('/quotes', status ? { status_filter: status } : undefined),
-  
-  getQuote: (id: string) => 
+
+  getQuote: (id: string) =>
     apiClient.get<any>(`/quotes/${id}`),
-  
+
 // NEW METHOD: Upload photo immediately
   uploadPhotoImmediate: async (file: { uri: string; type: string; name: string }, customer_id: string) => {
     const formData = new FormData();

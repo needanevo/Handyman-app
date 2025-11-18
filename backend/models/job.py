@@ -14,11 +14,15 @@ import uuid
 
 class JobStatus(str, Enum):
     """Job status workflow"""
-    PENDING = "pending"  # Quote accepted, waiting for contractor assignment
-    SCHEDULED = "scheduled"  # Contractor assigned, date scheduled
+    REQUESTED = "requested"  # Customer created job request, waiting for contractor
+    QUOTED = "quoted"  # Contractor provided quote/estimate
+    ACCEPTED = "accepted"  # Customer accepted, contractor assigned
+    SCHEDULED = "scheduled"  # Date scheduled
     IN_PROGRESS = "in_progress"  # Work started
     COMPLETED = "completed"  # Work finished
     CANCELLED = "cancelled"  # Job cancelled
+    # Legacy statuses (for migration)
+    PENDING = "pending"  # Alias for REQUESTED
 
 
 class Job(BaseModel):
@@ -28,12 +32,18 @@ class Job(BaseModel):
     # References
     customer_id: str
     contractor_id: Optional[str] = None  # Assigned contractor
-    quote_id: str  # Original quote
+    quote_id: Optional[str] = None  # Original quote (optional for direct job creation)
 
     # Job details
-    status: JobStatus = JobStatus.PENDING
+    status: JobStatus = JobStatus.REQUESTED
     service_category: str
     description: str
+    photos: List[str] = []  # Photo URLs from Linode Object Storage
+    urgency: Optional[str] = None  # normal, urgent, flexible
+    preferred_dates: List[str] = []  # ISO date strings
+    budget_min: Optional[float] = None
+    budget_max: Optional[float] = None
+    source: str = "app"  # app, web, phone, referral
 
     # Scheduling
     scheduled_date: Optional[datetime] = None
@@ -44,7 +54,8 @@ class Job(BaseModel):
     address_id: str
 
     # Financial
-    agreed_amount: float
+    estimated_total: Optional[float] = None  # Calculated estimate
+    agreed_amount: Optional[float] = None  # Final agreed price after negotiation
     deposit_amount: Optional[float] = None
     deposit_paid: bool = False
     final_amount: Optional[float] = None  # May differ from agreed after work
@@ -83,3 +94,25 @@ class JobUpdate(BaseModel):
     after_photos: Optional[List[str]] = None
     final_amount: Optional[float] = None
     paid_in_full: Optional[bool] = None
+
+
+class JobCreateRequest(BaseModel):
+    """Request to create a job directly (no quote required)"""
+    service_category: str
+    address_id: str
+    description: str
+    photos: List[str] = []  # Photo URLs from Linode
+    budget_min: Optional[float] = 0
+    budget_max: Optional[float] = None
+    urgency: str = "normal"  # normal, urgent, flexible
+    preferred_dates: List[str] = []  # ISO date strings
+    source: str = "app"  # app, web, phone, referral
+    status: str = "requested"  # Always starts as requested
+
+
+class JobCreateResponse(BaseModel):
+    """Response after creating a job"""
+    job_id: str
+    status: str
+    estimated_total: float
+    created_at: str  # ISO datetime string
