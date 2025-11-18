@@ -1,5 +1,6 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View, ViewStyle } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View, ViewStyle, TextStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, borderRadius, spacing, typography, touchTarget, shadows } from '../constants/theme';
 
 interface ButtonProps {
@@ -10,8 +11,9 @@ interface ButtonProps {
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
-  icon?: React.ReactNode;
+  icon?: React.ReactNode | string; // Support both React nodes and icon names
   style?: ViewStyle;
+  textStyle?: TextStyle; // Custom text styling
 }
 
 export function Button({
@@ -23,7 +25,8 @@ export function Button({
   loading = false,
   fullWidth = false,
   icon,
-  style
+  style,
+  textStyle: customTextStyle
 }: ButtonProps) {
   const isDisabled = disabled || loading;
 
@@ -41,6 +44,7 @@ export function Button({
     styles[`${variant}Text`],
     styles[`${size}Text`],
     isDisabled && styles.disabledText,
+    customTextStyle,
   ];
 
   const getLoaderColor = () => {
@@ -56,6 +60,43 @@ export function Button({
     }
   };
 
+  const getIconColor = () => {
+    if (isDisabled) return colors.neutral[400];
+    switch (variant) {
+      case 'primary':
+      case 'success':
+      case 'error':
+        return colors.background.primary;
+      case 'secondary':
+        return colors.neutral[700];
+      case 'outline':
+      case 'ghost':
+        return colors.primary.main;
+      default:
+        return colors.primary.main;
+    }
+  };
+
+  const renderIcon = () => {
+    if (!icon) return null;
+
+    // If icon is a string (Ionicon name), render Ionicons component
+    if (typeof icon === 'string') {
+      return (
+        <View style={styles.icon}>
+          <Ionicons
+            name={icon as any}
+            size={size === 'small' ? 16 : size === 'large' ? 24 : 20}
+            color={getIconColor()}
+          />
+        </View>
+      );
+    }
+
+    // Otherwise render as React node
+    return <View style={styles.icon}>{icon}</View>;
+  };
+
   return (
     <TouchableOpacity
       style={buttonStyle}
@@ -68,7 +109,7 @@ export function Button({
           <ActivityIndicator size="small" color={getLoaderColor()} />
         ) : (
           <>
-            {icon && <View style={styles.icon}>{icon}</View>}
+            {renderIcon()}
             {title && <Text style={textStyle}>{title}</Text>}
           </>
         )}

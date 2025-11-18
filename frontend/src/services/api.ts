@@ -155,6 +155,15 @@ export const quotesAPI = {
   getQuote: (id: string) =>
     apiClient.get<any>(`/quotes/${id}`),
 
+  deleteQuote: (id: string) =>
+    apiClient.delete<any>(`/quotes/${id}`),
+
+  contactAboutQuote: (id: string, message?: string) =>
+    apiClient.post<any>(`/quotes/${id}/contact`, { message }),
+
+  reportIssue: (id: string, issueType: string, details?: string) =>
+    apiClient.post<any>(`/quotes/${id}/report-issue`, { issue_type: issueType, details }),
+
 // NEW METHOD: Upload photo immediately
   uploadPhotoImmediate: async (file: { uri: string; type: string; name: string }, customer_id: string) => {
     const formData = new FormData();
