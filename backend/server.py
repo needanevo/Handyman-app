@@ -689,6 +689,212 @@ async def respond_to_quote(
     }
 
 
+@api_router.delete("/quotes/{quote_id}")
+async def delete_quote(
+    quote_id: str,
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Delete a quote request.
+
+    Only the customer who created the quote can delete it.
+    Performs a soft delete by setting status to 'cancelled'.
+    """
+    # Find quote and verify ownership
+    quote = await db.quotes.find_one({"id": quote_id})
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    if quote["customer_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this quote")
+
+    # Soft delete - set status to cancelled instead of actually deleting
+    result = await db.quotes.update_one(
+        {"id": quote_id},
+        {
+            "$set": {
+                "status": "cancelled",
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        }
+    )
+
+    if result.modified_count > 0:
+        logger.info(f"Quote {quote_id} cancelled by customer {current_user.id}")
+        return {"message": "Quote deleted successfully", "quote_id": quote_id}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to delete quote")
+
+
+@api_router.post("/quotes/{quote_id}/contact")
+async def contact_about_quote(
+    quote_id: str,
+    request_body: dict = None,
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Send a message to admin/owner about a specific quote.
+
+    Sends an email to the business owner with quote details and customer message.
+    """
+    # Find quote and verify ownership
+    quote = await db.quotes.find_one({"id": quote_id})
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    if quote["customer_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get customer message if provided
+    message = request_body.get("message", "") if request_body else ""
+
+    # Send email to admin/owner
+    if email_provider:
+        try:
+            owner_email = "needanevo@gmail.com"  # Your email
+            subject = f"Customer Contact Request - Quote #{quote_id[-8:]}"
+
+            body = f"""
+            <h2>Customer Contact Request</h2>
+            <p>A customer has requested to contact you about their quote.</p>
+
+            <h3>Customer Information:</h3>
+            <ul>
+                <li><strong>Name:</strong> {current_user.first_name} {current_user.last_name}</li>
+                <li><strong>Email:</strong> {current_user.email}</li>
+                <li><strong>Phone:</strong> {current_user.phone}</li>
+            </ul>
+
+            <h3>Quote Details:</h3>
+            <ul>
+                <li><strong>Quote ID:</strong> {quote_id}</li>
+                <li><strong>Service:</strong> {quote.get('service_category', 'N/A')}</li>
+                <li><strong>Status:</strong> {quote.get('status', 'N/A')}</li>
+                <li><strong>Total:</strong> ${quote.get('total_amount', 0)}</li>
+            </ul>
+
+            {f'<h3>Customer Message:</h3><p>{message}</p>' if message else ''}
+
+            <p><strong>Action Required:</strong> Please follow up with the customer within 24 hours.</p>
+            """
+
+            await email_provider.send_email(
+                to_email=owner_email,
+                subject=subject,
+                html_body=body,
+                from_email="noreply@therealjohnson.com",
+                from_name="The Real Johnson - Customer Contact"
+            )
+
+            logger.info(f"Contact email sent for quote {quote_id} from customer {current_user.id}")
+        except Exception as e:
+            logger.error(f"Failed to send contact email: {e}")
+            # Don't fail the request if email fails
+
+    return {
+        "message": "Your message has been sent. We'll follow up within 24 hours.",
+        "quote_id": quote_id
+    }
+
+
+@api_router.post("/quotes/{quote_id}/report-issue")
+async def report_contractor_issue(
+    quote_id: str,
+    request_body: dict,
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Report an issue with a contractor for a specific quote.
+
+    Logs the issue and sends an urgent email to admin/owner.
+    """
+    # Find quote and verify ownership
+    quote = await db.quotes.find_one({"id": quote_id})
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    if quote["customer_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get issue details
+    issue_type = request_body.get("issue_type", "Other issue")
+    details = request_body.get("details", "")
+
+    # Log issue to database (create issues collection)
+    issue_id = str(uuid.uuid4())
+    issue_doc = {
+        "id": issue_id,
+        "quote_id": quote_id,
+        "customer_id": current_user.id,
+        "issue_type": issue_type,
+        "details": details,
+        "status": "reported",
+        "created_at": datetime.utcnow().isoformat(),
+        "resolved_at": None,
+        "resolution_notes": None
+    }
+
+    await db.issues.insert_one(issue_doc)
+    logger.warning(f"Issue reported for quote {quote_id}: {issue_type}")
+
+    # Send urgent email to admin/owner
+    if email_provider:
+        try:
+            owner_email = "needanevo@gmail.com"
+            subject = f"🚨 URGENT: Contractor Issue Reported - Quote #{quote_id[-8:]}"
+
+            body = f"""
+            <div style="background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107;">
+                <h2 style="color: #856404;">⚠️ Contractor Issue Reported</h2>
+                <p style="color: #856404;"><strong>A customer has reported an issue that requires immediate attention.</strong></p>
+            </div>
+
+            <h3>Issue Details:</h3>
+            <ul>
+                <li><strong>Issue Type:</strong> {issue_type}</li>
+                <li><strong>Issue ID:</strong> {issue_id}</li>
+                {f'<li><strong>Details:</strong> {details}</li>' if details else ''}
+            </ul>
+
+            <h3>Customer Information:</h3>
+            <ul>
+                <li><strong>Name:</strong> {current_user.first_name} {current_user.last_name}</li>
+                <li><strong>Email:</strong> {current_user.email}</li>
+                <li><strong>Phone:</strong> {current_user.phone}</li>
+            </ul>
+
+            <h3>Quote Details:</h3>
+            <ul>
+                <li><strong>Quote ID:</strong> {quote_id}</li>
+                <li><strong>Service:</strong> {quote.get('service_category', 'N/A')}</li>
+                <li><strong>Status:</strong> {quote.get('status', 'N/A')}</li>
+            </ul>
+
+            <div style="background-color: #f8d7da; padding: 15px; margin-top: 20px; border-left: 4px solid #dc3545;">
+                <p style="color: #721c24; margin: 0;"><strong>Action Required:</strong> Contact the customer immediately to resolve this issue.</p>
+            </div>
+            """
+
+            await email_provider.send_email(
+                to_email=owner_email,
+                subject=subject,
+                html_body=body,
+                from_email="noreply@therealjohnson.com",
+                from_name="The Real Johnson - Issue Alert"
+            )
+
+            logger.info(f"Issue alert email sent for quote {quote_id}")
+        except Exception as e:
+            logger.error(f"Failed to send issue alert email: {e}")
+            # Don't fail the request if email fails
+
+    return {
+        "message": "Issue reported successfully. We'll contact you immediately.",
+        "issue_id": issue_id,
+        "quote_id": quote_id
+    }
+
+
 # ==================== JOB ROUTES ====================
 
 
