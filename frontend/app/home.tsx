@@ -206,7 +206,7 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   key={quote.id || index}
                   style={styles.quoteCard}
-                  onPress={() => router.push(`/quotes/${quote.id}`)}
+                  onPress={() => router.push(`/quotes/detail?id=${quote.id}`)}
                 >
                   <View style={styles.quoteHeader}>
                     <Text style={styles.quoteTitle}>Quote #{quote.id?.slice(-6)}</Text>
