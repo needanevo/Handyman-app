@@ -137,9 +137,14 @@ export default function HomeScreen() {
                 {user?.firstName} {user?.lastName}
               </Text>
             </View>
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-              <Ionicons name="log-out-outline" size={24} color="#7F8C8D" />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity onPress={() => router.push('/profile')} style={styles.profileButton}>
+                <Ionicons name="person-circle-outline" size={28} color="#7F8C8D" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                <Ionicons name="log-out-outline" size={24} color="#7F8C8D" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -281,6 +286,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   greeting: {
     fontSize: 16,
     color: '#7F8C8D',
@@ -290,6 +300,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2C3E50',
     marginTop: 2,
+  },
+  profileButton: {
+    padding: 8,
   },
   logoutButton: {
     padding: 8,
