@@ -83,6 +83,9 @@ maps_provider = MAPS_PROVIDERS[os.getenv("ACTIVE_MAPS_PROVIDER", "google")]()
 storage_provider = LinodeObjectStorage()
 quote_email_service = QuoteEmailService()
 
+# Admin email for notifications
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@therealjohnson.com")
+
 # Create the main app
 app = FastAPI(
     title="The Real Johnson Handyman Services API",
@@ -751,7 +754,7 @@ async def contact_about_quote(
     # Send email to admin/owner
     if email_provider:
         try:
-            owner_email = "needanevo@gmail.com"  # Your email
+            owner_email = ADMIN_EMAIL
             subject = f"Customer Contact Request - Quote #{quote_id[-8:]}"
 
             body = f"""
@@ -840,7 +843,7 @@ async def report_contractor_issue(
     # Send urgent email to admin/owner
     if email_provider:
         try:
-            owner_email = "needanevo@gmail.com"
+            owner_email = ADMIN_EMAIL
             subject = f"🚨 URGENT: Contractor Issue Reported - Quote #{quote_id[-8:]}"
 
             body = f"""
