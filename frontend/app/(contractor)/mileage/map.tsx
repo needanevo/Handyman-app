@@ -32,10 +32,14 @@ export default function ContractorGeofenceMap() {
   const [region, setRegion] = useState<any>(null);
 
   useEffect(() => {
+    loadMap();
+  }, [user]);
+
+  const loadMap = async () => {
     // Get contractor's business address (first address)
     const businessAddress = user?.addresses?.[0];
 
-    if (!businessAddress || !businessAddress.latitude || !businessAddress.longitude) {
+    if (!businessAddress) {
       Alert.alert(
         'No Business Address',
         'Please add your business address in your profile to view the service area map.',
@@ -44,19 +48,58 @@ export default function ContractorGeofenceMap() {
           { text: 'Cancel', onPress: () => router.back(), style: 'cancel' },
         ]
       );
+      setLoading(false);
       return;
     }
 
-    // Set map region centered on business address
-    setRegion({
-      latitude: businessAddress.latitude,
-      longitude: businessAddress.longitude,
-      latitudeDelta: 1.2, // ~50 miles in degrees
-      longitudeDelta: 1.2,
-    });
+    // If we have lat/lon from backend, use it
+    if (businessAddress.latitude && businessAddress.longitude) {
+      setRegion({
+        latitude: businessAddress.latitude,
+        longitude: businessAddress.longitude,
+        latitudeDelta: 1.2,
+        longitudeDelta: 1.2,
+      });
+      setLoading(false);
+      return;
+    }
 
-    setLoading(false);
-  }, [user]);
+    // Otherwise, geocode using browser/device geocoding as fallback
+    try {
+      const addressString = `${businessAddress.street}, ${businessAddress.city}, ${businessAddress.state} ${businessAddress.zipCode}`;
+
+      // Use Nominatim (OpenStreetMap) free geocoding API as fallback
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressString)}&limit=1`
+      );
+      const data = await response.json();
+
+      if (data && data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lon = parseFloat(data[0].lon);
+
+        setRegion({
+          latitude: lat,
+          longitude: lon,
+          latitudeDelta: 1.2,
+          longitudeDelta: 1.2,
+        });
+      } else {
+        throw new Error('Geocoding failed');
+      }
+    } catch (error) {
+      Alert.alert(
+        'Unable to Locate Address',
+        'We couldn\'t find the coordinates for your business address. Please update your address or contact support.',
+        [
+          { text: 'Go to Profile', onPress: () => router.push('/(contractor)/profile') },
+          { text: 'Cancel', onPress: () => router.back(), style: 'cancel' },
+        ]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading || !region) {
     return (
