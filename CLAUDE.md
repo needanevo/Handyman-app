@@ -719,18 +719,25 @@ policy—we're your assurance that the process is fair and documented.
     - Available jobs endpoint ready for testing with frontend
 
 **Profile Pictures & Branding:**
-- [ ] **Issue #6**: No contractor logo/profile picture upload
+- [x] **Issue #6**: No contractor logo/profile picture upload ✅ FIXED (2025-11-19)
   - **Priority**: P2 - Medium
-  - **Desired**:
-    - Click on round profile icon to upload image
-    - Image picker with camera/gallery options
-    - Auto-crop feature with zoom, pan, and preview
-    - Store in Linode Object Storage
-    - Display in dashboard, profile, and job listings
-  - **Files**:
-    - `frontend/app/(contractor)/profile.tsx`
-    - `frontend/app/(contractor)/dashboard.tsx`
-    - `backend/server.py` (add profile photo upload endpoint)
+  - **Solution**:
+    - Added profile photo upload with image picker (camera/gallery options)
+    - 1:1 aspect ratio cropping built-in
+    - Stores in Linode Object Storage: `contractors/{id}/profile/profile_{uuid}.{ext}`
+    - Displays in dashboard (40x40px avatar) and profile page (120x120px)
+    - Shows initials placeholder when no photo uploaded
+    - Permission handling for camera and photo library
+    - Loading states and error handling
+    - Auto-refresh after upload
+  - **Files Modified**:
+    - `backend/models/user.py` ✅ Added profile_photo field
+    - `backend/providers/linode_storage_provider.py` ✅ Added upload_contractor_profile_photo method
+    - `backend/server.py` ✅ Added POST /contractor/profile-photo/upload endpoint
+    - `frontend/src/services/api.ts` ✅ Added uploadProfilePhoto method
+    - `frontend/src/contexts/AuthContext.tsx` ✅ Added profilePhoto field and mapping
+    - `frontend/app/(contractor)/profile.tsx` ✅ Added profile photo upload UI (120x120px)
+    - `frontend/app/(contractor)/dashboard.tsx` ✅ Added profile photo avatar (40x40px)
 
 **Legal & Compliance:**
 - [x] **Issue #7**: Terms and conditions page needed ✅ FIXED
