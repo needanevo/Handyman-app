@@ -42,6 +42,7 @@ interface Step3Form {
   businessCity: string;
   businessState: string;
   businessZip: string;
+  customSkills: string;  // Custom skills when "Other" is selected
 }
 
 export default function ContractorRegisterStep3() {
@@ -58,6 +59,7 @@ export default function ContractorRegisterStep3() {
     handleSubmit,
     formState: { errors },
     setValue,
+    watch,
   } = useForm<Step3Form>({
     defaultValues: {
       skills: user?.skills || [],
@@ -66,8 +68,12 @@ export default function ContractorRegisterStep3() {
       businessCity: user?.addresses?.[0]?.city || '',
       businessState: user?.addresses?.[0]?.state || '',
       businessZip: user?.addresses?.[0]?.zipCode || '',
+      customSkills: '',
     },
   });
+
+  // Watch for "Other" selection to show custom skills input
+  const skills = watch('skills');
 
   const toggleSkill = (skill: string) => {
     const newSkills = selectedSkills.includes(skill)
@@ -99,8 +105,19 @@ export default function ContractorRegisterStep3() {
       // Get business name from params (set in Step 1) or user context
       const businessName = (params.businessName as string) || user?.businessName;
 
+      // Combine selected skills with custom skills (if "Other" is selected)
+      const allSkills = [...selectedSkills];
+      if (selectedSkills.includes('Other') && data.customSkills) {
+        // Add custom skills to the skills array
+        const customSkillsList = data.customSkills
+          .split(',')
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+        allSkills.push(...customSkillsList);
+      }
+
       await contractorAPI.updateProfile({
-        skills: selectedSkills,
+        skills: allSkills,
         years_experience: parseInt(data.yearsExperience) || 0,
         ...(businessName && { business_name: businessName }),
       });
@@ -215,6 +232,35 @@ export default function ContractorRegisterStep3() {
                 </TouchableOpacity>
               ))}
             </View>
+
+            {/* Custom Skills Input (shown when "Other" is selected) */}
+            {selectedSkills.includes('Other') && (
+              <View style={styles.customSkillsSection}>
+                <Controller
+                  control={control}
+                  name="customSkills"
+                  rules={{
+                    required: selectedSkills.includes('Other') ? 'Please specify your custom skills' : false
+                  }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="Specify Your Skills"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="e.g., Tile work, Fence installation, Pool maintenance"
+                      error={errors.customSkills?.message}
+                      required={selectedSkills.includes('Other')}
+                      multiline
+                      numberOfLines={3}
+                      icon="create-outline"
+                    />
+                  )}
+                />
+                <Text style={styles.helpText}>
+                  List any additional skills not covered above (comma-separated)
+                </Text>
+              </View>
+            )}
 
             <Text style={styles.sectionTitle}>Business Address</Text>
             <Text style={styles.helpText}>
@@ -424,6 +470,10 @@ const styles = StyleSheet.create({
     color: colors.neutral[900],
     marginTop: spacing.xl,
     marginBottom: spacing.xs,
+  },
+  customSkillsSection: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
   },
   row: {
     flexDirection: 'row',
