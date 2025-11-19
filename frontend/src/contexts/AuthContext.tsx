@@ -166,7 +166,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         skills: userData.skills,
         yearsExperience: userData.years_experience,
         serviceAreas: userData.service_areas,
-        documents: userData.documents,
+        documents: userData.documents ? {
+          license: userData.documents.license,
+          businessLicense: userData.documents.business_license,
+          insurance: userData.documents.insurance,
+        } : undefined,
         portfolioPhotos: userData.portfolio_photos,
         profilePhoto: userData.profile_photo,
       };

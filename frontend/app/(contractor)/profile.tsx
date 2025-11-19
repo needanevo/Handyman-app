@@ -57,18 +57,7 @@ export default function ContractorProfile() {
   };
 
   const handleProfilePhotoPress = async () => {
-    // Request permissions
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (permissionResult.granted === false) {
-      Alert.alert(
-        'Permission Required',
-        'Please allow access to your photo library to upload a profile photo.'
-      );
-      return;
-    }
-
-    // Show options: camera or gallery
+    // Show options: camera or gallery (permissions handled automatically by ImagePicker)
     Alert.alert(
       'Upload Profile Photo',
       'Choose a photo source',
@@ -90,16 +79,7 @@ export default function ContractorProfile() {
   };
 
   const takePhoto = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-
-    if (permissionResult.granted === false) {
-      Alert.alert(
-        'Permission Required',
-        'Please allow camera access to take a profile photo.'
-      );
-      return;
-    }
-
+    // Permissions are handled automatically by launchCameraAsync
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -113,6 +93,7 @@ export default function ContractorProfile() {
   };
 
   const pickImage = async () => {
+    // Permissions are handled automatically by launchImageLibraryAsync
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
