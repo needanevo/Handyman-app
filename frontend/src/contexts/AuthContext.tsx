@@ -159,7 +159,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         lastName: userData.last_name,
         role: userData.role,
         phone: userData.phone,
-        addresses: userData.addresses || [],
+        addresses: userData.addresses?.map((addr: any) => ({
+          id: addr.id,
+          street: addr.street,
+          city: addr.city,
+          state: addr.state,
+          zipCode: addr.zip_code,  // Transform snake_case to camelCase
+          latitude: addr.latitude,
+          longitude: addr.longitude,
+          isDefault: addr.is_default,  // Transform snake_case to camelCase
+        })) || [],
         isActive: userData.is_active,
         // Contractor-specific fields
         businessName: userData.business_name,
