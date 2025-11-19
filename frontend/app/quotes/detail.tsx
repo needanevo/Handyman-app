@@ -416,12 +416,14 @@ export default function QuoteDetailScreen() {
         animationType="fade"
         onRequestClose={() => setSelectedPhotoIndex(null)}
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
           <TouchableOpacity
             style={styles.modalCloseButton}
             onPress={() => setSelectedPhotoIndex(null)}
+            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            activeOpacity={0.7}
           >
-            <Ionicons name="close" size={32} color="#FFFFFF" />
+            <Ionicons name="close" size={36} color="#FFFFFF" />
           </TouchableOpacity>
 
           {selectedPhotoIndex !== null && (
@@ -460,7 +462,7 @@ export default function QuoteDetailScreen() {
               )}
             </View>
           )}
-        </View>
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -767,6 +769,7 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
   modalImage: {
     width: width,
@@ -774,12 +777,16 @@ const styles = StyleSheet.create({
   },
   modalCloseButton: {
     position: 'absolute',
-    top: 50,
+    top: spacing.md,
     right: spacing.lg,
-    zIndex: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 100,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     borderRadius: borderRadius.full,
-    padding: spacing.sm,
+    padding: spacing.md,
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalPhotoCounter: {
     position: 'absolute',
