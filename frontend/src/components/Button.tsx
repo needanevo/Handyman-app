@@ -1,15 +1,19 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View, ViewStyle, TextStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, borderRadius, spacing, typography, touchTarget, shadows } from '../constants/theme';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'success' | 'error';
   size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
-  icon?: React.ReactNode;
+  icon?: React.ReactNode | string; // Support both React nodes and icon names
+  style?: ViewStyle;
+  textStyle?: TextStyle; // Custom text styling
 }
 
 export function Button({
@@ -20,25 +24,79 @@ export function Button({
   disabled = false,
   loading = false,
   fullWidth = false,
-  icon
+  icon,
+  style,
+  textStyle: customTextStyle
 }: ButtonProps) {
   const isDisabled = disabled || loading;
-  
+
   const buttonStyle = [
     styles.button,
     styles[variant],
     styles[size],
     fullWidth && styles.fullWidth,
     isDisabled && styles.disabled,
+    style,
   ];
-  
+
   const textStyle = [
     styles.text,
     styles[`${variant}Text`],
     styles[`${size}Text`],
     isDisabled && styles.disabledText,
+    customTextStyle,
   ];
-  
+
+  const getLoaderColor = () => {
+    switch (variant) {
+      case 'primary':
+      case 'success':
+      case 'error':
+        return colors.background.primary;
+      case 'secondary':
+        return colors.neutral[700];
+      default:
+        return colors.primary.main;
+    }
+  };
+
+  const getIconColor = () => {
+    if (isDisabled) return colors.neutral[400];
+    switch (variant) {
+      case 'primary':
+      case 'success':
+      case 'error':
+        return colors.background.primary;
+      case 'secondary':
+        return colors.neutral[700];
+      case 'outline':
+      case 'ghost':
+        return colors.primary.main;
+      default:
+        return colors.primary.main;
+    }
+  };
+
+  const renderIcon = () => {
+    if (!icon) return null;
+
+    // If icon is a string (Ionicon name), render Ionicons component
+    if (typeof icon === 'string') {
+      return (
+        <View style={styles.icon}>
+          <Ionicons
+            name={icon as any}
+            size={size === 'small' ? 16 : size === 'large' ? 24 : 20}
+            color={getIconColor()}
+          />
+        </View>
+      );
+    }
+
+    // Otherwise render as React node
+    return <View style={styles.icon}>{icon}</View>;
+  };
+
   return (
     <TouchableOpacity
       style={buttonStyle}
@@ -48,14 +106,11 @@ export function Button({
     >
       <View style={styles.content}>
         {loading ? (
-          <ActivityIndicator 
-            size="small" 
-            color={variant === 'primary' ? '#fff' : '#FF6B35'} 
-          />
+          <ActivityIndicator size="small" color={getLoaderColor()} />
         ) : (
           <>
-            {icon && <View style={styles.icon}>{icon}</View>}
-            <Text style={textStyle}>{title}</Text>
+            {renderIcon()}
+            {title && <Text style={textStyle}>{title}</Text>}
           </>
         )}
       </View>
@@ -65,10 +120,10 @@ export function Button({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 8,
+    borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 44, // Minimum touch target
+    minHeight: touchTarget.minHeight,
   },
   content: {
     flexDirection: 'row',
@@ -76,72 +131,93 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   icon: {
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   text: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
     textAlign: 'center',
   },
-  
+
   // Variants
   primary: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: colors.primary.main,
+    ...shadows.sm,
   },
   secondary: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.neutral[100],
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#FF6B35',
+    borderColor: colors.primary.main,
   },
-  
+  ghost: {
+    backgroundColor: 'transparent',
+  },
+  success: {
+    backgroundColor: colors.success.main,
+    ...shadows.sm,
+  },
+  error: {
+    backgroundColor: colors.error.main,
+    ...shadows.sm,
+  },
+
   // Text colors for variants
   primaryText: {
-    color: '#fff',
+    color: colors.background.primary,
   },
   secondaryText: {
-    color: '#333',
+    color: colors.neutral[700],
   },
   outlineText: {
-    color: '#FF6B35',
+    color: colors.primary.main,
   },
-  
+  ghostText: {
+    color: colors.primary.main,
+  },
+  successText: {
+    color: colors.background.primary,
+  },
+  errorText: {
+    color: colors.background.primary,
+  },
+
   // Sizes
   small: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
     minHeight: 36,
   },
   medium: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    minHeight: 44,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    minHeight: touchTarget.minHeight,
   },
   large: {
-    paddingHorizontal: 32,
-    paddingVertical: 16,
+    paddingHorizontal: spacing['2xl'],
+    paddingVertical: spacing.base,
     minHeight: 52,
   },
-  
+
   // Text sizes
   smallText: {
-    fontSize: 14,
+    ...typography.sizes.sm,
   },
   mediumText: {
-    fontSize: 16,
+    ...typography.sizes.base,
   },
   largeText: {
-    fontSize: 18,
+    ...typography.sizes.lg,
   },
-  
+
   // States
   disabled: {
     opacity: 0.5,
   },
   disabledText: {
-    color: '#999',
+    color: colors.neutral[400],
   },
   fullWidth: {
     width: '100%',

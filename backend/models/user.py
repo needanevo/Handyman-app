@@ -37,9 +37,15 @@ class User(BaseModel):
     tags: List[str] = []  # VIP, repeat, warranty, etc.
     
     # Technician specific fields
+    business_name: Optional[str] = None  # Business/company name for contractors
     hourly_rate: Optional[float] = None
     skills: List[str] = []  # drywall, painting, electrical, etc.
     available_hours: Optional[dict] = None  # weekly schedule
+    years_experience: Optional[int] = None  # Years of experience
+    service_areas: List[str] = []  # Cities or zip codes they serve
+    documents: Optional[dict] = None  # license, insurance, etc.
+    portfolio_photos: List[str] = []  # Portfolio photo URLs
+    profile_photo: Optional[str] = None  # Profile picture/logo URL
     
 class UserCreate(BaseModel):
     email: EmailStr
@@ -49,6 +55,7 @@ class UserCreate(BaseModel):
     lastName: str
     role: UserRole = UserRole.CUSTOMER
     marketingOptIn: bool = False
+    businessName: Optional[str] = None  # For contractors
 
 class UserLogin(BaseModel):
     email: EmailStr

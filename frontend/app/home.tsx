@@ -56,6 +56,48 @@ const serviceCategories = [
     description: 'Doors, trim, repairs',
   },
   {
+    id: 'hvac',
+    title: 'HVAC',
+    icon: 'thermometer-outline',
+    color: '#E67E22',
+    description: 'Thermostats, filters, maintenance',
+  },
+  {
+    id: 'flooring',
+    title: 'Flooring',
+    icon: 'grid-outline',
+    color: '#8E44AD',
+    description: 'Hardwood, tile, carpet repairs',
+  },
+  {
+    id: 'roofing',
+    title: 'Roofing',
+    icon: 'home-outline',
+    color: '#16A085',
+    description: 'Shingles, gutters, leak repairs',
+  },
+  {
+    id: 'landscaping',
+    title: 'Landscaping',
+    icon: 'leaf-outline',
+    color: '#27AE60',
+    description: 'Fences, decks, outdoor work',
+  },
+  {
+    id: 'appliance',
+    title: 'Appliance',
+    icon: 'cube-outline',
+    color: '#C0392B',
+    description: 'Installation, repair, hookups',
+  },
+  {
+    id: 'windows',
+    title: 'Windows & Doors',
+    icon: 'square-outline',
+    color: '#2980B9',
+    description: 'Installation, screens, sealing',
+  },
+  {
     id: 'miscellaneous',
     title: 'Other',
     icon: 'build-outline',
@@ -95,9 +137,14 @@ export default function HomeScreen() {
                 {user?.firstName} {user?.lastName}
               </Text>
             </View>
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-              <Ionicons name="log-out-outline" size={24} color="#7F8C8D" />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity onPress={() => router.push('/profile')} style={styles.profileButton}>
+                <Ionicons name="person-circle-outline" size={28} color="#7F8C8D" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                <Ionicons name="log-out-outline" size={24} color="#7F8C8D" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -159,7 +206,7 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   key={quote.id || index}
                   style={styles.quoteCard}
-                  onPress={() => router.push(`/quotes/${quote.id}`)}
+                  onPress={() => router.push(`/quotes/detail?id=${quote.id}`)}
                 >
                   <View style={styles.quoteHeader}>
                     <Text style={styles.quoteTitle}>Quote #{quote.id?.slice(-6)}</Text>
@@ -239,6 +286,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   greeting: {
     fontSize: 16,
     color: '#7F8C8D',
@@ -248,6 +300,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2C3E50',
     marginTop: 2,
+  },
+  profileButton: {
+    padding: 8,
   },
   logoutButton: {
     padding: 8,

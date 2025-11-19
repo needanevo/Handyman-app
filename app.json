@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "7aec467a-c9d1-4e0d-aa9a-a8f9fa61c17f"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.needanevo.handymanappmain",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

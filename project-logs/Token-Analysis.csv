@@ -1,0 +1,10 @@
+Problem Type,Tokens Used,Why Expensive,Value Assessment,Optimization Potential
+Linode Storage Debugging,30000,"Multiple test scripts, boto3/urllib3 investigation, compatibility testing","High - Critical blocker solved, production photos working",~15K tokens - Check compatibility matrix first (15 min reading)
+Provider Architecture,15000,"Abstract base classes, factory pattern, environment management system","Excellent - Created extensible, maintainable architecture","0K - Well invested, foundation for entire backend"
+Contractor Dashboard,12000,40+ production-ready React Native components in single session,"High - 40+ production components, complete feature delivered",0K - Excellent efficiency for complexity
+Photo Upload Flow,10000,"Frontend/backend coordination, FormData handling, some requirement duplication","Medium - Some duplication, clearer requirements would help",~5K tokens - Clearer upload flow requirements
+MongoDB Setup,8000,"Connection string debugging, authentication troubleshooting",Medium - Could be faster with env validation,~5K tokens - Validate env files first (5 min script)
+Deployment & Configuration,12000,"Dependency management, systemd config, deployment documentation",High - Production-ready deployment,~3K tokens - Better deployment checklists
+Frontend Foundation,12000,"Contractor registration flow, design system, reusable UI components","High - Scalable, consistent UI architecture",0K - Good efficiency
+Bug Fixes (iOS),12000,"Platform-specific testing, FormData debugging, duplicate upload investigation",High - iOS platform fully working,~5K tokens - Test platforms earlier
+Documentation,5000,"CLAUDE.md, GEMINI.md, LINODE_STATUS.md, bug tracker documentation",High - Comprehensive knowledge base created,0K - Necessary for knowledge transfer

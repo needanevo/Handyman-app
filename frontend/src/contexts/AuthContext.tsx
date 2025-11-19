@@ -11,6 +11,18 @@ export interface User {
   phone: string;
   addresses: Address[];
   isActive: boolean;
+  // Contractor-specific fields (optional)
+  businessName?: string;
+  skills?: string[];
+  yearsExperience?: number;
+  serviceAreas?: string[];
+  documents?: {
+    license?: string;
+    businessLicense?: string | string[];
+    insurance?: string;
+  };
+  portfolioPhotos?: string[];
+  profilePhoto?: string;
 }
 
 export interface Address {
@@ -59,14 +71,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Checking auth state...');
       const token = await storage.getItem('accessToken');
       console.log('Found stored token:', !!token);
-      
+
       if (token) {
         // Set the token in API client
         authAPI.setAuthToken(token);
         await refreshUser();
       }
-    } catch (error) {
-      console.error('Auth state check failed:', error);
+    } catch (error: any) {
+      // Silently handle 401 errors (expected when token expired)
+      if (error.response?.status !== 401) {
+        console.error('Auth state check failed:', error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -144,16 +159,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         lastName: userData.last_name,
         role: userData.role,
         phone: userData.phone,
-        addresses: userData.addresses || [],
+        addresses: userData.addresses?.map((addr: any) => ({
+          id: addr.id,
+          street: addr.street,
+          city: addr.city,
+          state: addr.state,
+          zipCode: addr.zip_code,  // Transform snake_case to camelCase
+          latitude: addr.latitude,
+          longitude: addr.longitude,
+          isDefault: addr.is_default,  // Transform snake_case to camelCase
+        })) || [],
         isActive: userData.is_active,
+        // Contractor-specific fields
+        businessName: userData.business_name,
+        skills: userData.skills,
+        yearsExperience: userData.years_experience,
+        serviceAreas: userData.service_areas,
+        documents: userData.documents ? {
+          license: userData.documents.license,
+          businessLicense: userData.documents.business_license,
+          insurance: userData.documents.insurance,
+        } : undefined,
+        portfolioPhotos: userData.portfolio_photos,
+        profilePhoto: userData.profile_photo,
       };
-      
+
       console.log('Transformed user data:', transformedUser);
       setUser(transformedUser);
       console.log('User set in context - isAuthenticated should now be true');
       
-    } catch (error) {
-      console.error('Failed to refresh user:', error);
+    } catch (error: any) {
+      // Silently handle 401 errors (expected when auth fails)
+      if (error.response?.status !== 401) {
+        console.error('Failed to refresh user:', error);
+      }
       // If refresh fails, clear auth state
       await logout();
       throw error;

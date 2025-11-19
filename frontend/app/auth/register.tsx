@@ -121,6 +121,8 @@ export default function RegisterScreen() {
                       value={value}
                       placeholder="John"
                       autoCapitalize="words"
+                      autoComplete="name-given"
+                      textContentType="givenName"
                     />
                   )}
                 />
@@ -142,6 +144,8 @@ export default function RegisterScreen() {
                       value={value}
                       placeholder="Doe"
                       autoCapitalize="words"
+                      autoComplete="name-family"
+                      textContentType="familyName"
                     />
                   )}
                 />
@@ -192,6 +196,8 @@ export default function RegisterScreen() {
                     value={value}
                     placeholder="(555) 123-4567"
                     keyboardType="phone-pad"
+                    autoComplete="tel"
+                    textContentType="telephoneNumber"
                   />
                 )}
               />

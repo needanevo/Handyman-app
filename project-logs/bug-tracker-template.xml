@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bug-tracking-system>
+  <project-info>
+    <name>The Real Johnson Handyman App</name>
+    <start-date>2025-10-14</start-date>
+    <repository>https://github.com/needanevo/Handyman-app</repository>
+    <primary-branch>main</primary-branch>
+    <development-branch>dev</development-branch>
+  </project-info>
+
+  <bugs>
+    <!-- Template for adding new bugs -->
+    <bug>
+      <bug-id>BUG-YYYY-NNN</bug-id>
+      <date-discovered>YYYY-MM-DD</date-discovered>
+      <date-resolved>YYYY-MM-DD or UNRESOLVED</date-resolved>
+      <severity>CRITICAL | HIGH | MEDIUM | LOW</severity>
+      <category>BACKEND | FRONTEND | DEPLOYMENT | INTEGRATION | DATABASE | STORAGE</category>
+      <status>OPEN | IN_PROGRESS | RESOLVED | CLOSED | WONTFIX</status>
+
+      <title>Brief description of the bug</title>
+
+      <description>
+        Detailed description of the problem, symptoms, and impact.
+      </description>
+
+      <affected-components>
+        <component>Component or module name</component>
+      </affected-components>
+
+      <affected-files>
+        <file>path/to/file.ext:line_number</file>
+      </affected-files>
+
+      <error-messages>
+        <error>Exact error message or log output</error>
+      </error-messages>
+
+      <reproduction-steps>
+        <step>1. First step to reproduce</step>
+        <step>2. Second step</step>
+        <step>3. Expected vs actual result</step>
+      </reproduction-steps>
+
+      <root-cause>
+        Analysis of what caused the bug.
+      </root-cause>
+
+      <resolution>
+        How the bug was fixed, including code changes and configuration updates.
+      </resolution>
+
+      <resolution-commit>commit-hash</resolution-commit>
+
+      <tokens-used>Approximate token count spent on this bug</tokens-used>
+
+      <time-spent>Hours or minutes spent debugging and fixing</time-spent>
+
+      <lessons-learned>
+        What we learned from this bug - insights for future development.
+      </lessons-learned>
+
+      <prevention-strategy>
+        How to prevent this type of bug in the future. Specific checks, tests, or processes.
+      </prevention-strategy>
+
+      <related-bugs>
+        <bug-id>BUG-YYYY-NNN</bug-id>
+      </related-bugs>
+
+      <tags>
+        <tag>relevant-tag</tag>
+      </tags>
+    </bug>
+  </bugs>
+</bug-tracking-system>

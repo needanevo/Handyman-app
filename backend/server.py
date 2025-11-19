@@ -1,10 +1,10 @@
 from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Body, Request, UploadFile, File, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
-from .providers import EMAIL_PROVIDERS, AI_PROVIDERS, MAPS_PROVIDERS
+from providers import EMAIL_PROVIDERS, AI_PROVIDERS, MAPS_PROVIDERS
 from fastapi.responses import RedirectResponse
-from .providers.linode_storage_provider import LinodeObjectStorage
-from .providers.quote_email_service import QuoteEmailService
+from providers.linode_storage_provider import LinodeObjectStorage
+from providers.quote_email_service import QuoteEmailService
 
 
 
@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, date
 import uuid
 
 # Import models
-from .models import (
+from models import (
     User,
     UserCreate,
     UserLogin,
@@ -36,9 +36,10 @@ from .models import (
     QuoteStatus,
     QuoteItem,
 )
+from models.job import Job, JobCreate, JobUpdate, JobStatus, JobCreateRequest, JobCreateResponse
 
 # Import authentication
-from .auth.auth_handler import (
+from auth.auth_handler import (
     AuthHandler,
     get_current_user,
     require_admin,
@@ -46,12 +47,12 @@ from .auth.auth_handler import (
 )
 
 # Import services
-# Import services
-from .services.pricing_engine import PricingEngine
+from services.pricing_engine import PricingEngine
+from services.contractor_routing import ContractorRouter
 
 # Import providers
-from .providers.openai_provider import OpenAiProvider
-from .providers.base import AiQuoteSuggestion, ProviderError
+from providers.openai_provider import OpenAiProvider
+from providers.base import AiQuoteSuggestion, ProviderError
 
 # --- Environment Variable Loading ---
 # Build the absolute path to the providers.env file
@@ -68,6 +69,7 @@ db = client[os.environ["DB_NAME"]]
 # Initialize services and providers
 auth_handler = AuthHandler(db)
 pricing_engine = PricingEngine()
+contractor_router = ContractorRouter(db)
 
 # Initialize providers based on feature flags
 active_ai = (
@@ -80,6 +82,9 @@ email_provider = EMAIL_PROVIDERS[os.getenv("ACTIVE_EMAIL_PROVIDER", "mock")]()
 maps_provider = MAPS_PROVIDERS[os.getenv("ACTIVE_MAPS_PROVIDER", "google")]()
 storage_provider = LinodeObjectStorage()
 quote_email_service = QuoteEmailService()
+
+# Admin email for notifications
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@therealjohnson.com")
 
 # Create the main app
 app = FastAPI(
@@ -110,16 +115,17 @@ async def register_user(user_data: UserCreate):
         
         # Generate user_id FIRST before creating the User object
         user_id = str(uuid.uuid4())
-        
+
         user = User(
             id=user_id,  # ← Explicitly set the ID
-            email=user_data.email, 
-            phone=user_data.phone, 
+            email=user_data.email,
+            phone=user_data.phone,
             first_name=user_data.firstName,
-            last_name=user_data.lastName, 
-            role=user_data.role, 
+            last_name=user_data.lastName,
+            role=user_data.role,
             marketing_opt_in=user_data.marketingOptIn,
-            created_at=datetime.utcnow(), 
+            business_name=user_data.businessName if user_data.businessName else None,
+            created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
         
@@ -228,11 +234,11 @@ async def create_service(
     service_data: ServiceCreate, current_user: User = Depends(require_admin)
 ):
     """Create a new service (admin only)"""
-    service = Service(**service_data.dict())
+    service = Service(**service_data.model_dump())
     service.created_at = datetime.utcnow()
     service.updated_at = datetime.utcnow()
 
-    await db.services.insert_one(service.dict())
+    await db.services.insert_one(service.model_dump())
     return service
 
 
@@ -260,13 +266,30 @@ async def upload_photo_immediately(
     This uploads right away, not waiting for quote submission
     """
     try:
+        # Log incoming request details
+        logger.info(f"📥 Received upload request: customer_id={customer_id}")
+        logger.info(f"📄 File object: filename={file.filename}, content_type={file.content_type}")
+        
         # Validate it's an image
-        if not file.content_type.startswith('image/'):
+        if not file.content_type or not file.content_type.startswith('image/'):
+            logger.warning(f"⚠️ Invalid content type: {file.content_type}")
             raise HTTPException(status_code=400, detail="File must be an image")
         
         # Read the file data
+        logger.info("📖 Reading file data...")
         file_data = await file.read()
+        file_size = len(file_data)
+        logger.info(f"📸 Photo upload: filename={file.filename}, content_type={file.content_type}, size={file_size} bytes")
         
+        if file_size > 0:
+            logger.info(f"📊 First 20 bytes (hex): {file_data[:20].hex()}")
+        else:
+            logger.error("⚠️ File data is completely EMPTY!")
+
+        if file_size == 0:
+            logger.error("⚠️ Empty file received - no data!")
+            raise HTTPException(status_code=400, detail="Empty file received")
+
         # Create temp quote ID (will be organized later when actual quote is created)
         temp_quote_id = f"temp_{str(uuid.uuid4())}"
         
@@ -308,21 +331,10 @@ async def request_quote(
     try:
         quote_id = str(uuid.uuid4())
         
-        # Step 1: Upload photos to Linode Object Storage
-        photo_urls = []
-        if quote_request.photos:
-            logger.info(f"Uploading {len(quote_request.photos)} photos to Linode...")
-            try:
-                photo_urls = await storage_provider.upload_multiple_photos(
-                    photos=quote_request.photos,
-                    customer_id=current_user.id,
-                    quote_id=quote_id
-                )
-                logger.info(f"Successfully uploaded photos: {photo_urls}")
-            except Exception as e:
-                logger.error(f"Photo upload failed: {e}")
-                # Continue without photos rather than failing the entire request
-                photo_urls = []
+        # Step 1: Use photo URLs from immediate upload (no re-upload needed)
+        # Photos were already uploaded via /api/photos/upload endpoint
+        photo_urls = quote_request.photos if quote_request.photos else []
+        logger.info(f"Using {len(photo_urls)} pre-uploaded photo URLs")
         
         # Step 2: Get AI suggestion if enabled
         ai_suggestion = None
@@ -616,7 +628,739 @@ async def respond_to_quote(
         },
     )
 
-    return {"message": f"Quote {new_status}", "quote_id": quote_id}
+    # If quote was accepted, create a job
+    job_id = None
+    if response.accept:
+        try:
+            # Create job from accepted quote
+            job = Job(
+                customer_id=current_user.id,
+                quote_id=quote_id,
+                service_category=quote["service_category"],
+                description=quote["description"],
+                address_id=quote["address_id"],
+                agreed_amount=quote["total_amount"],
+                customer_notes=response.customer_notes,
+            )
+
+            # Attempt contractor routing
+            try:
+                contractor_id = await contractor_router.find_best_contractor(
+                    service_category=quote["service_category"],
+                    customer_address_id=quote["address_id"],
+                    customer_id=current_user.id,
+                    job_id=job.id
+                )
+
+                if contractor_id:
+                    job.contractor_id = contractor_id
+                    job.status = JobStatus.SCHEDULED
+                    logger.info(f"Job {job.id} auto-assigned to contractor {contractor_id}")
+                    # TODO: Send email to contractor about new job
+                else:
+                    logger.info(f"Job {job.id} created, awaiting manual routing")
+                    # TODO: Send email to admin for manual assignment
+
+            except Exception as e:
+                logger.error(f"Contractor routing failed for job {job.id}: {e}")
+                # Continue with job creation even if routing fails
+
+            # Save job to database
+            job_doc = job.model_dump()
+            job_doc["created_at"] = job_doc["created_at"].isoformat()
+            job_doc["updated_at"] = job_doc["updated_at"].isoformat()
+            if job_doc.get("scheduled_date"):
+                job_doc["scheduled_date"] = job_doc["scheduled_date"].isoformat()
+            if job_doc.get("completed_at"):
+                job_doc["completed_at"] = job_doc["completed_at"].isoformat()
+
+            await db.jobs.insert_one(job_doc)
+            job_id = job.id
+
+            logger.info(f"Job {job_id} created from accepted quote {quote_id}")
+            # TODO: Send email to customer confirming job creation
+
+        except Exception as e:
+            logger.error(f"Failed to create job from quote {quote_id}: {e}")
+            # Don't fail the quote acceptance if job creation fails
+            # Admin can manually create job later
+
+    return {
+        "message": f"Quote {new_status}",
+        "quote_id": quote_id,
+        "job_id": job_id if response.accept else None
+    }
+
+
+@api_router.delete("/quotes/{quote_id}")
+async def delete_quote(
+    quote_id: str,
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Delete a quote request.
+
+    Only the customer who created the quote can delete it.
+    Performs a soft delete by setting status to 'cancelled'.
+    """
+    # Find quote and verify ownership
+    quote = await db.quotes.find_one({"id": quote_id})
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    if quote["customer_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this quote")
+
+    # Soft delete - set status to cancelled instead of actually deleting
+    result = await db.quotes.update_one(
+        {"id": quote_id},
+        {
+            "$set": {
+                "status": "cancelled",
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        }
+    )
+
+    if result.modified_count > 0:
+        logger.info(f"Quote {quote_id} cancelled by customer {current_user.id}")
+        return {"message": "Quote deleted successfully", "quote_id": quote_id}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to delete quote")
+
+
+@api_router.post("/quotes/{quote_id}/contact")
+async def contact_about_quote(
+    quote_id: str,
+    request_body: dict = None,
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Send a message to admin/owner about a specific quote.
+
+    Sends an email to the business owner with quote details and customer message.
+    """
+    # Find quote and verify ownership
+    quote = await db.quotes.find_one({"id": quote_id})
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    if quote["customer_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get customer message if provided
+    message = request_body.get("message", "") if request_body else ""
+
+    # Send email to admin/owner
+    if email_provider:
+        try:
+            owner_email = ADMIN_EMAIL
+            subject = f"Customer Contact Request - Quote #{quote_id[-8:]}"
+
+            body = f"""
+            <h2>Customer Contact Request</h2>
+            <p>A customer has requested to contact you about their quote.</p>
+
+            <h3>Customer Information:</h3>
+            <ul>
+                <li><strong>Name:</strong> {current_user.first_name} {current_user.last_name}</li>
+                <li><strong>Email:</strong> {current_user.email}</li>
+                <li><strong>Phone:</strong> {current_user.phone}</li>
+            </ul>
+
+            <h3>Quote Details:</h3>
+            <ul>
+                <li><strong>Quote ID:</strong> {quote_id}</li>
+                <li><strong>Service:</strong> {quote.get('service_category', 'N/A')}</li>
+                <li><strong>Status:</strong> {quote.get('status', 'N/A')}</li>
+                <li><strong>Total:</strong> ${quote.get('total_amount', 0)}</li>
+            </ul>
+
+            {f'<h3>Customer Message:</h3><p>{message}</p>' if message else ''}
+
+            <p><strong>Action Required:</strong> Please follow up with the customer within 24 hours.</p>
+            """
+
+            await email_provider.send_email(
+                to_email=owner_email,
+                subject=subject,
+                html_body=body,
+                from_email="noreply@therealjohnson.com",
+                from_name="The Real Johnson - Customer Contact"
+            )
+
+            logger.info(f"Contact email sent for quote {quote_id} from customer {current_user.id}")
+        except Exception as e:
+            logger.error(f"Failed to send contact email: {e}")
+            # Don't fail the request if email fails
+
+    return {
+        "message": "Your message has been sent. We'll follow up within 24 hours.",
+        "quote_id": quote_id
+    }
+
+
+@api_router.post("/quotes/{quote_id}/report-issue")
+async def report_contractor_issue(
+    quote_id: str,
+    request_body: dict,
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Report an issue with a contractor for a specific quote.
+
+    Logs the issue and sends an urgent email to admin/owner.
+    """
+    # Find quote and verify ownership
+    quote = await db.quotes.find_one({"id": quote_id})
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    if quote["customer_id"] != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Get issue details
+    issue_type = request_body.get("issue_type", "Other issue")
+    details = request_body.get("details", "")
+
+    # Log issue to database (create issues collection)
+    issue_id = str(uuid.uuid4())
+    issue_doc = {
+        "id": issue_id,
+        "quote_id": quote_id,
+        "customer_id": current_user.id,
+        "issue_type": issue_type,
+        "details": details,
+        "status": "reported",
+        "created_at": datetime.utcnow().isoformat(),
+        "resolved_at": None,
+        "resolution_notes": None
+    }
+
+    await db.issues.insert_one(issue_doc)
+    logger.warning(f"Issue reported for quote {quote_id}: {issue_type}")
+
+    # Send urgent email to admin/owner
+    if email_provider:
+        try:
+            owner_email = ADMIN_EMAIL
+            subject = f"🚨 URGENT: Contractor Issue Reported - Quote #{quote_id[-8:]}"
+
+            body = f"""
+            <div style="background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107;">
+                <h2 style="color: #856404;">⚠️ Contractor Issue Reported</h2>
+                <p style="color: #856404;"><strong>A customer has reported an issue that requires immediate attention.</strong></p>
+            </div>
+
+            <h3>Issue Details:</h3>
+            <ul>
+                <li><strong>Issue Type:</strong> {issue_type}</li>
+                <li><strong>Issue ID:</strong> {issue_id}</li>
+                {f'<li><strong>Details:</strong> {details}</li>' if details else ''}
+            </ul>
+
+            <h3>Customer Information:</h3>
+            <ul>
+                <li><strong>Name:</strong> {current_user.first_name} {current_user.last_name}</li>
+                <li><strong>Email:</strong> {current_user.email}</li>
+                <li><strong>Phone:</strong> {current_user.phone}</li>
+            </ul>
+
+            <h3>Quote Details:</h3>
+            <ul>
+                <li><strong>Quote ID:</strong> {quote_id}</li>
+                <li><strong>Service:</strong> {quote.get('service_category', 'N/A')}</li>
+                <li><strong>Status:</strong> {quote.get('status', 'N/A')}</li>
+            </ul>
+
+            <div style="background-color: #f8d7da; padding: 15px; margin-top: 20px; border-left: 4px solid #dc3545;">
+                <p style="color: #721c24; margin: 0;"><strong>Action Required:</strong> Contact the customer immediately to resolve this issue.</p>
+            </div>
+            """
+
+            await email_provider.send_email(
+                to_email=owner_email,
+                subject=subject,
+                html_body=body,
+                from_email="noreply@therealjohnson.com",
+                from_name="The Real Johnson - Issue Alert"
+            )
+
+            logger.info(f"Issue alert email sent for quote {quote_id}")
+        except Exception as e:
+            logger.error(f"Failed to send issue alert email: {e}")
+            # Don't fail the request if email fails
+
+    return {
+        "message": "Issue reported successfully. We'll contact you immediately.",
+        "issue_id": issue_id,
+        "quote_id": quote_id
+    }
+
+
+# ==================== JOB ROUTES ====================
+
+
+@api_router.post("/jobs", response_model=JobCreateResponse)
+async def create_job(
+    job_data: JobCreateRequest,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Create a job request directly (no quote required).
+
+    This endpoint:
+    1. Validates request data
+    2. Calculates estimated_total using pricing engine
+    3. Creates job record with status='requested'
+    4. Sends notifications (email + SMS to homeowner, email to admin)
+    5. Returns job_id, status, estimated_total, created_at
+    """
+    # Validate address belongs to customer
+    address = await db.users.find_one(
+        {"id": current_user.id, "addresses.id": job_data.address_id},
+        {"addresses.$": 1}
+    )
+    if not address or not address.get("addresses"):
+        raise HTTPException(404, detail="Address not found")
+
+    # Get service for pricing calculation
+    service = await db.services.find_one({"category": job_data.service_category})
+    if not service:
+        # Use default pricing if service not found
+        estimated_total = job_data.budget_max if job_data.budget_max else 150.0
+    else:
+        # Calculate estimate using pricing engine
+        from services.pricing_engine import PricingEngine
+        from models.service import Service
+
+        service_obj = Service(**service)
+        engine = PricingEngine()
+        pricing = engine.calculate_service_price(service_obj, quantity=1.0)
+        estimated_total = pricing["base_price"]
+
+        # Adjust based on urgency
+        if job_data.urgency == "urgent":
+            estimated_total *= 1.25  # 25% urgency surcharge
+
+        # Cap at budget_max if provided
+        if job_data.budget_max and estimated_total > job_data.budget_max:
+            estimated_total = job_data.budget_max
+
+    # Create job
+    job = Job(
+        customer_id=current_user.id,
+        service_category=job_data.service_category,
+        description=job_data.description,
+        photos=job_data.photos,
+        address_id=job_data.address_id,
+        budget_min=job_data.budget_min,
+        budget_max=job_data.budget_max,
+        urgency=job_data.urgency,
+        preferred_dates=job_data.preferred_dates,
+        source=job_data.source,
+        status=JobStatus.REQUESTED,
+        estimated_total=estimated_total,
+    )
+
+    # Save job to MongoDB
+    job_doc = job.model_dump()
+    job_doc["created_at"] = job_doc["created_at"].isoformat()
+    job_doc["updated_at"] = job_doc["updated_at"].isoformat()
+    if job_doc.get("scheduled_date"):
+        job_doc["scheduled_date"] = job_doc["scheduled_date"].isoformat()
+    if job_doc.get("completed_date"):
+        job_doc["completed_date"] = job_doc["completed_date"].isoformat()
+
+    await db.jobs.insert_one(job_doc)
+
+    logger.info(f"Job {job.id} created by customer {current_user.id} - {job_data.service_category}")
+
+    # TODO: Send notifications
+    # - Email to homeowner: "Job request #{job.id} received"
+    # - SMS to homeowner: "We got your request for [category]. Est: $X-$Y"
+    # - Email to admin: Full job details for manual assignment
+
+    # Return response
+    return JobCreateResponse(
+        job_id=job.id,
+        status=job.status,
+        estimated_total=estimated_total,
+        created_at=job.created_at.isoformat()
+    )
+
+
+@api_router.get("/jobs/{job_id}", response_model=Job)
+async def get_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get job by ID"""
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    # Check authorization
+    if (current_user.role == UserRole.CUSTOMER and job["customer_id"] != current_user.id) or \
+       (current_user.role == UserRole.TECHNICIAN and job.get("contractor_id") != current_user.id):
+        raise HTTPException(403, detail="Not authorized to view this job")
+
+    return Job(**job)
+
+
+@api_router.get("/jobs", response_model=List[Job])
+async def list_jobs(
+    status: Optional[str] = None,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """List jobs for current user"""
+    query = {}
+
+    # Filter by user role
+    if current_user.role == UserRole.CUSTOMER:
+        query["customer_id"] = current_user.id
+    elif current_user.role == UserRole.TECHNICIAN:
+        query["contractor_id"] = current_user.id
+    # Admins see all jobs
+
+    # Filter by status if provided
+    if status:
+        query["status"] = status
+
+    jobs = []
+    async for job in db.jobs.find(query).sort("created_at", -1):
+        jobs.append(Job(**job))
+
+    return jobs
+
+
+@api_router.get("/jobs/{job_id}/quotes", response_model=List[Quote])
+async def get_job_quotes(
+    job_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get all quotes associated with a job"""
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    # Check authorization
+    if current_user.role == UserRole.CUSTOMER and job["customer_id"] != current_user.id:
+        raise HTTPException(403, detail="Not authorized")
+
+    # Get the original quote
+    quotes = []
+    async for quote in db.quotes.find({"id": job["quote_id"]}):
+        quotes.append(Quote(**quote))
+
+    return quotes
+
+
+@api_router.patch("/jobs/{job_id}", response_model=Job)
+async def update_job(
+    job_id: str,
+    update_data: JobUpdate,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Update job (contractor or admin only)"""
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    # Only contractor or admin can update
+    if current_user.role == UserRole.CUSTOMER:
+        raise HTTPException(403, detail="Customers cannot update jobs")
+
+    if current_user.role == UserRole.TECHNICIAN and job.get("contractor_id") != current_user.id:
+        raise HTTPException(403, detail="Not authorized to update this job")
+
+    # Build update dict (only include non-None fields)
+    update_dict = {}
+    for field, value in update_data.model_dump(exclude_unset=True).items():
+        if value is not None:
+            update_dict[field] = value
+
+    if update_dict:
+        update_dict["updated_at"] = datetime.utcnow().isoformat()
+        await db.jobs.update_one({"id": job_id}, {"$set": update_dict})
+
+    # Get updated job
+    updated_job = await db.jobs.find_one({"id": job_id})
+    return Job(**updated_job)
+
+
+@api_router.get("/contractor/dashboard/stats")
+async def get_contractor_dashboard_stats(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Get dashboard statistics for contractor.
+
+    Returns job counts, revenue, expenses, and mileage data.
+    """
+    # Only contractors can access this endpoint
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access dashboard stats")
+
+    # Get current month start and end dates
+    now = datetime.utcnow()
+    month_start = datetime(now.year, now.month, 1)
+    year_start = datetime(now.year, 1, 1)
+
+    # Count available jobs (pending, within 50 miles, matching skills)
+    # For simplicity, we'll count all pending jobs
+    # The frontend can call /contractor/jobs/available for the exact count
+    available_jobs_count = await db.jobs.count_documents({
+        "$or": [
+            {"contractor_id": None},
+            {"contractor_id": {"$exists": False}}
+        ],
+        "status": "pending"
+    })
+
+    # Count accepted jobs (assigned to this contractor, not yet scheduled)
+    accepted_jobs_count = await db.jobs.count_documents({
+        "contractor_id": current_user.id,
+        "status": {"$in": ["pending", "accepted"]}
+    })
+
+    # Count scheduled jobs (assigned to this contractor with scheduled date)
+    scheduled_jobs_count = await db.jobs.count_documents({
+        "contractor_id": current_user.id,
+        "status": "scheduled"
+    })
+
+    # Count completed jobs this month
+    completed_this_month = await db.jobs.count_documents({
+        "contractor_id": current_user.id,
+        "status": "completed",
+        "completed_at": {"$gte": month_start.isoformat()}
+    })
+
+    # Count completed jobs year to date
+    completed_year_to_date = await db.jobs.count_documents({
+        "contractor_id": current_user.id,
+        "status": "completed",
+        "completed_at": {"$gte": year_start.isoformat()}
+    })
+
+    # Calculate revenue from completed jobs
+    # This month
+    revenue_pipeline_month = [
+        {
+            "$match": {
+                "contractor_id": current_user.id,
+                "status": "completed",
+                "completed_at": {"$gte": month_start.isoformat()}
+            }
+        },
+        {
+            "$group": {
+                "_id": None,
+                "total": {"$sum": "$agreed_amount"}
+            }
+        }
+    ]
+
+    revenue_month_result = await db.jobs.aggregate(revenue_pipeline_month).to_list(1)
+    revenue_this_month = revenue_month_result[0]["total"] if revenue_month_result else 0
+
+    # Year to date
+    revenue_pipeline_year = [
+        {
+            "$match": {
+                "contractor_id": current_user.id,
+                "status": "completed",
+                "completed_at": {"$gte": year_start.isoformat()}
+            }
+        },
+        {
+            "$group": {
+                "_id": None,
+                "total": {"$sum": "$agreed_amount"}
+            }
+        }
+    ]
+
+    revenue_year_result = await db.jobs.aggregate(revenue_pipeline_year).to_list(1)
+    revenue_year_to_date = revenue_year_result[0]["total"] if revenue_year_result else 0
+
+    # Get expenses (if expenses collection exists)
+    try:
+        expenses_month = await db.expenses.aggregate([
+            {"$match": {
+                "contractor_id": current_user.id,
+                "date": {"$gte": month_start.isoformat()}
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        ]).to_list(1)
+        expenses_this_month = expenses_month[0]["total"] if expenses_month else 0
+
+        expenses_year = await db.expenses.aggregate([
+            {"$match": {
+                "contractor_id": current_user.id,
+                "date": {"$gte": year_start.isoformat()}
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        ]).to_list(1)
+        expenses_year_to_date = expenses_year[0]["total"] if expenses_year else 0
+    except Exception as e:
+        logger.warning(f"Expenses collection not available: {e}")
+        expenses_this_month = 0
+        expenses_year_to_date = 0
+
+    # Get mileage (if mileage collection exists)
+    try:
+        mileage_month = await db.mileage.aggregate([
+            {"$match": {
+                "contractor_id": current_user.id,
+                "date": {"$gte": month_start.isoformat()}
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$miles"}}}
+        ]).to_list(1)
+        miles_this_month = mileage_month[0]["total"] if mileage_month else 0
+
+        mileage_year = await db.mileage.aggregate([
+            {"$match": {
+                "contractor_id": current_user.id,
+                "date": {"$gte": year_start.isoformat()}
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$miles"}}}
+        ]).to_list(1)
+        miles_year_to_date = mileage_year[0]["total"] if mileage_year else 0
+
+        # All time mileage
+        mileage_all = await db.mileage.aggregate([
+            {"$match": {"contractor_id": current_user.id}},
+            {"$group": {"_id": None, "total": {"$sum": "$miles"}}}
+        ]).to_list(1)
+        miles_all_time = mileage_all[0]["total"] if mileage_all else 0
+    except Exception as e:
+        logger.warning(f"Mileage collection not available: {e}")
+        miles_this_month = 0
+        miles_year_to_date = 0
+        miles_all_time = 0
+
+    # Calculate profit
+    profit_this_month = revenue_this_month - expenses_this_month
+    profit_year_to_date = revenue_year_to_date - expenses_year_to_date
+
+    stats = {
+        "availableJobsCount": available_jobs_count,
+        "acceptedJobsCount": accepted_jobs_count,
+        "scheduledJobsCount": scheduled_jobs_count,
+        "completedThisMonth": completed_this_month,
+        "completedYearToDate": completed_year_to_date,
+        "revenueThisMonth": revenue_this_month,
+        "revenueYearToDate": revenue_year_to_date,
+        "expensesThisMonth": expenses_this_month,
+        "expensesYearToDate": expenses_year_to_date,
+        "profitThisMonth": profit_this_month,
+        "profitYearToDate": profit_year_to_date,
+        "milesThisMonth": miles_this_month,
+        "milesYearToDate": miles_year_to_date,
+        "milesAllTime": miles_all_time,
+    }
+
+    logger.info(f"Dashboard stats for contractor {current_user.id}: {stats}")
+    return stats
+
+
+@api_router.get("/contractor/jobs/available")
+async def get_available_jobs(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Get available jobs within 50-mile radius for contractor.
+
+    Returns pending/unassigned jobs that match contractor's skills
+    and are within 50 miles of contractor's business address.
+    """
+    # Only contractors can access this endpoint
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access available jobs")
+
+    # Get contractor's business address
+    if not current_user.addresses:
+        raise HTTPException(400, detail="No business address on file. Please add an address.")
+
+    business_address = next(
+        (addr for addr in current_user.addresses if addr.is_default),
+        current_user.addresses[0] if current_user.addresses else None
+    )
+
+    if not business_address:
+        raise HTTPException(400, detail="No business address found")
+
+    if not business_address.latitude or not business_address.longitude:
+        raise HTTPException(
+            400,
+            detail="Business address not geocoded. Please update your address."
+        )
+
+    contractor_location = (business_address.latitude, business_address.longitude)
+    MAX_DISTANCE_MILES = 50
+
+    # Get all pending jobs (no contractor assigned)
+    pending_jobs_cursor = db.jobs.find({
+        "$or": [
+            {"contractor_id": None},
+            {"contractor_id": {"$exists": False}}
+        ],
+        "status": "pending"
+    })
+
+    from geopy.distance import geodesic
+
+    available_jobs = []
+    async for job_doc in pending_jobs_cursor:
+        # Get customer address for this job
+        customer = await db.users.find_one({"id": job_doc["customer_id"]})
+        if not customer or not customer.get("addresses"):
+            continue
+
+        job_address = next(
+            (addr for addr in customer["addresses"] if addr["id"] == job_doc["address_id"]),
+            None
+        )
+
+        if not job_address or not job_address.get("latitude") or not job_address.get("longitude"):
+            continue
+
+        # Calculate distance
+        job_location = (job_address["latitude"], job_address["longitude"])
+        distance = geodesic(contractor_location, job_location).miles
+
+        # Only include jobs within 50-mile radius
+        if distance <= MAX_DISTANCE_MILES:
+            # Check if contractor has matching skill
+            service_category = job_doc.get("service_category", "")
+            if service_category in current_user.skills:
+                job_doc["distance_miles"] = round(distance, 2)
+                job_doc["customer_address"] = {
+                    "city": job_address.get("city", ""),
+                    "state": job_address.get("state", ""),
+                    "zip_code": job_address.get("zip_code", "")
+                }
+                available_jobs.append(job_doc)
+
+    # Sort by distance (closest first)
+    available_jobs.sort(key=lambda x: x["distance_miles"])
+
+    logger.info(
+        f"Contractor {current_user.id} found {len(available_jobs)} "
+        f"available jobs within {MAX_DISTANCE_MILES} miles"
+    )
+
+    return {
+        "jobs": available_jobs,
+        "count": len(available_jobs),
+        "max_distance_miles": MAX_DISTANCE_MILES,
+        "contractor_location": {
+            "city": business_address.city,
+            "state": business_address.state
+        }
+    }
 
 
 # ==================== USER PROFILE ROUTES ====================
@@ -641,7 +1385,7 @@ async def add_address(
 
     # Add address to user
     await db.users.update_one(
-        {"id": current_user.id}, {"$push": {"addresses": address.dict()}}
+        {"id": current_user.id}, {"$push": {"addresses": address.model_dump()}}
     )
 
     return {"message": "Address added successfully", "address_id": address.id}
@@ -651,6 +1395,510 @@ async def add_address(
 async def get_addresses(current_user: User = Depends(get_current_user_dependency)):
     """Get user addresses"""
     return current_user.addresses
+
+
+# ==================== CONTRACTOR PROFILE ROUTES ====================
+
+
+@api_router.patch("/contractors/documents")
+async def update_contractor_documents(
+    documents: dict,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Update contractor documents (license, business licenses, insurance).
+
+    Expected structure:
+    {
+        "license": "https://...",  # Driver's license (single URL)
+        "business_license": ["https://...", "https://..."],  # Professional licenses (array)
+        "insurance": "https://..."  # Insurance certificate (single URL)
+    }
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can update documents")
+
+    # Validate document URLs
+    for key, value in documents.items():
+        if value and not (isinstance(value, str) or isinstance(value, list)):
+            raise HTTPException(400, detail=f"Invalid document format for {key}")
+
+    # Update documents in database
+    result = await db.users.update_one(
+        {"id": current_user.id},
+        {
+            "$set": {
+                "documents": documents,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        }
+    )
+
+    if result.modified_count > 0:
+        logger.info(f"Updated documents for contractor {current_user.id}")
+        return {"message": "Documents updated successfully", "documents": documents}
+    else:
+        raise HTTPException(500, detail="Failed to update documents")
+
+
+@api_router.patch("/contractors/portfolio")
+async def update_contractor_portfolio(
+    portfolio_photos: List[str],
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Update contractor portfolio photos.
+
+    Expected structure:
+    {
+        "portfolio_photos": ["https://...", "https://...", ...]
+    }
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can update portfolio")
+
+    # Validate photo URLs
+    if not isinstance(portfolio_photos, list):
+        raise HTTPException(400, detail="portfolio_photos must be an array")
+
+    for url in portfolio_photos:
+        if not isinstance(url, str) or not url.startswith("http"):
+            raise HTTPException(400, detail="All portfolio photos must be valid URLs")
+
+    # Update portfolio in database
+    result = await db.users.update_one(
+        {"id": current_user.id},
+        {
+            "$set": {
+                "portfolio_photos": portfolio_photos,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        }
+    )
+
+    if result.modified_count > 0:
+        logger.info(f"Updated portfolio for contractor {current_user.id} ({len(portfolio_photos)} photos)")
+        return {"message": "Portfolio updated successfully", "count": len(portfolio_photos)}
+    else:
+        raise HTTPException(500, detail="Failed to update portfolio")
+
+
+@api_router.patch("/contractors/profile")
+async def update_contractor_profile(
+    profile_data: dict,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Update contractor profile (skills, experience, business info).
+
+    Expected structure:
+    {
+        "skills": ["Drywall", "Painting", ...],
+        "years_experience": 10,
+        "business_name": "John's Handyman Services"
+    }
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can update profile")
+
+    # Build update dict with only provided fields
+    update_fields = {}
+    if "skills" in profile_data:
+        update_fields["skills"] = profile_data["skills"]
+    if "years_experience" in profile_data:
+        update_fields["years_experience"] = profile_data["years_experience"]
+    if "business_name" in profile_data:
+        update_fields["business_name"] = profile_data["business_name"]
+
+    if not update_fields:
+        raise HTTPException(400, detail="No fields to update")
+
+    update_fields["updated_at"] = datetime.utcnow().isoformat()
+
+    # Update profile in database
+    result = await db.users.update_one(
+        {"id": current_user.id},
+        {"$set": update_fields}
+    )
+
+    if result.modified_count > 0:
+        logger.info(f"Updated profile for contractor {current_user.id}: {list(update_fields.keys())}")
+        return {"message": "Profile updated successfully", "updated_fields": list(update_fields.keys())}
+    else:
+        # No changes made (fields were same as before)
+        return {"message": "No changes made", "updated_fields": []}
+
+
+
+@api_router.post("/contractor/photos/document")
+async def upload_contractor_document(
+    file: UploadFile = File(...),
+    document_type: str = Form(...),  # 'license', 'insurance', 'business_license'
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor document (license, insurance, business license)
+    Saves to: contractors/{contractor_id}/profile/{document_type}_{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload documents")
+
+    try:
+        # Validate document type
+        valid_types = ['license', 'insurance', 'business_license']
+        if document_type not in valid_types:
+            raise HTTPException(400, detail=f"Invalid document type. Must be one of: {valid_types}")
+
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor-specific path
+        url = await storage_provider.upload_contractor_document(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            document_type=document_type,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor document uploaded: {document_type} for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "document_type": document_type
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+@api_router.post("/contractor/photos/portfolio")
+async def upload_contractor_portfolio_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor portfolio photo
+    Saves to: contractors/{contractor_id}/portfolio/{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload portfolio photos")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"portfolio_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor portfolio path
+        url = await storage_provider.upload_contractor_portfolio(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor portfolio photo uploaded for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+@api_router.post("/contractor/profile-photo/upload")
+async def upload_contractor_profile_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor profile photo/logo
+    Saves to: contractors/{contractor_id}/profile/profile_{uuid}.{ext}
+    Updates user.profile_photo field in database
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload profile photos")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"profile_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor profile path
+        url = await storage_provider.upload_contractor_profile_photo(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        # Update user profile_photo field in database
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"profile_photo": url, "updated_at": datetime.utcnow().isoformat()}}
+        )
+
+        logger.info(f"Contractor profile photo uploaded for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "message": "Profile photo uploaded successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Profile photo upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+
+@api_router.post("/contractor/photos/job/{job_id}")
+async def upload_contractor_job_photo(
+    job_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor job photo (progress, completion, etc.)
+    Saves to: contractors/{contractor_id}/jobs/{job_id}/{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload job photos")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor job path
+        url = await storage_provider.upload_contractor_job_photo(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            job_id=job_id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor job photo uploaded: job={job_id}, contractor={current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "job_id": job_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+
+
+@api_router.post("/contractor/photos/document")
+async def upload_contractor_document(
+    file: UploadFile = File(...),
+    document_type: str = Form(...),  # 'license', 'insurance', 'business_license'
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor document (license, insurance, business license)
+    Saves to: contractors/{contractor_id}/profile/{document_type}_{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload documents")
+
+    try:
+        # Validate document type
+        valid_types = ['license', 'insurance', 'business_license']
+        if document_type not in valid_types:
+            raise HTTPException(400, detail=f"Invalid document type. Must be one of: {valid_types}")
+
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor-specific path
+        url = await storage_provider.upload_contractor_document(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            document_type=document_type,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor document uploaded: {document_type} for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "document_type": document_type
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+@api_router.post("/contractor/photos/portfolio")
+async def upload_contractor_portfolio_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor portfolio photo
+    Saves to: contractors/{contractor_id}/portfolio/{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload portfolio photos")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"portfolio_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor portfolio path
+        url = await storage_provider.upload_contractor_portfolio(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor portfolio photo uploaded for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+@api_router.post("/contractor/photos/job/{job_id}")
+async def upload_contractor_job_photo(
+    job_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor job photo (progress, completion, etc.)
+    Saves to: contractors/{contractor_id}/jobs/{job_id}/{filename}
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload job photos")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor job path
+        url = await storage_provider.upload_contractor_job_photo(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            job_id=job_id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        logger.info(f"Contractor job photo uploaded: job={job_id}, contractor={current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "job_id": job_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
 
 
 # ==================== ADMIN ROUTES ====================
@@ -826,13 +2074,123 @@ async def seed_default_services():
             "min_charge": 120.0,
             "labor_multiplier": 1.0,
         },
+        {
+            "category": ServiceCategory.HVAC,
+            "title": "HVAC Maintenance & Repair",
+            "description": "Heating, ventilation, and air conditioning maintenance and repair services",
+            "pricing_model": PricingModel.HOURLY,
+            "base_price": 125.0,
+            "unit_label": "per hour",
+            "typical_duration": 120,
+            "min_charge": 150.0,
+            "labor_multiplier": 1.3,
+        },
+        {
+            "category": ServiceCategory.FLOORING,
+            "title": "Flooring Installation & Repair",
+            "description": "Professional flooring installation and repair for hardwood, tile, laminate, and vinyl",
+            "pricing_model": PricingModel.UNIT,
+            "base_price": 8.0,
+            "unit_label": "per sqft",
+            "typical_duration": 480,
+            "min_charge": 200.0,
+            "labor_multiplier": 1.2,
+        },
+        {
+            "category": ServiceCategory.ROOFING,
+            "title": "Roof Repair & Maintenance",
+            "description": "Roof leak repair, shingle replacement, and general roof maintenance",
+            "pricing_model": PricingModel.HOURLY,
+            "base_price": 110.0,
+            "unit_label": "per hour",
+            "typical_duration": 240,
+            "min_charge": 200.0,
+            "labor_multiplier": 1.4,
+        },
+        {
+            "category": ServiceCategory.LANDSCAPING,
+            "title": "Landscaping & Yard Maintenance",
+            "description": "Lawn care, garden maintenance, trimming, and general landscaping services",
+            "pricing_model": PricingModel.HOURLY,
+            "base_price": 65.0,
+            "unit_label": "per hour",
+            "typical_duration": 180,
+            "min_charge": 100.0,
+            "labor_multiplier": 0.9,
+        },
+        {
+            "category": ServiceCategory.APPLIANCE_REPAIR,
+            "title": "Appliance Repair",
+            "description": "Repair and maintenance for household appliances including washers, dryers, refrigerators, and more",
+            "pricing_model": PricingModel.FLAT,
+            "base_price": 150.0,
+            "unit_label": "per appliance",
+            "typical_duration": 120,
+            "min_charge": 150.0,
+            "labor_multiplier": 1.2,
+        },
+        {
+            "category": ServiceCategory.WINDOW_DOOR_INSTALLATION,
+            "title": "Window & Door Installation",
+            "description": "Professional installation and replacement of windows and doors",
+            "pricing_model": PricingModel.FLAT,
+            "base_price": 350.0,
+            "unit_label": "per unit",
+            "typical_duration": 240,
+            "min_charge": 350.0,
+            "labor_multiplier": 1.3,
+        },
+        {
+            "category": ServiceCategory.TILE_WORK,
+            "title": "Tile Installation & Repair",
+            "description": "Tile installation and repair for bathrooms, kitchens, and floors",
+            "pricing_model": PricingModel.UNIT,
+            "base_price": 12.0,
+            "unit_label": "per sqft",
+            "typical_duration": 360,
+            "min_charge": 180.0,
+            "labor_multiplier": 1.2,
+        },
+        {
+            "category": ServiceCategory.DECK_FENCE,
+            "title": "Deck & Fence Construction/Repair",
+            "description": "Building and repairing decks, fences, and outdoor structures",
+            "pricing_model": PricingModel.HOURLY,
+            "base_price": 85.0,
+            "unit_label": "per hour",
+            "typical_duration": 480,
+            "min_charge": 200.0,
+            "labor_multiplier": 1.1,
+        },
+        {
+            "category": ServiceCategory.GUTTER_CLEANING,
+            "title": "Gutter Cleaning & Maintenance",
+            "description": "Professional gutter cleaning, debris removal, and downspout maintenance",
+            "pricing_model": PricingModel.FLAT,
+            "base_price": 120.0,
+            "unit_label": "per service",
+            "typical_duration": 90,
+            "min_charge": 120.0,
+            "labor_multiplier": 0.8,
+        },
+        {
+            "category": ServiceCategory.PRESSURE_WASHING,
+            "title": "Pressure Washing",
+            "description": "Power washing for driveways, siding, decks, patios, and exterior surfaces",
+            "pricing_model": PricingModel.HOURLY,
+            "base_price": 75.0,
+            "unit_label": "per hour",
+            "typical_duration": 120,
+            "min_charge": 100.0,
+            "labor_multiplier": 0.9,
+        },
     ]
 
     for service_data in default_services:
         service = Service(**service_data)
         service.created_at = datetime.utcnow()
         service.updated_at = datetime.utcnow()
-        await db.services.insert_one(service.dict())
+        await db.services.insert_one(service.model_dump())
 
     logger.info(f"Seeded {len(default_services)} default services")
 

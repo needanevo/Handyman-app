@@ -38,7 +38,7 @@ class Quote(BaseModel):
     
     # Customer request details
     description: str
-    photos: List[str] = []  # Base64 encoded images
+    photos: List[str] = []  # Photo URLs (from Linode Object Storage)
     preferred_dates: List[date] = []
     budget_range: Optional[Dict[str, float]] = None  # {"min": 100, "max": 500}
     urgency: str = "normal"  # normal, urgent, flexible
@@ -62,7 +62,7 @@ class QuoteRequest(BaseModel):
     service_category: str
     address_id: str
     description: str
-    photos: List[str] = []  # Base64 images
+    photos: List[str] = []  # Photo URLs (from Linode Object Storage)
     preferred_dates: List[str] = []  # ISO date strings
     budget_range: Optional[Dict[str, float]] = None
     urgency: str = "normal"

@@ -5,16 +5,22 @@ import { useAuth } from '../src/contexts/AuthContext';
 import { LoadingSpinner } from '../src/components/LoadingSpinner';
 
 export default function Index() {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     console.log('Index useEffect - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
-    
+
     if (!isLoading) {
-      if (isAuthenticated) {
-        console.log('User is authenticated - navigating to home');
-        router.replace('/home');
+      if (isAuthenticated && user) {
+        // Role-based routing
+        if (user.role === 'technician') {
+          console.log('User is authenticated contractor - navigating to contractor dashboard');
+          router.replace('/(contractor)/dashboard');
+        } else {
+          console.log('User is authenticated customer - navigating to home');
+          router.replace('/home');
+        }
       } else {
         console.log('User is not authenticated - navigating to welcome');
         router.replace('/auth/welcome');
@@ -22,7 +28,7 @@ export default function Index() {
     } else {
       console.log('Still loading...');
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, user, router]);
 
   return (
     <View style={styles.container}>

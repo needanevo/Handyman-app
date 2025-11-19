@@ -16,18 +16,26 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   useEffect(() => {
-    if (isAuthenticated) {
-      console.log('User authenticated, redirecting to home...');
-      router.replace('/home');
+    if (isAuthenticated && user) {
+      console.log('User authenticated, role:', user.role);
+
+      // Role-based routing
+      if (user.role === 'technician') {
+        console.log('Contractor detected, redirecting to contractor dashboard...');
+        router.replace('/(contractor)/dashboard');
+      } else {
+        console.log('Customer detected, redirecting to home...');
+        router.replace('/home');
+      }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   // Cross-platform alert helper
   const showAlert = (title: string, message: string) => {
@@ -102,6 +110,8 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
                 editable={!isLoading && !authLoading}
               />
             </View>
@@ -115,6 +125,8 @@ export default function LoginScreen() {
                 placeholder="••••••••"
                 secureTextEntry
                 editable={!isLoading && !authLoading}
+                autoComplete="password"
+                textContentType="password"
               />
             </View>
           </View>

@@ -1,0 +1,427 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bug-tracking-system>
+  <project-info>
+    <name>The Real Johnson Handyman App</name>
+    <start-date>2025-10-14</start-date>
+    <repository>https://github.com/needanevo/Handyman-app</repository>
+  </project-info>
+
+  <bugs>
+    <bug>
+      <bug-id>BUG-2025-001</bug-id>
+      <date-discovered>2025-11-10</date-discovered>
+      <date-resolved>2025-11-10</date-resolved>
+      <severity>CRITICAL</severity>
+      <category>STORAGE</category>
+      <status>CLOSED</status>
+
+      <title>Linode Object Storage Photo Upload Failure - boto3 Checksum Incompatibility</title>
+
+      <description>
+        Photos completely failed to upload to Linode Object Storage. The backend would attempt to upload but the request would fail with either connection timeout errors (urllib3 2.x) or 400 Bad Request errors (urllib3 1.26.x). This was a critical blocker preventing the core photo upload functionality from working.
+
+        The issue affected all photo uploads including quote request photos, job documentation photos, and receipt photos for expense tracking.
+      </description>
+
+      <affected-components>
+        <component>LinodeObjectStorage provider</component>
+        <component>Photo upload endpoints (/api/photos/upload)</component>
+        <component>boto3 S3 client</component>
+        <component>Quote submission flow</component>
+      </affected-components>
+
+      <affected-files>
+        <file>backend/providers/linode_storage_provider.py:all</file>
+        <file>backend/server.py:85</file>
+        <file>backend/requirements.txt:urllib3</file>
+        <file>/etc/systemd/system/handyman-api.service:Environment</file>
+        <file>backend/providers/providers.env:S3_ENDPOINT_HOSTNAME</file>
+      </affected-files>
+
+      <error-messages>
+        <error>botocore.exceptions.ConnectionClosedError: Connection was closed before we received a valid response from endpoint URL: "https://us-iad-10.linodeobjects.com/photos/test-file.txt"</error>
+        <error>An error occurred (400) when calling the PutObject operation: Bad Request</error>
+        <error>urllib3.exceptions.ProtocolError: Connection aborted</error>
+      </error-messages>
+
+      <reproduction-steps>
+        <step>1. Configure Linode Object Storage credentials in providers.env</step>
+        <step>2. Attempt to upload a photo via POST /api/photos/upload</step>
+        <step>3. Expected: Photo uploads successfully and URL is returned</step>
+        <step>4. Actual: Request fails with ConnectionClosedError or 400 Bad Request</step>
+      </reproduction-steps>
+
+      <root-cause>
+        AWS boto3 version 1.39.17+ introduced flexible checksums as a default feature. When uploading files to S3, boto3 now sends:
+        - Content-Encoding: aws-chunked
+        - Transfer-Encoding: chunked
+        - X-Amz-Trailer: x-amz-checksum-crc32
+        - x-amz-sdk-checksum-algorithm: CRC32
+
+        Linode Object Storage is S3-compatible but does NOT support these advanced AWS features. When Linode receives requests with flexible checksums, it:
+        - With urllib3 2.x: Closes the connection without response
+        - With urllib3 1.26.x: Returns 400 Bad Request
+
+        Additionally, the S3_ENDPOINT_HOSTNAME in providers.env had extra descriptive text ("US, Washington, DC: us-iad-10.linodeobjects.com") instead of just the hostname, which boto3 couldn't parse correctly.
+      </root-cause>
+
+      <resolution>
+        Three fixes were applied to resolve the issue:
+
+        1. FIXED S3_ENDPOINT_HOSTNAME in providers.env:
+           Before: S3_ENDPOINT_HOSTNAME=US, Washington, DC: us-iad-10.linodeobjects.com
+           After: S3_ENDPOINT_HOSTNAME=us-iad-10.linodeobjects.com
+
+        2. DOWNGRADED urllib3 in requirements.txt:
+           Changed from urllib3==2.5.0 to urllib3==1.26.20
+           Reason: urllib3 2.x causes connection closed errors; 1.26.20 at least returns 400
+
+        3. ADDED AWS_REQUEST_CHECKSUM_CALCULATION environment variable:
+           Added to /etc/systemd/system/handyman-api.service:
+           Environment="AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED"
+
+           This tells boto3 to only compute checksums when the API operation absolutely requires them, avoiding the aws-chunked encoding that Linode doesn't support.
+
+        4. RESTARTED systemd service:
+           systemctl daemon-reload
+           systemctl restart handyman-api
+
+        After these changes, photo uploads work perfectly with simple PUT requests.
+      </resolution>
+
+      <resolution-commit>82d2d54</resolution-commit>
+
+      <tokens-used>25000-30000</tokens-used>
+
+      <time-spent>~1 hour of debugging across multiple sessions</time-spent>
+
+      <lessons-learned>
+        1. S3-Compatible Does Not Mean Full AWS S3 Compatibility
+           - Services like Linode, DigitalOcean Spaces, Wasabi, etc. implement older S3 API versions
+           - They may not support newer AWS features like flexible checksums, intelligent tiering, etc.
+           - Always check the compatibility matrix for your S3-compatible service
+
+        2. Environment Variable Format Matters
+           - Even small errors in .env files (extra text, wrong format) can cause silent failures
+           - boto3 doesn't always provide clear error messages about malformed endpoint URLs
+           - Validate environment file format FIRST before debugging code
+
+        3. boto3 Default Behavior Changes Between Versions
+           - boto3 1.28+ enabled flexible checksums by default for data integrity
+           - This broke compatibility with many S3-compatible services
+           - Check release notes when upgrading AWS SDK versions
+
+        4. urllib3 Version Affects Error Reporting
+           - urllib3 2.x: Connection closed (harder to debug)
+           - urllib3 1.26.x: 400 Bad Request (clearer error)
+           - Sometimes a downgrade provides better diagnostics
+
+        5. Test with Simple Tools First
+           - curl PUT worked perfectly, indicating the service was fine
+           - boto3 PUT failed, indicating the problem was in the client library
+           - This isolated the issue to boto3's request format, not credentials or permissions
+      </lessons-learned>
+
+      <prevention-strategy>
+        1. ALWAYS check S3-compatible service documentation for supported features before using advanced boto3 features
+
+        2. CREATE a validation script for providers.env that checks:
+           - No extra text in values
+           - Proper hostname format for endpoints
+           - Required fields present
+           - Valid credential format
+
+        3. ADD environment variable documentation to CLAUDE.md listing:
+           - Required AWS environment variables for S3-compatible services
+           - AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED for non-AWS S3
+           - AWS_SIGNATURE_VERSION=s3v4 for some older services
+
+        4. IMPLEMENT a test suite that runs on deployment:
+           - Test photo upload to Linode
+           - Test with small file (1KB)
+           - Test with larger file (5MB)
+           - Verify public URL access
+
+        5. PIN urllib3 version in requirements.txt:
+           - Don't allow automatic upgrades to urllib3 2.x
+           - Document why we're on 1.26.x
+           - Monitor for security updates to 1.26.x line
+
+        6. WHEN debugging S3 issues:
+           - Step 1: Test with curl (isolate boto3)
+           - Step 2: Check environment variables (format validation)
+           - Step 3: Check boto3 compatibility (version-specific features)
+           - Step 4: Review service documentation (supported features)
+           - Step 5: Check library versions (urllib3, botocore, boto3)
+      </prevention-strategy>
+
+      <related-bugs>
+        <!-- Add related bug IDs here if discovered later -->
+      </related-bugs>
+
+      <tags>
+        <tag>linode</tag>
+        <tag>s3</tag>
+        <tag>boto3</tag>
+        <tag>storage</tag>
+        <tag>photo-upload</tag>
+        <tag>compatibility</tag>
+        <tag>environment-variables</tag>
+        <tag>urllib3</tag>
+        <tag>checksum</tag>
+        <tag>aws-chunked</tag>
+      </tags>
+    </bug>
+
+    <bug>
+      <bug-id>BUG-2025-002</bug-id>
+      <date-discovered>2025-11-06</date-discovered>
+      <date-resolved>2025-11-06</date-resolved>
+      <severity>HIGH</severity>
+      <category>DATABASE</category>
+      <status>CLOSED</status>
+
+      <title>MongoDB Database Name Mismatch - Configuration Change</title>
+
+      <description>
+        MongoDB connection was failing because the database name changed from "handyman" to "cluster0" in MongoDB Atlas, but the code and configuration still referenced "handyman". This caused authentication failures and inability to access any collections.
+      </description>
+
+      <affected-components>
+        <component>MongoDB connection string</component>
+        <component>Database initialization in server.py</component>
+        <component>All database operations</component>
+      </affected-components>
+
+      <affected-files>
+        <file>backend/providers/providers.env:MONGO_URL</file>
+        <file>backend/providers/providers.env:DB_NAME</file>
+        <file>backend/server.py:database initialization</file>
+      </affected-files>
+
+      <error-messages>
+        <error>Authentication failed: database name mismatch</error>
+        <error>pymongo.errors.OperationFailure: Authentication failed</error>
+      </error-messages>
+
+      <reproduction-steps>
+        <step>1. Start backend server with old DB_NAME=handyman</step>
+        <step>2. Attempt any database operation</step>
+        <step>3. Expected: Database operations succeed</step>
+        <step>4. Actual: Authentication failure</step>
+      </reproduction-steps>
+
+      <root-cause>
+        The MongoDB Atlas cluster was reconfigured or a new database was created with the name "cluster0", but the environment configuration and documentation still referenced the old database name "handyman". MongoDB uses the database name as part of the authentication scope, so a mismatch causes auth failures.
+      </root-cause>
+
+      <resolution>
+        Updated DB_NAME in backend/providers/providers.env from "handyman" to "cluster0"
+        Updated CLAUDE.md documentation to reflect correct database name
+        Verified connection with test script
+      </resolution>
+
+      <resolution-commit>25edd7c</resolution-commit>
+
+      <tokens-used>8000-10000</tokens-used>
+
+      <time-spent>~30 minutes</time-spent>
+
+      <lessons-learned>
+        1. Cloud Service Changes Require Configuration Updates
+           - MongoDB Atlas database names can change during cluster operations
+           - Always verify cloud service configuration matches local config
+
+        2. Documentation Must Match Reality
+           - CLAUDE.md had outdated database name
+           - Documentation drift causes confusion and wasted debugging time
+
+        3. Environment Variables Should Be Single Source of Truth
+           - All database configuration should come from providers.env
+           - Never hardcode database names in code
+      </lessons-learned>
+
+      <prevention-strategy>
+        1. CREATE a connection validation script that:
+           - Tests MongoDB connection on startup
+           - Logs database name being used
+           - Fails fast with clear error if mismatch
+
+        2. ADD to deployment checklist:
+           - Verify MongoDB Atlas configuration
+           - Compare env vars to actual cloud service settings
+           - Test connection before deploying code
+
+        3. UPDATE CLAUDE.md whenever cloud services change:
+           - Database names
+           - Collection names
+           - Connection string format
+
+        4. IMPLEMENT health check endpoint that includes:
+           - Database connection status
+           - Database name being used
+           - Collection accessibility
+      </prevention-strategy>
+
+      <related-bugs>
+        <!-- None yet -->
+      </related-bugs>
+
+      <tags>
+        <tag>mongodb</tag>
+        <tag>database</tag>
+        <tag>configuration</tag>
+        <tag>authentication</tag>
+        <tag>environment-variables</tag>
+        <tag>atlas</tag>
+      </tags>
+    </bug>
+
+    <bug>
+      <bug-id>BUG-2025-003</bug-id>
+      <date-discovered>2025-11-11</date-discovered>
+      <date-resolved>2025-11-11</date-resolved>
+      <severity>HIGH</severity>
+      <category>FRONTEND</category>
+      <status>CLOSED</status>
+
+      <title>iPhone Photo Upload - FormData Construction and Duplicate Upload Issues</title>
+
+      <description>
+        Photos uploaded from iPhone were not displaying correctly and duplicate/broken files were being created in Linode Object Storage. The issue had three root causes:
+        1. iOS FormData construction required proper file:// URI prefix
+        2. Quote submission endpoint was re-uploading photos that were already uploaded
+        3. UI only showed status indicators instead of actual photo thumbnails
+      </description>
+
+      <affected-components>
+        <component>Photo upload API in frontend/src/services/api.ts</component>
+        <component>Quote submission endpoint in backend/server.py</component>
+        <component>Quote request form UI in frontend/app/quote/request.tsx</component>
+      </affected-components>
+
+      <affected-files>
+        <file>frontend/src/services/api.ts:120-144</file>
+        <file>frontend/src/services/api.ts:187-210</file>
+        <file>frontend/src/services/api.ts:220-236</file>
+        <file>backend/server.py:328-342</file>
+        <file>frontend/app/quote/request.tsx:photo display section</file>
+        <file>backend/models/quote.py:41,65</file>
+      </affected-files>
+
+      <error-messages>
+        <error>0 byte files created in Linode Object Storage</error>
+        <error>Duplicate photo files: one from immediate upload, one from quote submission</error>
+        <error>Photos not visible in UI despite successful upload</error>
+      </error-messages>
+
+      <reproduction-steps>
+        <step>1. Use iPhone to take photo in quote request form</step>
+        <step>2. Photo uploads via /api/photos/upload (immediate upload)</step>
+        <step>3. Submit quote with the photo</step>
+        <step>4. Expected: One photo file, displayed correctly</step>
+        <step>5. Actual: Two files (one empty), thumbnail not showing</step>
+      </reproduction-steps>
+
+      <root-cause>
+        1. iOS FormData Issue: React Native on iOS requires file:// prefix for local file URIs. Without it, FormData creates an empty file object (0 bytes).
+
+        2. Duplicate Upload Logic: The quote submission endpoint was attempting to re-upload photos that were already uploaded via the immediate upload endpoint, creating duplicate files in storage.
+
+        3. Missing Thumbnails: The UI only rendered checkmarks/status indicators instead of actual Image components to display the photo thumbnails.
+      </root-cause>
+
+      <resolution>
+        1. Fixed iOS URI Formatting in api.ts:
+           - Added file:// prefix validation for iOS
+           - Applied fix to uploadPhotoImmediate, uploadJobPhoto, and uploadReceiptPhoto
+           - Added fallback values for type and name
+
+        2. Removed Duplicate Upload Logic from backend/server.py:
+           - Quote submission now uses pre-uploaded photo URLs directly
+           - No re-upload of photos during quote creation
+           - Result: Only one file per photo in Object Storage
+
+        3. Added Photo Thumbnails in request.tsx:
+           - Added Image component to display actual photos
+           - Added overlay status indicators (uploading/success/failed)
+           - Added detailed console logging for debugging
+
+        4. Updated Model Comments in quote.py:
+           - Changed from "Base64 images" to "Photo URLs (from Linode Object Storage)"
+           - Reflects actual implementation
+      </resolution>
+
+      <resolution-commit>c6e4a5e, 4a917fb</resolution-commit>
+
+      <tokens-used>10000-12000</tokens-used>
+
+      <time-spent>~1.5 hours</time-spent>
+
+      <lessons-learned>
+        1. Platform-Specific File Handling
+           - iOS requires file:// prefix for local URIs in FormData
+           - Android may work without prefix due to different file system
+           - Always test file uploads on both platforms
+
+        2. Immediate Upload Pattern Requires Backend Coordination
+           - If frontend uploads immediately, backend should NOT re-upload
+           - Clear separation: immediate upload endpoints vs document creation endpoints
+           - Document the flow clearly in CLAUDE.md
+
+        3. UI Should Reflect Actual Data
+           - Don't just show status indicators - show the actual content
+           - Users need visual confirmation that their photo uploaded correctly
+           - Thumbnail display is essential for photo-centric apps
+
+        4. Model Documentation Must Match Implementation
+           - Comments in Pydantic models should describe actual data format
+           - Outdated comments cause confusion during debugging
+      </lessons-learned>
+
+      <prevention-strategy>
+        1. CREATE platform-specific upload test suite:
+           - Test on iOS simulator
+           - Test on iOS device
+           - Test on Android emulator
+           - Test on Android device
+           - Test on web browser
+
+        2. DOCUMENT upload flow clearly:
+           - Immediate upload: POST /api/photos/upload → returns URL
+           - Document creation: Use URLs from immediate uploads
+           - No re-uploading in document endpoints
+
+        3. ADD URI validation utility:
+           - Function to ensure proper file:// prefix on iOS
+           - Cross-platform file URI handling
+           - Clear error messages for invalid URIs
+
+        4. IMPLEMENT visual upload verification:
+           - Always display thumbnail after upload
+           - Show file size confirmation
+           - Provide clear error states with retry option
+
+        5. ADD automated storage checks:
+           - Script to detect duplicate files
+           - Script to detect 0-byte files
+           - Alert on unusual storage patterns
+      </prevention-strategy>
+
+      <related-bugs>
+        <bug-id>BUG-2025-001</bug-id>
+      </related-bugs>
+
+      <tags>
+        <tag>ios</tag>
+        <tag>photo-upload</tag>
+        <tag>formdata</tag>
+        <tag>frontend</tag>
+        <tag>duplicate-upload</tag>
+        <tag>react-native</tag>
+        <tag>linode</tag>
+        <tag>ui</tag>
+      </tags>
+    </bug>
+  </bugs>
+</bug-tracking-system>
