@@ -1633,6 +1633,62 @@ async def upload_contractor_portfolio_photo(
         logger.error(f"Upload error: {str(e)}")
         raise HTTPException(500, detail=f"Upload failed: {str(e)}")
 
+@api_router.post("/contractor/profile-photo/upload")
+async def upload_contractor_profile_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload contractor profile photo/logo
+    Saves to: contractors/{contractor_id}/profile/profile_{uuid}.{ext}
+    Updates user.profile_photo field in database
+    """
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload profile photos")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"profile_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to contractor profile path
+        url = await storage_provider.upload_contractor_profile_photo(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        # Update user profile_photo field in database
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"profile_photo": url, "updated_at": datetime.utcnow().isoformat()}}
+        )
+
+        logger.info(f"Contractor profile photo uploaded for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "message": "Profile photo uploaded successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Profile photo upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
 
 @api_router.post("/contractor/photos/job/{job_id}")
 async def upload_contractor_job_photo(
