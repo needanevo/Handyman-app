@@ -44,17 +44,8 @@ export default function ContractorRegisterStep4() {
       // Refresh user context to get updated portfolio
       await refreshUser();
 
-      // Registration complete - navigate to contractor dashboard
-      Alert.alert(
-        'Registration Complete',
-        'Welcome! Your profile is now complete.',
-        [
-          {
-            text: 'Go to Dashboard',
-            onPress: () => router.replace('/(contractor)/dashboard'),
-          },
-        ]
-      );
+      // Registration complete - navigate to welcome page
+      router.replace('/auth/contractor/welcome');
     } catch (error: any) {
       console.error('Failed to save portfolio:', error);
       Alert.alert(
