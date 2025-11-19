@@ -21,6 +21,7 @@ import { colors, spacing, typography, borderRadius, shadows } from '../../../src
 import { TaxReport } from '../../../src/types/contractor';
 import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function TaxReportsScreen() {
   const router = useRouter();
@@ -134,10 +135,15 @@ export default function TaxReportsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Tax Reports</Text>
-        <TouchableOpacity onPress={handleExportPDF}>
-          <Text style={styles.exportButton}>📥 Export PDF</Text>
-        </TouchableOpacity>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Tax Reports</Text>
+          <TouchableOpacity onPress={handleExportPDF} style={styles.exportButtonContainer}>
+            <Ionicons name="download-outline" size={24} color={colors.primary.main} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -391,13 +397,21 @@ const styles = StyleSheet.create({
     color: colors.neutral[600],
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.lg,
     backgroundColor: colors.background.primary,
     ...shadows.sm,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  backButton: {
+    padding: spacing.sm,
+  },
+  exportButtonContainer: {
+    padding: spacing.sm,
   },
   headerTitle: {
     ...typography.sizes['2xl'],

@@ -24,6 +24,7 @@ import { colors, spacing, typography, borderRadius, shadows } from '../../../src
 import { MileageLog } from '../../../src/types/contractor';
 import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function MileageTracker() {
   const router = useRouter();
@@ -112,10 +113,15 @@ export default function MileageTracker() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mileage Tracker</Text>
-        <TouchableOpacity onPress={() => router.push('/(contractor)/mileage/map')}>
-          <Text style={styles.mapLink}>🗺️ Map View</Text>
-        </TouchableOpacity>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Mileage Tracker</Text>
+          <TouchableOpacity onPress={() => router.push('/(contractor)/mileage/map')}>
+            <Ionicons name="map" size={24} color={colors.primary.main} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Summary Cards */}
@@ -335,13 +341,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.secondary,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.lg,
     backgroundColor: colors.background.primary,
     ...shadows.sm,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  backButton: {
+    padding: spacing.sm,
   },
   headerTitle: {
     ...typography.sizes['2xl'],
