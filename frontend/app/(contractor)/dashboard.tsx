@@ -13,6 +13,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -76,10 +77,18 @@ export default function ContractorDashboard() {
             <Text style={styles.name}>{user?.firstName || 'Contractor'}</Text>
           </View>
           <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => router.push('/profile')}
+            style={styles.avatarButton}
+            onPress={() => router.push('/(contractor)/profile')}
           >
-            <Text style={styles.profileIcon}>👤</Text>
+            {user?.profilePhoto ? (
+              <Image source={{ uri: user.profilePhoto }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarInitials}>
+                  {user?.firstName?.[0]}{user?.lastName?.[0]}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -341,16 +350,33 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
   },
-  profileButton: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
-  profileIcon: {
-    fontSize: 24,
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.primary.main,
+  },
+  avatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary.lightest || `${colors.primary.main}20`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary.main,
+  },
+  avatarInitials: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary.main,
   },
   section: {
     marginTop: spacing.xl,

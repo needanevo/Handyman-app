@@ -416,6 +416,56 @@ class LinodeObjectStorage:
             logger.error(f"Failed to upload contractor portfolio photo: {e}")
             raise Exception(f"Contractor portfolio upload failed: {str(e)}")
 
+    async def upload_contractor_profile_photo(
+        self,
+        file_data: bytes,
+        contractor_id: str,
+        filename: str,
+        content_type: str = 'image/jpeg'
+    ) -> str:
+        """
+        Upload contractor profile photo/logo
+
+        Path: contractors/{contractor_id}/profile/{filename}
+        """
+        try:
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_key,
+                endpoint_url=self.endpoint_url,
+                region_name=self.region,
+                config=Config(
+                    signature_version='s3v4',
+                    s3={'addressing_style': 'path'},
+                    retries={'max_attempts': 3, 'mode': 'adaptive'},
+                    connect_timeout=60,
+                    read_timeout=60
+                )
+            )
+
+            # Organize: contractors/{contractor_id}/profile/{filename}
+            object_key = f"contractors/{contractor_id}/profile/{filename}"
+
+            s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=object_key,
+                Body=file_data,
+                ContentType=content_type,
+                ACL='public-read'
+            )
+            logger.info(f"📦 PUT contractor profile photo -> bucket={self.bucket_name} key={object_key}")
+            s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+            logger.info("✅ HEAD object ok")
+
+            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
+            logger.info(f"Uploaded contractor profile photo to: {public_url}")
+            return public_url
+
+        except Exception as e:
+            logger.error(f"Failed to upload contractor profile photo: {e}")
+            raise Exception(f"Contractor profile photo upload failed: {str(e)}")
+
     async def upload_contractor_job_photo(
         self,
         file_data: bytes,

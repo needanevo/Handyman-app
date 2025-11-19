@@ -22,6 +22,7 @@ export interface User {
     insurance?: string;
   };
   portfolioPhotos?: string[];
+  profilePhoto?: string;
 }
 
 export interface Address {
@@ -167,8 +168,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         serviceAreas: userData.service_areas,
         documents: userData.documents,
         portfolioPhotos: userData.portfolio_photos,
+        profilePhoto: userData.profile_photo,
       };
-      
+
       console.log('Transformed user data:', transformedUser);
       setUser(transformedUser);
       console.log('User set in context - isAuthenticated should now be true');

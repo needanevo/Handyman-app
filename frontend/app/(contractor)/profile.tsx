@@ -5,7 +5,7 @@
  * Includes navigation to registration steps for updating information.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,18 +13,23 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Card } from '../../src/components/Card';
 import { Button } from '../../src/components/Button';
+import { contractorAPI } from '../../src/services/api';
 
 export default function ContractorProfile() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -51,6 +56,104 @@ export default function ContractorProfile() {
     router.push('/auth/contractor/register-step1');
   };
 
+  const handleProfilePhotoPress = async () => {
+    // Request permissions
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert(
+        'Permission Required',
+        'Please allow access to your photo library to upload a profile photo.'
+      );
+      return;
+    }
+
+    // Show options: camera or gallery
+    Alert.alert(
+      'Upload Profile Photo',
+      'Choose a photo source',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Take Photo',
+          onPress: () => takePhoto(),
+        },
+        {
+          text: 'Choose from Gallery',
+          onPress: () => pickImage(),
+        },
+      ]
+    );
+  };
+
+  const takePhoto = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert(
+        'Permission Required',
+        'Please allow camera access to take a profile photo.'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await uploadProfilePhoto(result.assets[0].uri);
+    }
+  };
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await uploadProfilePhoto(result.assets[0].uri);
+    }
+  };
+
+  const uploadProfilePhoto = async (uri: string) => {
+    setIsUploadingPhoto(true);
+
+    try {
+      // Prepare file for upload
+      const fileExtension = uri.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
+
+      await contractorAPI.uploadProfilePhoto({
+        uri,
+        type: mimeType,
+        name: `profile.${fileExtension}`,
+      });
+
+      // Refresh user data to get updated profile photo
+      await refreshUser();
+
+      Alert.alert('Success', 'Profile photo updated successfully!');
+    } catch (error: any) {
+      console.error('Profile photo upload error:', error);
+      Alert.alert(
+        'Upload Failed',
+        error.response?.data?.detail || 'Failed to upload profile photo. Please try again.'
+      );
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const registrationStatusColor = () => {
     // This would be based on actual registration status from backend
     // For now, showing as ACTIVE
@@ -60,6 +163,12 @@ export default function ContractorProfile() {
   const registrationStatusText = () => {
     // This would be based on actual registration status from backend
     return 'ACTIVE';
+  };
+
+  const getInitials = () => {
+    const firstInitial = user?.firstName?.[0] || '';
+    const lastInitial = user?.lastName?.[0] || '';
+    return `${firstInitial}${lastInitial}`.toUpperCase();
   };
 
   return (
@@ -78,6 +187,40 @@ export default function ContractorProfile() {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Profile</Text>
           <View style={{ width: 40 }} />
+        </View>
+
+        {/* Profile Photo Section */}
+        <View style={styles.photoSection}>
+          <TouchableOpacity
+            onPress={handleProfilePhotoPress}
+            disabled={isUploadingPhoto}
+            style={styles.photoContainer}
+          >
+            {user?.profilePhoto ? (
+              <Image
+                source={{ uri: user.profilePhoto }}
+                style={styles.profilePhoto}
+              />
+            ) : (
+              <View style={styles.profilePhotoPlaceholder}>
+                <Text style={styles.profilePhotoInitials}>
+                  {getInitials()}
+                </Text>
+              </View>
+            )}
+
+            {isUploadingPhoto && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="large" color={colors.background.primary} />
+              </View>
+            )}
+
+            <View style={styles.cameraButton}>
+              <Ionicons name="camera" size={20} color={colors.background.primary} />
+            </View>
+          </TouchableOpacity>
+
+          <Text style={styles.photoHint}>Tap to change photo</Text>
         </View>
 
         {/* Profile Card */}
@@ -337,6 +480,69 @@ const styles = StyleSheet.create({
     ...typography.sizes['2xl'],
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
+  },
+  photoSection: {
+    alignItems: 'center',
+    paddingVertical: spacing['2xl'],
+    backgroundColor: colors.background.primary,
+  },
+  photoContainer: {
+    position: 'relative',
+    width: 120,
+    height: 120,
+    marginBottom: spacing.sm,
+  },
+  profilePhoto: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: colors.primary.main,
+    backgroundColor: colors.neutral[200],
+  },
+  profilePhotoPlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: colors.primary.main,
+    backgroundColor: colors.primary.main,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profilePhotoInitials: {
+    ...typography.sizes['4xl'],
+    fontWeight: typography.weights.bold,
+    color: colors.background.primary,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 60,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary.main,
+    borderWidth: 3,
+    borderColor: colors.background.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.md,
+  },
+  photoHint: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
   },
   section: {
     marginTop: spacing.xl,

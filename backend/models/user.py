@@ -45,6 +45,7 @@ class User(BaseModel):
     service_areas: List[str] = []  # Cities or zip codes they serve
     documents: Optional[dict] = None  # license, insurance, etc.
     portfolio_photos: List[str] = []  # Portfolio photo URLs
+    profile_photo: Optional[str] = None  # Profile picture/logo URL
     
 class UserCreate(BaseModel):
     email: EmailStr

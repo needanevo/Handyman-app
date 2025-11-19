@@ -381,6 +381,16 @@ export const contractorAPI = {
     return apiClient.postFormData<any>('/contractor/photos/portfolio', formData);
   },
 
+  uploadProfilePhoto: (file: { uri: string; type: string; name: string }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri.startsWith('file://') ? file.uri : `file://${file.uri}`,
+      type: file.type || 'image/jpeg',
+      name: file.name || 'profile.jpg',
+    } as any);
+    return apiClient.postFormData<any>('/contractor/profile-photo/upload', formData);
+  },
+
   uploadJobPhoto: (jobId: string, file: { uri: string; type: string; name: string }) => {
     const formData = new FormData();
     formData.append('file', {
