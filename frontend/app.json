@@ -12,6 +12,10 @@
       "supportsTablet": true,
       "config": {
         "googleMapsApiKey": "AIzaSyCjOirCcV1cFaAv5oAOilyz-5Fq_Xkua6s"
+      },
+      "bundleIdentifier": "com.therealjohnson.handyman",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -45,6 +49,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3b6e6008-fa4f-41fb-8b76-cf696bdd0855"
+      }
     }
   }
 }
