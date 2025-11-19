@@ -124,3 +124,6 @@ frontend/.env
 # Environment files
 *.env
 *.env.*
+.eas-temp
+nul
+providers.txt
