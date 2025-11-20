@@ -27,6 +27,8 @@ import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
 import { Badge } from '../../../src/components/Badge';
 import { PhotoCapture } from '../../../src/components/contractor/PhotoCapture';
+import { AppHeader } from '../../../src/components/AppHeader';
+import { exportExpensesToPDF, ExpenseExportData } from '../../../src/utils/pdfExport';
 
 export default function ExpensesScreen() {
   const router = useRouter();
@@ -112,24 +114,51 @@ export default function ExpensesScreen() {
     return EXPENSE_CATEGORIES.find((c) => c.value === category)?.icon || '💰';
   };
 
+  const handleExportPDF = async () => {
+    try {
+      const exportData: ExpenseExportData[] = (filteredExpenses || []).map((exp) => ({
+        id: exp.id,
+        category: exp.category,
+        description: exp.description,
+        amount: exp.amount,
+        vendor: exp.vendor,
+        date: exp.date,
+        notes: exp.notes,
+      }));
+
+      await exportExpensesToPDF(exportData, 'expense-report');
+      Alert.alert('Success', 'Expense report exported successfully!');
+    } catch (error) {
+      Alert.alert('Export Failed', 'Could not export expense report. Please try again.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Expenses</Text>
-        <Button
-          title="Add Expense"
-          onPress={() => setShowAddExpense(true)}
-          variant="primary"
-          size="small"
-        />
-      </View>
+      <AppHeader
+        title="Expenses"
+        showBack={true}
+        showDashboard={true}
+        rightElement={
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={handleExportPDF}
+              style={styles.exportButton}
+              accessibilityLabel="Export to PDF"
+            >
+              <Ionicons name="download-outline" size={24} color={colors.primary.main} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowAddExpense(true)}
+              style={styles.addButton}
+              accessibilityLabel="Add expense"
+            >
+              <Ionicons name="add-circle" size={28} color={colors.primary.main} />
+            </TouchableOpacity>
+          </View>
+        }
+      />
 
       {/* Summary Cards */}
       <ScrollView
@@ -417,27 +446,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.secondary,
   },
-  header: {
+  headerActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.lg,
-    backgroundColor: colors.background.primary,
-    ...shadows.sm,
+    gap: spacing.sm,
   },
-  backButton: {
+  exportButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
-    color: colors.neutral[900],
-    flex: 1,
-    marginLeft: spacing.sm,
+  addButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   summaryContainer: {
     marginTop: spacing.base,

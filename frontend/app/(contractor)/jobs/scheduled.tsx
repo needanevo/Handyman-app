@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { contractorAPI } from '../../../src/services/api';
+import { AppHeader } from '../../../src/components/AppHeader';
 
 export default function ScheduledJobsScreen() {
   const router = useRouter();
@@ -61,13 +62,7 @@ export default function ScheduledJobsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scheduled Jobs</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <AppHeader title="Scheduled Jobs" showBack={true} showDashboard={true} />
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -95,26 +90,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.primary,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
-  },
-  backButton: {
-    padding: spacing.sm,
-  },
-  headerTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
-    color: colors.neutral[900],
-  },
-  headerSpacer: {
-    width: 40,
   },
   loadingContainer: {
     flex: 1,

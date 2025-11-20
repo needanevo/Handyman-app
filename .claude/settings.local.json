@@ -30,7 +30,8 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(gh issue list:*)",
-      "Bash(sshpass -p '$1Jennifer$1Joshua' ssh -o StrictHostKeyChecking=no root@172.234.70.157 'cd /srv/handyman-app/Handyman-app-main && git pull origin dev && systemctl restart handyman-api && systemctl status handyman-api --no-pager')"
+      "Bash(sshpass -p '$1Jennifer$1Joshua' ssh -o StrictHostKeyChecking=no root@172.234.70.157 'cd /srv/handyman-app/Handyman-app-main && git pull origin dev && systemctl restart handyman-api && systemctl status handyman-api --no-pager')",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

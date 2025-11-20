@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { contractorAPI } from '../../../src/services/api';
+import { AppHeader } from '../../../src/components/AppHeader';
 
 export default function AcceptedJobsScreen() {
   const router = useRouter();
@@ -61,13 +62,7 @@ export default function AcceptedJobsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Accepted Jobs</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <AppHeader title="Accepted Jobs" showBack={true} showDashboard={true} />
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
