@@ -405,6 +405,62 @@ export const contractorAPI = {
   },
 };
 
+// Admin API
+export const adminAPI = {
+  // Dashboard stats
+  getDashboardStats: () => apiClient.get<{
+    users: {
+      total_customers: number;
+      total_contractors: number;
+      active_contractors: number;
+      new_customers_this_week: number;
+      new_contractors_this_week: number;
+    };
+    jobs: {
+      total: number;
+      pending: number;
+      in_progress: number;
+      completed: number;
+      cancelled: number;
+      completed_this_month: number;
+      completed_this_week: number;
+    };
+    revenue: {
+      total: number;
+      this_month: number;
+    };
+  }>('/admin/dashboard/stats'),
+
+  // Contractor management
+  getContractors: (filters?: {
+    status?: string;
+    skills?: string;
+    min_rating?: number;
+  }) => apiClient.get<any[]>('/admin/contractors', filters),
+
+  updateContractorStatus: (contractorId: string, updates: {
+    registration_status?: string;
+    is_active?: boolean;
+    notes?: string;
+  }) => apiClient.patch<any>(`/admin/contractors/${contractorId}`, updates),
+
+  // Customer management
+  getCustomers: (filters?: {
+    min_jobs?: number;
+    min_spent?: number;
+  }) => apiClient.get<any[]>('/admin/customers', filters),
+
+  // Job management
+  getJobs: (filters?: {
+    status_filter?: string;
+    contractor_id?: string;
+    customer_id?: string;
+  }) => apiClient.get<any[]>('/admin/jobs', filters),
+
+  assignJobToContractor: (jobId: string, contractorId: string) =>
+    apiClient.patch<any>(`/admin/jobs/${jobId}/assign`, { contractor_id: contractorId }),
+};
+
 // Health check
 export const healthAPI = {
   check: () => apiClient.get<{ status: string; timestamp: string }>('/health'),

@@ -14,7 +14,10 @@ export default function Index() {
     if (!isLoading) {
       if (isAuthenticated && user) {
         // Role-based routing
-        if (user.role === 'technician') {
+        if (user.role === 'admin') {
+          console.log('User is authenticated admin - navigating to admin dashboard');
+          router.replace('/(admin)/dashboard');
+        } else if (user.role === 'technician') {
           console.log('User is authenticated contractor - navigating to contractor dashboard');
           router.replace('/(contractor)/dashboard');
         } else {
