@@ -184,6 +184,9 @@ export default function ContractorRegisterStep3() {
     }
   };
 
+  // Ensure selectedSkills is always an array
+  const safeSelectedSkills = selectedSkills || [];
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -226,19 +229,19 @@ export default function ContractorRegisterStep3() {
                   key={skill}
                   style={[
                     styles.skillChip,
-                    selectedSkills.includes(skill) && styles.skillChipSelected,
+                    safeSelectedSkills.includes(skill) && styles.skillChipSelected,
                   ]}
                   onPress={() => toggleSkill(skill)}
                 >
                   <Text
                     style={[
                       styles.skillChipText,
-                      selectedSkills.includes(skill) && styles.skillChipTextSelected,
+                      safeSelectedSkills.includes(skill) && styles.skillChipTextSelected,
                     ]}
                   >
                     {skill}
                   </Text>
-                  {selectedSkills.includes(skill) && (
+                  {safeSelectedSkills.includes(skill) && (
                     <Ionicons name="checkmark-circle" size={18} color={colors.primary.main} />
                   )}
                 </TouchableOpacity>
@@ -246,13 +249,13 @@ export default function ContractorRegisterStep3() {
             </View>
 
             {/* Custom Skills Input (shown when "Other" is selected) */}
-            {selectedSkills.includes('Other') && (
+            {safeSelectedSkills.includes('Other') && (
               <View style={styles.customSkillsSection}>
                 <Controller
                   control={control}
                   name="customSkills"
                   rules={{
-                    required: selectedSkills.includes('Other') ? 'Please specify your custom skills' : false
+                    required: safeSelectedSkills.includes('Other') ? 'Please specify your custom skills' : false
                   }}
                   render={({ field: { onChange, value } }) => (
                     <Input
@@ -261,7 +264,7 @@ export default function ContractorRegisterStep3() {
                       onChangeText={onChange}
                       placeholder="e.g., Tile work, Fence installation, Pool maintenance"
                       error={errors.customSkills?.message}
-                      required={selectedSkills.includes('Other')}
+                      required={safeSelectedSkills.includes('Other')}
                       multiline
                       numberOfLines={3}
                       icon="create-outline"
