@@ -50,13 +50,24 @@ export default function ContractorRegisterStep3() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isLoading: authLoading } = useAuth();
   const [selectedSkills, setSelectedSkills] = useState<string[]>(
     Array.isArray(user?.skills) ? user.skills : []
   );
   const [verifiedAddress, setVerifiedAddress] = useState<AddressComponents | null>(null);
 
   const businessAddress = user?.addresses && user.addresses.length > 0 ? user.addresses[0] : null;
+
+  // Don't render until user is loaded
+  if (authLoading || !user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const {
     control,

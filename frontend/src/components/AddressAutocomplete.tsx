@@ -51,6 +51,31 @@ export function AddressAutocomplete({
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<AddressComponents | null>(null);
   const autocompleteRef = useRef<any>(null);
+  const [hasError, setHasError] = useState(false);
+
+  // Check if API key exists
+  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
+
+  if (!apiKey || hasError) {
+    return (
+      <View style={styles.container}>
+        {label && (
+          <Text style={styles.label}>
+            {label}
+            {required && <Text style={styles.required}> *</Text>}
+          </Text>
+        )}
+        <View style={[styles.textInputContainer, styles.textInputError]}>
+          <Text style={styles.errorText}>
+            ⚠️ Address autocomplete temporarily unavailable. Please enter address manually in the backend.
+          </Text>
+        </View>
+        <Text style={styles.helpText}>
+          Contact support if this issue persists.
+        </Text>
+      </View>
+    );
+  }
 
   const parseAddressComponents = (place: any): AddressComponents | null => {
     const components = place.address_components || [];
@@ -126,8 +151,12 @@ export function AddressAutocomplete({
         ref={autocompleteRef}
         placeholder={placeholder}
         onPress={handlePlaceSelect}
+        onFail={(error) => {
+          console.error('Google Places error:', error);
+          setHasError(true);
+        }}
         query={{
-          key: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || '',
+          key: apiKey,
           language: 'en',
           types: 'address',
           components: 'country:us', // Restrict to US addresses
