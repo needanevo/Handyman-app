@@ -196,10 +196,13 @@ export const quotesAPI = {
 
 // Profile API
 export const profileAPI = {
-  addAddress: (address: any) => 
+  addAddress: (address: any) =>
     apiClient.post<any>('/profile/addresses', address),
-  
-  getAddresses: () => 
+
+  updateBusinessAddress: (address: any) =>
+    apiClient.put<any>('/profile/addresses/business', address),
+
+  getAddresses: () =>
     apiClient.get<any[]>('/profile/addresses'),
 };
 

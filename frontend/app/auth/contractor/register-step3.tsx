@@ -113,31 +113,21 @@ export default function ContractorRegisterStep3() {
     try {
       const { profileAPI } = await import('../../../src/services/api');
 
-      // Check if address has changed before updating
-      const addressChanged = !businessAddress ||
-        businessAddress.street !== data.businessStreet ||
-        businessAddress.city !== data.businessCity ||
-        businessAddress.state !== data.businessState ||
-        businessAddress.zipCode !== data.businessZip;
-
-      if (addressChanged) {
-        console.log('Updating business address...');
-        try {
-          await profileAPI.addAddress({
-            street: data.businessStreet,
-            city: data.businessCity,
-            state: data.businessState,
-            zip_code: data.businessZip,
-            is_default: true,
-          });
-          console.log('Address updated successfully');
-        } catch (addressError: any) {
-          console.error('Address update failed:', addressError);
-          console.error('Address error details:', addressError.response?.data);
-          throw new Error(`Address update failed: ${addressError.response?.data?.detail || addressError.message}`);
-        }
-      } else {
-        console.log('Address unchanged, skipping update');
+      // Always update business address (uses PUT to replace, not add duplicates)
+      console.log('Updating business address...');
+      try {
+        await profileAPI.updateBusinessAddress({
+          street: data.businessStreet,
+          city: data.businessCity,
+          state: data.businessState,
+          zip_code: data.businessZip,
+          is_default: true,
+        });
+        console.log('Address updated successfully');
+      } catch (addressError: any) {
+        console.error('Address update failed:', addressError);
+        console.error('Address error details:', addressError.response?.data);
+        throw new Error(`Address update failed: ${addressError.response?.data?.detail || addressError.message}`);
       }
 
       // Save contractor profile (skills, experience, business name)

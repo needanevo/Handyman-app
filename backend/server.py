@@ -1391,6 +1391,43 @@ async def add_address(
     return {"message": "Address added successfully", "address_id": address.id}
 
 
+@api_router.put("/profile/addresses/business")
+async def update_business_address(
+    address: Address, current_user: User = Depends(get_current_user_dependency)
+):
+    """Update or set business address (replaces first address or adds if none exist)"""
+    # Geocode address if maps provider is available
+    if maps_provider:
+        try:
+            geocode_result = await maps_provider.geocode(
+                f"{address.street}, {address.city}, {address.state} {address.zip_code}"
+            )
+            if geocode_result:
+                address.latitude = geocode_result["latitude"]
+                address.longitude = geocode_result["longitude"]
+                logger.info(f"Geocoded address: {address.latitude}, {address.longitude}")
+        except Exception as e:
+            logger.warning(f"Geocoding failed: {e}")
+
+    # Replace first address or add if no addresses exist
+    if current_user.addresses and len(current_user.addresses) > 0:
+        # Update first address (business address)
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"addresses.0": address.model_dump()}}
+        )
+        logger.info(f"Updated business address for user {current_user.id}")
+    else:
+        # No addresses exist, add the first one
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$push": {"addresses": address.model_dump()}}
+        )
+        logger.info(f"Added first business address for user {current_user.id}")
+
+    return {"message": "Business address updated successfully", "address": address.model_dump()}
+
+
 @api_router.get("/profile/addresses", response_model=List[Address])
 async def get_addresses(current_user: User = Depends(get_current_user_dependency)):
     """Get user addresses"""
