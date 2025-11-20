@@ -111,24 +111,41 @@ export default function ContractorRegisterStep3() {
 
     setIsLoading(true);
     try {
-      // Save business address - backend will geocode and add lat/lon
       const { profileAPI } = await import('../../../src/services/api');
-      await profileAPI.addAddress({
-        street: data.businessStreet,
-        city: data.businessCity,
-        state: data.businessState,
-        zip_code: data.businessZip,  // Backend expects snake_case
-        is_default: true,  // Backend expects snake_case
-      });
+
+      // Check if address has changed before updating
+      const addressChanged = !businessAddress ||
+        businessAddress.street !== data.businessStreet ||
+        businessAddress.city !== data.businessCity ||
+        businessAddress.state !== data.businessState ||
+        businessAddress.zipCode !== data.businessZip;
+
+      if (addressChanged) {
+        console.log('Updating business address...');
+        try {
+          await profileAPI.addAddress({
+            street: data.businessStreet,
+            city: data.businessCity,
+            state: data.businessState,
+            zip_code: data.businessZip,
+            is_default: true,
+          });
+          console.log('Address updated successfully');
+        } catch (addressError: any) {
+          console.error('Address update failed:', addressError);
+          console.error('Address error details:', addressError.response?.data);
+          throw new Error(`Address update failed: ${addressError.response?.data?.detail || addressError.message}`);
+        }
+      } else {
+        console.log('Address unchanged, skipping update');
+      }
 
       // Save contractor profile (skills, experience, business name)
-      // Get business name from params (set in Step 1) or user context
       const businessName = (params.businessName as string) || user?.businessName;
 
       // Combine selected skills with custom skills (if "Other" is selected)
       const allSkills = [...selectedSkills];
       if (selectedSkills.includes('Other') && data.customSkills) {
-        // Add custom skills to the skills array
         const customSkillsList = data.customSkills
           .split(',')
           .map(s => s.trim())
@@ -136,16 +153,26 @@ export default function ContractorRegisterStep3() {
         allSkills.push(...customSkillsList);
       }
 
-      await contractorAPI.updateProfile({
-        skills: allSkills,
-        years_experience: parseInt(data.yearsExperience) || 0,
-        ...(businessName && { business_name: businessName }),
-      });
+      console.log('Updating contractor profile...', { allSkills, yearsExperience: data.yearsExperience, businessName });
+      try {
+        await contractorAPI.updateProfile({
+          skills: allSkills,
+          years_experience: parseInt(data.yearsExperience) || 0,
+          ...(businessName && { business_name: businessName }),
+        });
+        console.log('Profile updated successfully');
+      } catch (profileError: any) {
+        console.error('Profile update failed:', profileError);
+        console.error('Profile error details:', profileError.response?.data);
+        throw new Error(`Profile update failed: ${profileError.response?.data?.detail || profileError.message}`);
+      }
 
       // Refresh user context to get updated profile
+      console.log('Refreshing user data...');
       await refreshUser();
 
       // Navigate to next step
+      console.log('Navigating to step 4...');
       router.push({
         pathname: '/auth/contractor/register-step4',
         params: {
@@ -158,7 +185,7 @@ export default function ContractorRegisterStep3() {
       console.error('Profile save error:', error);
       Alert.alert(
         'Error',
-        error.response?.data?.detail || 'Failed to save profile information'
+        error.message || error.response?.data?.detail || 'Failed to save profile information'
       );
     } finally {
       setIsLoading(false);
