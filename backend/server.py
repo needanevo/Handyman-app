@@ -2061,6 +2061,306 @@ async def send_quote(quote_id: str, current_user: User = Depends(require_admin))
     return {"message": "Quote sent successfully"}
 
 
+@api_router.get("/admin/dashboard/stats")
+async def get_admin_dashboard_stats(current_user: User = Depends(require_admin)):
+    """
+    Get comprehensive dashboard statistics for admin.
+
+    Returns counts and metrics for users, jobs, revenue, and system health.
+    """
+    now = datetime.utcnow()
+    month_start = datetime(now.year, now.month, 1)
+    year_start = datetime(now.year, 1, 1)
+
+    # User statistics
+    total_customers = await db.users.count_documents({"role": UserRole.CUSTOMER})
+    total_contractors = await db.users.count_documents({"role": UserRole.TECHNICIAN})
+    active_contractors = await db.users.count_documents({
+        "role": UserRole.TECHNICIAN,
+        "is_active": True
+    })
+
+    # Job statistics
+    total_jobs = await db.jobs.count_documents({})
+    pending_jobs = await db.jobs.count_documents({"status": "pending"})
+    in_progress_jobs = await db.jobs.count_documents({"status": "in_progress"})
+    completed_jobs = await db.jobs.count_documents({"status": "completed"})
+
+    completed_this_month = await db.jobs.count_documents({
+        "status": "completed",
+        "completed_at": {"$gte": month_start.isoformat()}
+    })
+
+    # Revenue statistics
+    revenue_pipeline = [
+        {"$match": {"status": "completed"}},
+        {"$group": {"_id": None, "total": {"$sum": "$agreed_amount"}}}
+    ]
+    revenue_result = await db.jobs.aggregate(revenue_pipeline).to_list(1)
+    total_revenue = revenue_result[0]["total"] if revenue_result else 0
+
+    revenue_month_pipeline = [
+        {
+            "$match": {
+                "status": "completed",
+                "completed_at": {"$gte": month_start.isoformat()}
+            }
+        },
+        {"$group": {"_id": None, "total": {"$sum": "$agreed_amount"}}}
+    ]
+    revenue_month_result = await db.jobs.aggregate(revenue_month_pipeline).to_list(1)
+    revenue_this_month = revenue_month_result[0]["total"] if revenue_month_result else 0
+
+    # Recent activity (last 7 days)
+    seven_days_ago = now - timedelta(days=7)
+    new_customers_week = await db.users.count_documents({
+        "role": UserRole.CUSTOMER,
+        "created_at": {"$gte": seven_days_ago.isoformat()}
+    })
+    new_contractors_week = await db.users.count_documents({
+        "role": UserRole.TECHNICIAN,
+        "created_at": {"$gte": seven_days_ago.isoformat()}
+    })
+    new_jobs_week = await db.jobs.count_documents({
+        "created_at": {"$gte": seven_days_ago.isoformat()}
+    })
+
+    return {
+        "users": {
+            "total_customers": total_customers,
+            "total_contractors": total_contractors,
+            "active_contractors": active_contractors,
+            "new_customers_this_week": new_customers_week,
+            "new_contractors_this_week": new_contractors_week,
+        },
+        "jobs": {
+            "total": total_jobs,
+            "pending": pending_jobs,
+            "in_progress": in_progress_jobs,
+            "completed": completed_jobs,
+            "completed_this_month": completed_this_month,
+            "new_this_week": new_jobs_week,
+        },
+        "revenue": {
+            "total": total_revenue,
+            "this_month": revenue_this_month,
+        },
+        "generated_at": now.isoformat(),
+    }
+
+
+@api_router.get("/admin/contractors")
+async def get_all_contractors(
+    current_user: User = Depends(require_admin),
+    limit: int = 100,
+    offset: int = 0,
+):
+    """
+    Get all contractors with their stats and status.
+
+    Returns contractor profiles, job counts, and revenue data.
+    """
+    contractors_cursor = db.users.find({"role": UserRole.TECHNICIAN}).skip(offset).limit(limit)
+    contractors = await contractors_cursor.to_list(length=limit)
+
+    # Enhance each contractor with job stats
+    enhanced_contractors = []
+    for contractor in contractors:
+        # Count jobs
+        total_jobs = await db.jobs.count_documents({"contractor_id": contractor["id"]})
+        completed_jobs = await db.jobs.count_documents({
+            "contractor_id": contractor["id"],
+            "status": "completed"
+        })
+
+        # Calculate total revenue
+        revenue_pipeline = [
+            {"$match": {"contractor_id": contractor["id"], "status": "completed"}},
+            {"$group": {"_id": None, "total": {"$sum": "$agreed_amount"}}}
+        ]
+        revenue_result = await db.jobs.aggregate(revenue_pipeline).to_list(1)
+        total_revenue = revenue_result[0]["total"] if revenue_result else 0
+
+        enhanced_contractors.append({
+            "id": contractor["id"],
+            "email": contractor["email"],
+            "first_name": contractor.get("first_name"),
+            "last_name": contractor.get("last_name"),
+            "phone": contractor.get("phone"),
+            "business_name": contractor.get("business_name"),
+            "skills": contractor.get("skills", []),
+            "is_active": contractor.get("is_active", True),
+            "created_at": contractor.get("created_at"),
+            "stats": {
+                "total_jobs": total_jobs,
+                "completed_jobs": completed_jobs,
+                "total_revenue": total_revenue,
+            }
+        })
+
+    return {
+        "contractors": enhanced_contractors,
+        "total": await db.users.count_documents({"role": UserRole.TECHNICIAN}),
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@api_router.get("/admin/customers")
+async def get_all_customers(
+    current_user: User = Depends(require_admin),
+    limit: int = 100,
+    offset: int = 0,
+):
+    """
+    Get all customers with their job history and spending.
+
+    Returns customer profiles and job statistics.
+    """
+    customers_cursor = db.users.find({"role": UserRole.CUSTOMER}).skip(offset).limit(limit)
+    customers = await customers_cursor.to_list(length=limit)
+
+    # Enhance each customer with job stats
+    enhanced_customers = []
+    for customer in customers:
+        # Count jobs
+        total_jobs = await db.jobs.count_documents({"customer_id": customer["id"]})
+        completed_jobs = await db.jobs.count_documents({
+            "customer_id": customer["id"],
+            "status": "completed"
+        })
+
+        # Calculate total spent
+        spending_pipeline = [
+            {"$match": {"customer_id": customer["id"], "status": "completed"}},
+            {"$group": {"_id": None, "total": {"$sum": "$agreed_amount"}}}
+        ]
+        spending_result = await db.jobs.aggregate(spending_pipeline).to_list(1)
+        total_spent = spending_result[0]["total"] if spending_result else 0
+
+        enhanced_customers.append({
+            "id": customer["id"],
+            "email": customer["email"],
+            "first_name": customer.get("first_name"),
+            "last_name": customer.get("last_name"),
+            "phone": customer.get("phone"),
+            "is_active": customer.get("is_active", True),
+            "created_at": customer.get("created_at"),
+            "stats": {
+                "total_jobs": total_jobs,
+                "completed_jobs": completed_jobs,
+                "total_spent": total_spent,
+            }
+        })
+
+    return {
+        "customers": enhanced_customers,
+        "total": await db.users.count_documents({"role": UserRole.CUSTOMER}),
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@api_router.get("/admin/jobs")
+async def get_all_jobs_admin(
+    current_user: User = Depends(require_admin),
+    status_filter: Optional[str] = None,
+    contractor_id: Optional[str] = None,
+    customer_id: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """
+    Get all jobs with filtering options (admin only).
+
+    Allows filtering by status, contractor, or customer.
+    """
+    query = {}
+    if status_filter:
+        query["status"] = status_filter
+    if contractor_id:
+        query["contractor_id"] = contractor_id
+    if customer_id:
+        query["customer_id"] = customer_id
+
+    jobs = await db.jobs.find(query).sort("created_at", -1).skip(offset).limit(limit).to_list(limit)
+    total = await db.jobs.count_documents(query)
+
+    return {
+        "jobs": jobs,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@api_router.patch("/admin/contractors/{contractor_id}")
+async def update_contractor_status(
+    contractor_id: str,
+    update_data: dict,
+    current_user: User = Depends(require_admin),
+):
+    """
+    Update contractor status or details (admin only).
+
+    Allows activating/deactivating contractors or updating their information.
+    """
+    contractor = await db.users.find_one({"id": contractor_id, "role": UserRole.TECHNICIAN})
+    if not contractor:
+        raise HTTPException(404, detail="Contractor not found")
+
+    # Update contractor
+    result = await db.users.update_one(
+        {"id": contractor_id},
+        {"$set": {**update_data, "updated_at": datetime.utcnow().isoformat()}}
+    )
+
+    if result.modified_count > 0:
+        logger.info(f"Admin {current_user.id} updated contractor {contractor_id}")
+        return {"message": "Contractor updated successfully"}
+    else:
+        raise HTTPException(500, detail="Failed to update contractor")
+
+
+@api_router.patch("/admin/jobs/{job_id}/assign")
+async def assign_job_to_contractor(
+    job_id: str,
+    contractor_id: str = Body(..., embed=True),
+    current_user: User = Depends(require_admin),
+):
+    """
+    Manually assign a job to a contractor (admin only).
+
+    Overrides automatic job claiming system for manual assignment.
+    """
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    contractor = await db.users.find_one({"id": contractor_id, "role": UserRole.TECHNICIAN})
+    if not contractor:
+        raise HTTPException(404, detail="Contractor not found")
+
+    # Assign job
+    result = await db.jobs.update_one(
+        {"id": job_id},
+        {
+            "$set": {
+                "contractor_id": contractor_id,
+                "status": "accepted",
+                "assigned_at": datetime.utcnow().isoformat(),
+                "assigned_by_admin": True,
+            }
+        }
+    )
+
+    if result.modified_count > 0:
+        logger.info(f"Admin {current_user.id} assigned job {job_id} to contractor {contractor_id}")
+        return {"message": "Job assigned successfully"}
+    else:
+        raise HTTPException(500, detail="Failed to assign job")
+
+
 # ==================== UTILITY ROUTES ====================
 
 
