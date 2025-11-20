@@ -19,7 +19,7 @@ import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
 import { AddressAutocomplete, AddressComponents } from '../../../src/components/AddressAutocomplete';
 import { useAuth } from '../../../src/contexts/AuthContext';
-import { contractorAPI } from '../../../src/services/api';
+import { profileAPI, contractorAPI } from '../../../src/services/api';
 
 const SERVICE_CATEGORIES = [
   'Drywall',
@@ -97,20 +97,8 @@ export default function ContractorRegisterStep3() {
     }
 
     setIsLoading(true);
-    try {
-      // Save business address with verified coordinates
-      const { profileAPI } = await import('../../../src/services/api');
-      await profileAPI.addAddress({
-        street: verifiedAddress.street,
-        city: verifiedAddress.city,
-        state: verifiedAddress.state,
-        zip_code: verifiedAddress.zipCode,  // Backend expects snake_case
-        is_default: true,  // Backend expects snake_case
-        latitude: verifiedAddress.latitude,  // Add verified coordinates
-        longitude: verifiedAddress.longitude,
-      });
 
-      // Save contractor profile (skills, experience, business name)
+    try {
       // Get business name from params (set in Step 1) or user context
       const businessName = (params.businessName as string) || user?.businessName;
 
@@ -125,11 +113,51 @@ export default function ContractorRegisterStep3() {
         allSkills.push(...customSkillsList);
       }
 
-      await contractorAPI.updateProfile({
-        skills: allSkills,
-        years_experience: parseInt(data.yearsExperience) || 0,
-        ...(businessName && { business_name: businessName }),
-      });
+      // Save both address and profile in one try block with clear error handling
+      let addressSaved = false;
+      let profileSaved = false;
+
+      try {
+        // Step 1: Save business address with verified coordinates
+        await profileAPI.addAddress({
+          street: verifiedAddress.street,
+          city: verifiedAddress.city,
+          state: verifiedAddress.state,
+          zip_code: verifiedAddress.zipCode,  // Backend expects snake_case
+          is_default: true,  // Backend expects snake_case
+          latitude: verifiedAddress.latitude,  // Add verified coordinates
+          longitude: verifiedAddress.longitude,
+        });
+        addressSaved = true;
+        console.log('✅ Address saved successfully');
+
+        // Step 2: Save contractor profile (skills, experience, business name)
+        await contractorAPI.updateProfile({
+          skills: allSkills,
+          years_experience: parseInt(data.yearsExperience) || 0,
+          ...(businessName && { business_name: businessName }),
+        });
+        profileSaved = true;
+        console.log('✅ Profile saved successfully');
+
+      } catch (saveError: any) {
+        console.error('Save error:', saveError);
+
+        // Provide clear feedback about what succeeded and what failed
+        if (addressSaved && !profileSaved) {
+          Alert.alert(
+            'Partial Save',
+            'Your business address was saved, but profile update failed. Please contact support or try again.\n\nError: ' +
+            (saveError.response?.data?.detail || saveError.message || 'Unknown error'),
+            [{ text: 'OK' }]
+          );
+          // Don't throw - address is saved, let user continue or retry
+          throw saveError; // Re-throw to prevent navigation
+        } else {
+          // Address save failed - this is critical
+          throw saveError;
+        }
+      }
 
       // Refresh user context to get updated profile
       await refreshUser();
@@ -143,11 +171,29 @@ export default function ContractorRegisterStep3() {
           yearsExperience: data.yearsExperience
         },
       });
+
     } catch (error: any) {
       console.error('Profile save error:', error);
+
+      // Extract detailed error message
+      let errorMessage = 'Failed to save profile information. Please try again.';
+
+      if (error.response?.data?.detail) {
+        if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        } else if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail
+            .map((err: any) => err.msg || JSON.stringify(err))
+            .join('\n');
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       Alert.alert(
         'Error',
-        error.response?.data?.detail || 'Failed to save profile information'
+        errorMessage,
+        [{ text: 'OK' }]
       );
     } finally {
       setIsLoading(false);
