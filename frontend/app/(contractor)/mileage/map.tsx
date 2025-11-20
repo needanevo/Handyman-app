@@ -53,6 +53,11 @@ export default function ContractorGeofenceMap() {
     // Get contractor's business address (first address)
     const businessAddress = user?.addresses?.[0];
 
+    console.log('=== MAP DEBUG ===');
+    console.log('User addresses:', user?.addresses);
+    console.log('Business address:', businessAddress);
+    console.log('Lat/Lon:', businessAddress?.latitude, businessAddress?.longitude);
+
     if (!businessAddress) {
       Alert.alert(
         'No Business Address',
