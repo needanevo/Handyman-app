@@ -52,9 +52,11 @@ export default function ContractorRegisterStep3() {
   const [isLoading, setIsLoading] = useState(false);
   const { user, refreshUser } = useAuth();
   const [selectedSkills, setSelectedSkills] = useState<string[]>(
-    user?.skills || []
+    Array.isArray(user?.skills) ? user.skills : []
   );
   const [verifiedAddress, setVerifiedAddress] = useState<AddressComponents | null>(null);
+
+  const businessAddress = user?.addresses && user.addresses.length > 0 ? user.addresses[0] : null;
 
   const {
     control,
@@ -64,12 +66,12 @@ export default function ContractorRegisterStep3() {
     watch,
   } = useForm<Step3Form>({
     defaultValues: {
-      skills: user?.skills || [],
+      skills: Array.isArray(user?.skills) ? user.skills : [],
       yearsExperience: user?.yearsExperience?.toString() || '',
-      businessStreet: user?.addresses?.[0]?.street || '',
-      businessCity: user?.addresses?.[0]?.city || '',
-      businessState: user?.addresses?.[0]?.state || '',
-      businessZip: user?.addresses?.[0]?.zipCode || '',
+      businessStreet: businessAddress?.street || '',
+      businessCity: businessAddress?.city || '',
+      businessState: businessAddress?.state || '',
+      businessZip: businessAddress?.zipCode || '',
       customSkills: '',
     },
   });
@@ -78,15 +80,16 @@ export default function ContractorRegisterStep3() {
   const skills = watch('skills');
 
   const toggleSkill = (skill: string) => {
-    const newSkills = selectedSkills.includes(skill)
-      ? selectedSkills.filter((s) => s !== skill)
-      : [...selectedSkills, skill];
+    const currentSkills = selectedSkills || [];
+    const newSkills = currentSkills.includes(skill)
+      ? currentSkills.filter((s) => s !== skill)
+      : [...currentSkills, skill];
     setSelectedSkills(newSkills);
     setValue('skills', newSkills);
   };
 
   const onSubmit = async (data: Step3Form) => {
-    if (selectedSkills.length === 0) {
+    if (!selectedSkills || selectedSkills.length === 0) {
       Alert.alert('Error', 'Please select at least one skill');
       return;
     }
