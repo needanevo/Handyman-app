@@ -112,8 +112,15 @@ You'll see a large text box at the top of the window labeled "URI" or "Connectio
    - If so, select all the text (Ctrl+A on Windows, Cmd+A on Mac) and delete it
 
 2. **Copy this connection string** (click the copy button on the right):
+
+   **Option 1 (Recommended - Most Compatible):**
    ```
-   mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?appName=Cluster0&w=majority&tlsAllowInvalidCertificates=true
+   mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true
+   ```
+
+   **Option 2 (If Option 1 fails):**
+   ```
+   mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?ssl=true&authSource=admin
    ```
 
 3. **Paste it into the text box:**
@@ -354,6 +361,50 @@ To convert to your local time, add or subtract hours based on your timezone:
 
 ## Troubleshooting
 
+### Problem: SSL/TLS Error (TLSV1_ALERT_INTERNAL_ERROR)
+
+**Error Message**: `error:10000438:SSL routines:OPENSSL_internal:TLSV1_ALERT_INTERNAL_ERROR`
+
+**Cause**: MongoDB Compass cannot establish a secure SSL/TLS connection to the database
+
+**Solutions (try in order):**
+
+**Solution A: Use Updated Connection String**
+1. Close MongoDB Compass completely
+2. Reopen MongoDB Compass
+3. Use **Option 1** connection string from the guide (includes `tlsAllowInvalidCertificates=true`)
+4. Try connecting again
+
+**Solution B: Connect Using Manual Configuration**
+1. In MongoDB Compass, instead of pasting the connection string, click **"Fill in connection fields individually"** (look for this link below the connection string box)
+2. Enter these values in each field:
+   - **Hostname**: `cluster0.d5iqsxn.mongodb.net`
+   - **Port**: Leave blank (will auto-fill to 27017)
+   - **Authentication**: Select "Username / Password"
+   - **Username**: `needanevo`
+   - **Password**: `$1Jennifer`
+   - **Authentication Database**: `admin`
+3. Click on **"More Options"** at the bottom
+4. Find the **SSL** section
+5. Change **SSL** dropdown to: **"System CA / Atlas Deployment"**
+6. **Check the box** for "Allow invalid certificates" or "TLS Allow Invalid Certificates"
+7. Click **Connect**
+
+**Solution C: Update MongoDB Compass**
+1. Close MongoDB Compass
+2. Go to: https://www.mongodb.com/try/download/compass
+3. Download the latest version
+4. Install it (will update your existing installation)
+5. Try connecting again with Option 1 connection string
+
+**Solution D: Try Non-SRV Connection String**
+If the `mongodb+srv://` format doesn't work, try the standard format:
+```
+mongodb://needanevo:$1Jennifer@cluster0-shard-00-00.d5iqsxn.mongodb.net:27017,cluster0-shard-00-01.d5iqsxn.mongodb.net:27017,cluster0-shard-00-02.d5iqsxn.mongodb.net:27017/?ssl=true&replicaSet=atlas-xxxxx-shard-0&authSource=admin&retryWrites=true&w=majority
+```
+
+**Note**: You may need to get the exact replica set name from your MongoDB Atlas dashboard.
+
 ### Problem: "Cannot connect to server"
 
 **Possible Causes:**
@@ -444,12 +495,18 @@ To convert to your local time, add or subtract hours based on your timezone:
 
 ---
 
-## Quick Reference - Connection String
+## Quick Reference - Connection Strings
 
-**Save this connection string** for easy access:
+**Save these connection strings** for easy access:
 
+**Option 1 (Recommended - Most Compatible):**
 ```
-mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?appName=Cluster0&w=majority&tlsAllowInvalidCertificates=true
+mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true
+```
+
+**Option 2 (If you get SSL/TLS errors):**
+```
+mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?ssl=true&authSource=admin
 ```
 
 **Important Notes:**
