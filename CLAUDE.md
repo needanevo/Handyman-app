@@ -20,6 +20,108 @@ scp file.py root@172.234.70.157:/srv/handyman-app/
 
 ---
 
+## 📋 COMPLETE API ENDPOINT REFERENCE
+
+### Authentication Endpoints
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/auth/register` | Register new user (customer or contractor) | No |
+| POST | `/api/auth/login` | Login and get JWT tokens | No |
+| POST | `/api/auth/refresh` | Refresh access token using refresh token | No |
+| GET | `/api/auth/me` | Get current user profile | Yes |
+
+### Contractor Profile Endpoints
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| PATCH | `/api/contractors/documents` | Update contractor documents (license, insurance, business_license) | Contractor |
+| PATCH | `/api/contractors/portfolio` | Update contractor portfolio photos | Contractor |
+| PATCH | `/api/contractors/profile` | Update contractor profile (skills, experience, business_name) | Contractor |
+| POST | `/api/contractor/profile-photo/upload` | Upload contractor profile photo/logo | Contractor |
+
+### Contractor Jobs Endpoints
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/contractor/dashboard/stats` | Get dashboard statistics (job counts, revenue, expenses, mileage) | Contractor |
+| GET | `/api/contractor/jobs/available` | Get available jobs within 50-mile radius matching skills | Contractor |
+| GET | `/api/contractor/jobs/accepted` | Get jobs accepted by contractor (pending/accepted status) | Contractor |
+| GET | `/api/contractor/jobs/scheduled` | Get jobs scheduled with date/time | Contractor |
+| GET | `/api/contractor/jobs/completed` | Get completed jobs (sorted by completion date) | Contractor |
+
+### Contractor Photo Uploads
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/contractor/photos/document` | Upload contractor document (license, insurance, business_license) | Contractor |
+| POST | `/api/contractor/photos/portfolio` | Upload portfolio photo | Contractor |
+| POST | `/api/contractor/photos/job/{job_id}` | Upload job photo | Contractor |
+
+### User Profile Endpoints
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/profile/addresses` | Add new address to user profile | Yes |
+| PUT | `/api/profile/addresses/business` | Update/replace business address (with geocoding) | Yes |
+| GET | `/api/profile/addresses` | Get all user addresses | Yes |
+
+### Customer Endpoints (Planned)
+| Method | Endpoint | Description | Auth Required | Status |
+|--------|----------|-------------|---------------|--------|
+| POST | `/api/jobs` | Create new job request | Customer | 🔴 TODO |
+| GET | `/api/jobs` | Get customer's jobs | Customer | 🔴 TODO |
+| GET | `/api/jobs/{id}` | Get job details | Customer | 🔴 TODO |
+| PATCH | `/api/jobs/{id}` | Update job (cancel, etc.) | Customer | 🔴 TODO |
+| POST | `/api/jobs/{id}/photos` | Upload job photos | Customer | 🔴 TODO |
+| GET | `/api/quotes/{id}` | Get quote details | Customer | ✅ EXISTS |
+| POST | `/api/quotes/request` | Request a quote | Customer | ✅ EXISTS |
+
+### Health & System
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/health` | Health check endpoint | No |
+
+---
+
+## 🎉 RECENT UPDATES (2025-11-19)
+
+### Session Summary: Contractor Registration & Job System Fixes
+
+**What Was Fixed:**
+1. ✅ **Contractor Registration Completion** - Fixed 422 error in Step 4 portfolio upload
+2. ✅ **Address Geocoding** - Geocoded contractor business address using Nominatim (OpenStreetMap)
+3. ✅ **Geofence Map** - Map now displays contractor location and 50-mile service radius
+4. ✅ **Duplicate Address Prevention** - Created `PUT /profile/addresses/business` to replace instead of add
+5. ✅ **Contractor Job Endpoints** - Added accepted, scheduled, and completed jobs endpoints
+6. ✅ **Web Platform Support** - Fixed react-native-maps to work on web with graceful fallback
+7. ✅ **Tunnel Mode** - Configured Expo to use tunnel mode by default for stable dev server
+
+**Key Technical Changes:**
+
+**Backend (`server.py`):**
+- Added `PUT /profile/addresses/business` - Updates business address with automatic geocoding
+- Added `GET /contractor/jobs/accepted` - Returns accepted jobs for contractor
+- Added `GET /contractor/jobs/scheduled` - Returns scheduled jobs sorted by date
+- Added `GET /contractor/jobs/completed` - Returns completed jobs sorted by completion date
+- Fixed `PATCH /contractors/portfolio` - Changed from `List[str]` to `dict` parameter to fix 422 error
+
+**Frontend:**
+- `register-step3.tsx` - Replaced GooglePlacesAutocomplete with manual address inputs (library was crashing)
+- `register-step4.tsx` - Improved error handling to show specific backend error messages
+- `jobs/completed.tsx` - Created missing completed jobs page with proper empty state
+- `jobs/accepted.tsx` - TODO: Needs to be created (currently missing)
+- `jobs/scheduled.tsx` - TODO: Needs to be created (currently missing)
+- `mileage/map.tsx` - Added Platform.OS check to conditionally load react-native-maps (web fallback)
+- `package.json` - Changed default start script to `expo start --tunnel`
+
+**Database:**
+- Geocoded contractor address: `13 shore lane, Milford, DE 19963` → `38.9372175, -75.4239711`
+- Cleaned up 3 duplicate addresses (kept only first address)
+- Verified 0 jobs in database (no phantom data)
+
+**Deployment:**
+- All backend changes deployed to production (172.234.70.157)
+- API service restarted successfully
+- Frontend changes committed to main branch
+
+---
+
 ## 🎉 RECENT UPDATES (2025-11-14)
 
 ### MongoDB Atlas & Database Issues - RESOLVED ✅

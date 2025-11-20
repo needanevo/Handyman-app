@@ -1363,6 +1363,54 @@ async def get_available_jobs(
     }
 
 
+@api_router.get("/contractor/jobs/accepted")
+async def get_accepted_jobs(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Get accepted jobs for contractor.
+
+    Returns jobs that have been accepted by this contractor but not yet scheduled.
+    """
+    # Only contractors can access this endpoint
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access accepted jobs")
+
+    # Get accepted jobs (assigned to contractor, pending or accepted status)
+    accepted_jobs = await db.jobs.find({
+        "contractor_id": current_user.id,
+        "status": {"$in": ["accepted", "pending"]}
+    }).sort("created_at", -1).to_list(length=100)
+
+    logger.info(f"Contractor {current_user.id} retrieved {len(accepted_jobs)} accepted jobs")
+
+    return accepted_jobs
+
+
+@api_router.get("/contractor/jobs/scheduled")
+async def get_scheduled_jobs(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Get scheduled jobs for contractor.
+
+    Returns jobs that have been scheduled with a specific date/time.
+    """
+    # Only contractors can access this endpoint
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access scheduled jobs")
+
+    # Get scheduled jobs
+    scheduled_jobs = await db.jobs.find({
+        "contractor_id": current_user.id,
+        "status": "scheduled"
+    }).sort("scheduled_date", 1).to_list(length=100)  # Soonest first
+
+    logger.info(f"Contractor {current_user.id} retrieved {len(scheduled_jobs)} scheduled jobs")
+
+    return scheduled_jobs
+
+
 @api_router.get("/contractor/jobs/completed")
 async def get_completed_jobs(
     current_user: User = Depends(get_current_user_dependency)
