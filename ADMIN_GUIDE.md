@@ -103,7 +103,11 @@ This guide will show you how to view and manage your handyman business data usin
 2. **Double-click to open it**
    - The application will open to a screen titled "New Connection"
 
-### Step 2: Enter Your Connection Information
+### Step 2: Choose Your Connection Method
+
+MongoDB Compass offers two ways to connect. **Method 2 (Manual Configuration) is recommended for fixing TLS errors.**
+
+#### Method 1: Using Connection String (Quick but may have TLS errors)
 
 You'll see a large text box at the top of the window labeled "URI" or "Connection String"
 
@@ -132,15 +136,71 @@ You'll see a large text box at the top of the window labeled "URI" or "Connectio
    - It should include `needanevo:$1Jennifer`
    - It should end with `&tlsAllowInvalidCertificates=true`
 
-### Step 3: Connect to the Database
-
-1. **Click the green "Connect" button** at the bottom of the screen
+3. **Click the green "Connect" button** at the bottom of the screen
    - You'll see a loading spinner for 3-10 seconds
+   - If you get a TLS/SSL error, skip to **Method 2** below
 
-2. **Wait for the connection to complete**
+#### Method 2: Manual Configuration (RECOMMENDED - Fixes TLS Errors)
+
+**Use this method if you got an error with Method 1, or if you want to avoid TLS errors entirely.**
+
+1. **In MongoDB Compass, look for "Advanced Connection Options"**
+   - This is below the connection string box
+   - It might already be expanded, or you may need to click it to expand
+
+2. **You'll see these tabs across the top:**
+   - General
+   - Authentication
+   - TLS/SSL
+   - Proxy/SSH
+   - In-Use Encryption
+   - Advanced
+
+3. **Configure the "General" tab:**
+   - Click on **"General"** tab
+   - **Scheme**: Select **"mongodb+srv"** from dropdown (NOT "mongodb")
+   - **Host**: Enter `cluster0.d5iqsxn.mongodb.net`
+   - **Direct Connection**: Leave **UNCHECKED**
+   - All other fields: Leave blank/default
+
+4. **Configure the "Authentication" tab:**
+   - Click on **"Authentication"** tab
+   - **Authentication**: Select **"Username / Password"** from dropdown
+   - **Username**: Type `needanevo`
+   - **Password**: Type `$1Jennifer` (must include the dollar sign and 1)
+   - **Authentication Database**: Type `admin`
+   - **Authentication Mechanism**: Leave as default (should show "Default" or "SCRAM-SHA-256")
+
+5. **Configure the "TLS/SSL" tab (THIS FIXES YOUR ERROR):**
+   - Click on **"TLS/SSL"** tab
+   - **SSL/TLS**: Change dropdown to **"On"** (not "Default", not "Off")
+   - **Certificate Authority**: Leave blank (don't browse for a file)
+   - **Client Certificate**: Leave blank
+   - **Client Private Key**: Leave blank
+   - **Client Key Password**: Leave blank
+   - **TLS Allow Invalid Certificates**: **✓ CHECK THIS BOX**
+   - **TLS Allow Invalid Hostnames**: **✓ CHECK THIS BOX**
+   - **TLS Insecure**: Leave **UNCHECKED**
+
+6. **Leave other tabs at their defaults:**
+   - **Proxy/SSH** tab: Leave as "None"
+   - **In-Use Encryption** tab: Leave all fields blank
+   - **Advanced** tab: Leave all fields at default
+
+7. **Click the green "Connect" button** at the bottom
+
+8. **Wait 5-10 seconds for connection**
+   - You'll see a loading spinner
+   - The connection may take longer the first time
+
+### Step 3: Verify Successful Connection
+
+**After clicking Connect (from either method above):**
+
+1. **Wait for the connection to complete**
    - If successful, you'll see a new screen with a list of databases on the left side
 
-3. **You should see a database named `handyman_app`**
+2. **You should see a database named `handyman_app`**
    - If you see this, congratulations! You're connected.
 
 **If you don't see `handyman_app`:**
@@ -375,20 +435,56 @@ To convert to your local time, add or subtract hours based on your timezone:
 3. Use **Option 1** connection string from the guide (includes `tlsAllowInvalidCertificates=true`)
 4. Try connecting again
 
-**Solution B: Connect Using Manual Configuration**
-1. In MongoDB Compass, instead of pasting the connection string, click **"Fill in connection fields individually"** (look for this link below the connection string box)
-2. Enter these values in each field:
-   - **Hostname**: `cluster0.d5iqsxn.mongodb.net`
-   - **Port**: Leave blank (will auto-fill to 27017)
-   - **Authentication**: Select "Username / Password"
-   - **Username**: `needanevo`
-   - **Password**: `$1Jennifer`
-   - **Authentication Database**: `admin`
-3. Click on **"More Options"** at the bottom
-4. Find the **SSL** section
-5. Change **SSL** dropdown to: **"System CA / Atlas Deployment"**
-6. **Check the box** for "Allow invalid certificates" or "TLS Allow Invalid Certificates"
-7. Click **Connect**
+**Solution B: Connect Using Manual Configuration (Step-by-Step with Current UI)**
+
+1. **Open MongoDB Compass**
+
+2. **Look for "Advanced Connection Options"** (you should see this as an expandable section)
+
+3. **Click on "Advanced Connection Options"** to expand it
+   - You'll see tabs: General, Authentication, TLS/SSL, Proxy/SSH, In-Use Encryption, Advanced
+
+4. **Click on the "General" tab** (should be selected by default)
+   - **Hostname**: Enter `cluster0.d5iqsxn.mongodb.net`
+   - **Port**: Leave blank or enter `27017`
+   - **SRV Record**: Make sure this is **CHECKED** (enabled)
+   - Leave other fields as default
+
+5. **Click on the "Authentication" tab**
+   - **Authentication Method**: Select **"Username / Password"** from the dropdown
+   - **Username**: Enter `needanevo`
+   - **Password**: Enter `$1Jennifer`
+   - **Authentication Database**: Enter `admin`
+   - Leave "Authentication Mechanism" as default (SCRAM-SHA-256)
+
+6. **Click on the "TLS/SSL" tab** ← THIS IS THE CRITICAL STEP FOR YOUR ERROR
+   - **SSL/TLS**: Change dropdown from "Default" to **"On"**
+   - **Certificate Authority**: Leave as "Select a file..." (don't select anything)
+   - **Client Certificate**: Leave blank
+   - **Client Private Key**: Leave blank
+   - **TLS Allow Invalid Certificates**: **CHECK THIS BOX** ← VERY IMPORTANT
+   - **TLS Allow Invalid Hostnames**: **CHECK THIS BOX** ← ALSO IMPORTANT
+   - **TLS Insecure**: Leave unchecked
+
+7. **Leave other tabs unchanged:**
+   - Proxy/SSH: Leave as "None"
+   - In-Use Encryption: Leave blank
+   - Advanced: Leave as default
+
+8. **Click the green "Connect" button** at the bottom
+
+9. **Wait 5-10 seconds** for the connection to establish
+
+**What You Should See:**
+- A loading spinner while connecting
+- If successful: The main Compass window with "Databases" on the left showing "handyman_app"
+- If failed: An error message (note the exact error text and try Solution C)
+
+**Screenshot Locations to Verify:**
+- [ ] General tab: SRV Record checkbox is checked
+- [ ] Authentication tab: Username shows "needanevo"
+- [ ] TLS/SSL tab: "TLS Allow Invalid Certificates" is checked
+- [ ] TLS/SSL tab: "TLS Allow Invalid Hostnames" is checked
 
 **Solution C: Update MongoDB Compass**
 1. Close MongoDB Compass
