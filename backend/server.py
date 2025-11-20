@@ -1363,6 +1363,30 @@ async def get_available_jobs(
     }
 
 
+@api_router.get("/contractor/jobs/completed")
+async def get_completed_jobs(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Get completed jobs for contractor.
+
+    Returns all jobs with status 'completed' assigned to this contractor.
+    """
+    # Only contractors can access this endpoint
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access completed jobs")
+
+    # Get completed jobs
+    completed_jobs = await db.jobs.find({
+        "contractor_id": current_user.id,
+        "status": "completed"
+    }).sort("completed_at", -1).to_list(length=100)  # Latest first, max 100
+
+    logger.info(f"Contractor {current_user.id} retrieved {len(completed_jobs)} completed jobs")
+
+    return completed_jobs
+
+
 # ==================== USER PROFILE ROUTES ====================
 
 
