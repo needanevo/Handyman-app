@@ -17,7 +17,7 @@ import { colors, spacing, typography, borderRadius } from '../../../src/constant
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
-import { AddressAutocomplete, AddressComponents } from '../../../src/components/AddressAutocomplete';
+// AddressAutocomplete removed - using manual input fields instead
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { contractorAPI } from '../../../src/services/api';
 
@@ -54,7 +54,6 @@ export default function ContractorRegisterStep3() {
   const [selectedSkills, setSelectedSkills] = useState<string[]>(
     Array.isArray(user?.skills) ? user.skills : []
   );
-  const [verifiedAddress, setVerifiedAddress] = useState<AddressComponents | null>(null);
 
   const businessAddress = user?.addresses && user.addresses.length > 0 ? user.addresses[0] : null;
 
@@ -105,23 +104,21 @@ export default function ContractorRegisterStep3() {
       return;
     }
 
-    if (!verifiedAddress) {
-      Alert.alert('Error', 'Please select and verify your business address');
+    if (!data.businessStreet || !data.businessCity || !data.businessState || !data.businessZip) {
+      Alert.alert('Error', 'Please fill in all business address fields');
       return;
     }
 
     setIsLoading(true);
     try {
-      // Save business address with verified coordinates
+      // Save business address - backend will geocode and add lat/lon
       const { profileAPI } = await import('../../../src/services/api');
       await profileAPI.addAddress({
-        street: verifiedAddress.street,
-        city: verifiedAddress.city,
-        state: verifiedAddress.state,
-        zip_code: verifiedAddress.zipCode,  // Backend expects snake_case
+        street: data.businessStreet,
+        city: data.businessCity,
+        state: data.businessState,
+        zip_code: data.businessZip,  // Backend expects snake_case
         is_default: true,  // Backend expects snake_case
-        latitude: verifiedAddress.latitude,  // Add verified coordinates
-        longitude: verifiedAddress.longitude,
       });
 
       // Save contractor profile (skills, experience, business name)
@@ -290,38 +287,90 @@ export default function ContractorRegisterStep3() {
 
             <Text style={styles.sectionTitle}>Business Address</Text>
             <Text style={styles.helpText}>
-              This address determines your 50-mile service radius. We'll verify it and get exact coordinates.
+              This address determines your 50-mile service radius. We'll geocode it automatically.
             </Text>
 
-            <AddressAutocomplete
-              onAddressSelected={(address) => {
-                setVerifiedAddress(address);
-                setValue('businessStreet', address.street);
-                setValue('businessCity', address.city);
-                setValue('businessState', address.state);
-                setValue('businessZip', address.zipCode);
-              }}
-              label=""
-              placeholder="Start typing your business address..."
-              required={true}
-              error={!verifiedAddress && errors.businessStreet?.message}
+            <Controller
+              control={control}
+              name="businessStreet"
+              rules={{ required: 'Street address is required' }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Street Address"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="123 Main St"
+                  error={errors.businessStreet?.message}
+                  required
+                  icon="home-outline"
+                />
+              )}
             />
 
-            {/* Show verified address summary */}
-            {verifiedAddress && (
-              <View style={styles.verifiedAddressCard}>
-                <View style={styles.verifiedHeader}>
-                  <Ionicons name="checkmark-circle" size={24} color={colors.success.main} />
-                  <Text style={styles.verifiedTitle}>Address Verified</Text>
-                </View>
-                <Text style={styles.verifiedText}>
-                  {verifiedAddress.formattedAddress}
-                </Text>
-                <Text style={styles.verifiedCoords}>
-                  📍 {verifiedAddress.latitude.toFixed(4)}, {verifiedAddress.longitude.toFixed(4)}
-                </Text>
+            <View style={styles.row}>
+              <View style={styles.halfWidth}>
+                <Controller
+                  control={control}
+                  name="businessCity"
+                  rules={{ required: 'City is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="City"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Baltimore"
+                      error={errors.businessCity?.message}
+                      required
+                      icon="business-outline"
+                    />
+                  )}
+                />
               </View>
-            )}
+              <View style={styles.halfWidth}>
+                <Controller
+                  control={control}
+                  name="businessState"
+                  rules={{ required: 'State is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="State"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="MD"
+                      error={errors.businessState?.message}
+                      required
+                      icon="map-outline"
+                      maxLength={2}
+                    />
+                  )}
+                />
+              </View>
+            </View>
+
+            <Controller
+              control={control}
+              name="businessZip"
+              rules={{
+                required: 'ZIP code is required',
+                pattern: {
+                  value: /^\d{5}$/,
+                  message: 'ZIP code must be 5 digits'
+                }
+              }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="ZIP Code"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="21201"
+                  keyboardType="numeric"
+                  error={errors.businessZip?.message}
+                  required
+                  icon="location-outline"
+                  maxLength={5}
+                />
+              )}
+            />
 
             <Controller
               control={control}
