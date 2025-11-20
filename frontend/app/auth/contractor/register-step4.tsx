@@ -38,19 +38,45 @@ export default function ContractorRegisterStep4() {
 
       // Save portfolio photos to database (if any were uploaded)
       if (portfolioPhotos.length > 0) {
+        console.log('Saving portfolio photos to database:', portfolioPhotos);
         await contractorAPI.updatePortfolio(portfolioPhotos);
+        console.log('Portfolio photos saved successfully');
       }
 
       // Refresh user context to get updated portfolio
+      console.log('Refreshing user data...');
       await refreshUser();
+      console.log('User data refreshed');
 
       // Registration complete - navigate to welcome page
       router.replace('/auth/contractor/welcome');
     } catch (error: any) {
       console.error('Failed to save portfolio:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+
+      let errorMessage = 'Failed to save portfolio photos. Please try again.';
+
+      if (error.response?.data?.detail) {
+        // Backend returned specific error message
+        if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        } else if (Array.isArray(error.response.data.detail)) {
+          // Pydantic validation errors
+          errorMessage = error.response.data.detail
+            .map((err: any) => err.msg || JSON.stringify(err))
+            .join('\n');
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       Alert.alert(
         'Error',
-        error.response?.data?.detail || 'Failed to save portfolio photos. Please try again.'
+        errorMessage
       );
     } finally {
       setIsLoading(false);

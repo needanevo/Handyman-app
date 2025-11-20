@@ -1480,7 +1480,7 @@ async def update_contractor_documents(
 
 @api_router.patch("/contractors/portfolio")
 async def update_contractor_portfolio(
-    portfolio_photos: List[str],
+    request_body: dict,
     current_user: User = Depends(get_current_user_dependency)
 ):
     """
@@ -1493,6 +1493,9 @@ async def update_contractor_portfolio(
     """
     if current_user.role != UserRole.TECHNICIAN:
         raise HTTPException(403, detail="Only contractors can update portfolio")
+
+    # Extract portfolio_photos from request body
+    portfolio_photos = request_body.get("portfolio_photos", [])
 
     # Validate photo URLs
     if not isinstance(portfolio_photos, list):
