@@ -91,26 +91,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.primary,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
-  },
-  backButton: {
-    padding: spacing.sm,
-  },
-  headerTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
-    color: colors.neutral[900],
-  },
-  headerSpacer: {
-    width: 40,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
