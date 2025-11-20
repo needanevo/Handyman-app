@@ -200,16 +200,21 @@ You'll see a large text box at the top of the window labeled "URI" or "Connectio
 1. **Wait for the connection to complete**
    - If successful, you'll see a new screen with a list of databases on the left side
 
-2. **You should see a database named `handyman_app`**
+2. **You should see a database named `handyman`**
    - If you see this, congratulations! You're connected.
+   - You may also see other databases like: `admin`, `config`, `local`, `sample_mflix` (ignore these)
 
-**If you don't see `handyman_app`:**
+**If you don't see `handyman`:**
 - Click the small refresh icon (circular arrow) at the top left
 - If still not visible, see the [Troubleshooting](#troubleshooting) section below
 
+**About `oplog.rs`:**
+- If you see `oplog.rs` in the `local` database, ignore it
+- This is a MongoDB system collection (replication log), not related to your business data
+
 ### Step 4: Open Your Database
 
-1. **Click on `handyman_app`** in the left sidebar
+1. **Click on `handyman`** in the left sidebar
    - It will expand to show a list of "collections" (these are like folders for different types of data)
 
 2. **You should see these collections:**
