@@ -13,13 +13,27 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { useAuth } from '../../../src/contexts/AuthContext';
+
+// Conditionally import MapView only on native platforms
+let MapView: any;
+let Circle: any;
+let Marker: any;
+let PROVIDER_GOOGLE: any;
+
+if (Platform.OS !== 'web') {
+  const Maps = require('react-native-maps');
+  MapView = Maps.default;
+  Circle = Maps.Circle;
+  Marker = Maps.Marker;
+  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+}
 
 const METERS_PER_MILE = 1609.34;
 const SERVICE_RADIUS_MILES = 50;
@@ -147,44 +161,54 @@ export default function ContractorGeofenceMap() {
       </View>
 
       {/* Map */}
-      <MapView
-        style={styles.map}
-        provider={PROVIDER_GOOGLE}
-        initialRegion={region}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        showsCompass={true}
-        showsScale={true}
-      >
-        {/* Business Address Marker */}
-        <Marker
-          coordinate={{
-            latitude: businessAddress!.latitude!,
-            longitude: businessAddress!.longitude!,
-          }}
-          title="Your Business"
-          description={`${businessAddress?.street}, ${businessAddress?.city}, ${businessAddress?.state}`}
-          pinColor={colors.primary.main}
+      {Platform.OS !== 'web' ? (
+        <MapView
+          style={styles.map}
+          provider={PROVIDER_GOOGLE}
+          initialRegion={region}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+          showsCompass={true}
+          showsScale={true}
         >
-          <View style={styles.markerContainer}>
-            <View style={styles.markerInner}>
-              <Ionicons name="business" size={24} color="white" />
+          {/* Business Address Marker */}
+          <Marker
+            coordinate={{
+              latitude: businessAddress!.latitude!,
+              longitude: businessAddress!.longitude!,
+            }}
+            title="Your Business"
+            description={`${businessAddress?.street}, ${businessAddress?.city}, ${businessAddress?.state}`}
+            pinColor={colors.primary.main}
+          >
+            <View style={styles.markerContainer}>
+              <View style={styles.markerInner}>
+                <Ionicons name="business" size={24} color="white" />
+              </View>
             </View>
-          </View>
-        </Marker>
+          </Marker>
 
-        {/* 50-Mile Service Radius Circle */}
-        <Circle
-          center={{
-            latitude: businessAddress!.latitude!,
-            longitude: businessAddress!.longitude!,
-          }}
-          radius={SERVICE_RADIUS_METERS}
-          strokeWidth={2}
-          strokeColor={colors.primary.main}
-          fillColor={`${colors.primary.main}20`} // 20% opacity
-        />
-      </MapView>
+          {/* 50-Mile Service Radius Circle */}
+          <Circle
+            center={{
+              latitude: businessAddress!.latitude!,
+              longitude: businessAddress!.longitude!,
+            }}
+            radius={SERVICE_RADIUS_METERS}
+            strokeWidth={2}
+            strokeColor={colors.primary.main}
+            fillColor={`${colors.primary.main}20`} // 20% opacity
+          />
+        </MapView>
+      ) : (
+        <View style={styles.webMapPlaceholder}>
+          <Ionicons name="map-outline" size={64} color={colors.neutral[400]} />
+          <Text style={styles.webMapText}>Map view is only available on mobile devices</Text>
+          <Text style={styles.webMapSubtext}>
+            Download the Expo Go app on your phone to view the interactive map
+          </Text>
+        </View>
+      )}
 
       {/* Legend */}
       <View style={styles.legend}>
@@ -264,6 +288,28 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     marginHorizontal: spacing.lg,
     overflow: 'hidden',
+  },
+  webMapPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: spacing.lg,
+    backgroundColor: colors.neutral[100],
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  webMapText: {
+    ...typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[700],
+    textAlign: 'center',
+  },
+  webMapSubtext: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    textAlign: 'center',
+    maxWidth: 300,
   },
   markerContainer: {
     width: 50,
