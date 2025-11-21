@@ -17,7 +17,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -257,6 +257,7 @@ export default function ExpensesScreen() {
 }
 
 function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
   const [category, setCategory] = useState<ExpenseCategory>('MATERIALS');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -293,8 +294,8 @@ function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () =
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
-        <View style={styles.modalHeader}>
+      <SafeAreaView style={styles.modalContainer} edges={['bottom']}>
+        <View style={[styles.modalHeader, { paddingTop: insets.top + spacing.md }]}>
           <TouchableOpacity onPress={onClose}>
             <Text style={styles.modalClose}>✕</Text>
           </TouchableOpacity>
@@ -600,7 +601,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.base,
-    paddingTop: spacing.md + 16,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
