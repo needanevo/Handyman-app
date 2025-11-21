@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { Expense, ExpenseCategory } from '../../../src/types/contractor';
@@ -27,43 +27,20 @@ import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
 import { Badge } from '../../../src/components/Badge';
 import { PhotoCapture } from '../../../src/components/contractor/PhotoCapture';
+import { contractorAPI } from '../../../src/services/api';
 
 export default function ExpensesScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | 'ALL'>('ALL');
 
-  // Mock data - replace with API
+  // Fetch expenses from API
   const { data: expenses } = useQuery<Expense[]>({
     queryKey: ['contractor', 'expenses'],
     queryFn: async () => {
-      return [
-        {
-          id: 'e1',
-          jobId: 'j1',
-          category: 'MATERIALS' as const,
-          description: 'Delta Faucet Model XYZ',
-          amount: 89.99,
-          receiptPhotos: ['https://placeholder.com/200'],
-          date: '2025-11-14',
-          vendor: 'Home Depot',
-          notes: 'Customer requested specific model',
-          createdAt: '2025-11-14T10:30:00',
-          updatedAt: '2025-11-14T10:30:00',
-        },
-        {
-          id: 'e2',
-          jobId: 'j1',
-          category: 'MATERIALS' as const,
-          description: 'Plumber\'s tape and washers',
-          amount: 12.50,
-          receiptPhotos: [],
-          date: '2025-11-14',
-          vendor: 'Ace Hardware',
-          createdAt: '2025-11-14T11:15:00',
-          updatedAt: '2025-11-14T11:15:00',
-        },
-      ];
+      const response = await contractorAPI.getExpenses();
+      return response;
     },
   });
 
@@ -251,12 +228,13 @@ export default function ExpensesScreen() {
       <AddExpenseModal
         visible={showAddExpense}
         onClose={() => setShowAddExpense(false)}
+        queryClient={queryClient}
       />
     </SafeAreaView>
   );
 }
 
-function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; onClose: () => void; queryClient: any }) {
   const insets = useSafeAreaInsets();
   const [category, setCategory] = useState<ExpenseCategory>('MATERIALS');
   const [description, setDescription] = useState('');
@@ -265,6 +243,7 @@ function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () =
   const [notes, setNotes] = useState('');
   const [receiptPhotos, setReceiptPhotos] = useState<string[]>([]);
   const [showPhotoCapture, setShowPhotoCapture] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const CATEGORIES: { value: ExpenseCategory; label: string; icon: string }[] = [
     { value: 'MATERIALS', label: 'Materials', icon: '🔨' },
@@ -276,15 +255,48 @@ function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () =
     { value: 'OTHER', label: 'Other', icon: '💰' },
   ];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!description || !amount) {
       Alert.alert('Missing Information', 'Please enter description and amount');
       return;
     }
 
-    // In production, save to backend
-    console.log('Saving expense:', { category, description, amount, vendor, notes, receiptPhotos });
-    onClose();
+    try {
+      setIsSaving(true);
+
+      // Save expense to backend
+      await contractorAPI.addExpense({
+        jobId: '', // TODO: Add job selection
+        category,
+        description,
+        amount: parseFloat(amount),
+        date: new Date().toISOString(),
+        vendor: vendor || undefined,
+        notes: notes || undefined,
+      });
+
+      // Invalidate and refetch expenses
+      await queryClient.invalidateQueries(['contractor', 'expenses']);
+
+      // Close modal and reset form
+      onClose();
+      setDescription('');
+      setAmount('');
+      setVendor('');
+      setNotes('');
+      setReceiptPhotos([]);
+      setCategory('MATERIALS');
+
+      Alert.alert('Success', 'Expense saved successfully');
+    } catch (error: any) {
+      console.error('Save expense error:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to save expense. Please try again.'
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePhotoCapture = (photo: any) => {

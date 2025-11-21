@@ -1944,6 +1944,77 @@ async def upload_contractor_job_photo(
 
 
 
+# ==================== CONTRACTOR EXPENSE ROUTES ====================
+
+
+@api_router.get("/contractor/expenses")
+async def get_contractor_expenses(
+    job_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get all expenses for the contractor, optionally filtered by job_id."""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access expenses")
+
+    query = {"contractor_id": current_user.id}
+    if job_id:
+        query["job_id"] = job_id
+
+    expenses = await db.expenses.find(query).sort("date", -1).to_list(100)
+    return expenses
+
+
+@api_router.post("/contractor/expenses")
+async def create_expense(
+    expense: dict = Body(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Create a new expense for the contractor."""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can create expenses")
+
+    # Create expense document
+    expense_doc = {
+        "id": str(uuid.uuid4()),
+        "contractor_id": current_user.id,
+        "job_id": expense.get("jobId"),
+        "category": expense.get("category"),
+        "description": expense.get("description"),
+        "amount": float(expense.get("amount", 0)),
+        "date": expense.get("date", datetime.utcnow().isoformat()),
+        "vendor": expense.get("vendor"),
+        "notes": expense.get("notes"),
+        "receipt_photos": expense.get("receiptPhotos", []),
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat()
+    }
+
+    await db.expenses.insert_one(expense_doc)
+    logger.info(f"Expense created: {expense_doc['id']} for contractor {current_user.id}")
+
+    return expense_doc
+
+
+@api_router.delete("/contractor/expenses/{expense_id}")
+async def delete_expense(
+    expense_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Delete an expense."""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can delete expenses")
+
+    result = await db.expenses.delete_one({
+        "id": expense_id,
+        "contractor_id": current_user.id
+    })
+
+    if result.deleted_count == 0:
+        raise HTTPException(404, detail="Expense not found")
+
+    return {"message": "Expense deleted successfully"}
+
+
 # ==================== ADMIN ROUTES ====================
 
 
