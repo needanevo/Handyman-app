@@ -1992,6 +1992,8 @@ async def create_expense(
     await db.expenses.insert_one(expense_doc)
     logger.info(f"Expense created: {expense_doc['id']} for contractor {current_user.id}")
 
+    # Remove MongoDB's _id field to avoid serialization issues
+    expense_doc.pop('_id', None)
     return expense_doc
 
 
