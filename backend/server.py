@@ -1961,6 +1961,11 @@ async def get_contractor_expenses(
         query["job_id"] = job_id
 
     expenses = await db.expenses.find(query).sort("date", -1).to_list(100)
+
+    # Remove MongoDB's _id field from all expenses to avoid serialization issues
+    for expense in expenses:
+        expense.pop('_id', None)
+
     return expenses
 
 

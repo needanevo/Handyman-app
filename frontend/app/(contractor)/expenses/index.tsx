@@ -308,12 +308,14 @@ function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; 
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.modalContainer} edges={['bottom']}>
         <View style={[styles.modalHeader, { paddingTop: insets.top + spacing.md }]}>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity onPress={onClose} disabled={isSaving}>
             <Text style={styles.modalClose}>✕</Text>
           </TouchableOpacity>
           <Text style={styles.modalTitle}>Add Expense</Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text style={styles.modalSave}>Save</Text>
+          <TouchableOpacity onPress={handleSave} disabled={isSaving}>
+            <Text style={[styles.modalSave, isSaving && styles.modalSaveDisabled]}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -637,6 +639,9 @@ const styles = StyleSheet.create({
     color: colors.primary.main,
     width: 60,
     textAlign: 'right',
+  },
+  modalSaveDisabled: {
+    color: colors.neutral[400],
   },
   modalContent: {
     flex: 1,
