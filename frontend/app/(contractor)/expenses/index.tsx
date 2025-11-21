@@ -16,6 +16,7 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -34,6 +35,9 @@ export default function ExpensesScreen() {
   const queryClient = useQueryClient();
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | 'ALL'>('ALL');
+  const [selectedReceiptPhotos, setSelectedReceiptPhotos] = useState<string[]>([]);
+  const [showReceiptViewer, setShowReceiptViewer] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   // Fetch expenses from API
   const { data: expenses } = useQuery<Expense[]>({
@@ -199,14 +203,21 @@ export default function ExpensesScreen() {
               <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>
             </View>
 
-            {item.vendor && (
+{item.vendor && (
               <View style={styles.expenseFooter}>
                 <Text style={styles.vendorLabel}>Vendor:</Text>
                 <Text style={styles.vendorValue}>{item.vendor}</Text>
-                {item.receiptPhotos.length > 0 && (
-                  <View style={styles.receiptBadge}>
-                    <Text style={styles.receiptBadgeText}>📸 Receipt</Text>
-                  </View>
+                {item.receiptPhotos && item.receiptPhotos.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.receiptButton}
+                    onPress={() => {
+                      setSelectedReceiptPhotos(item.receiptPhotos);
+                      setCurrentPhotoIndex(0);
+                      setShowReceiptViewer(true);
+                    }}
+                  >
+                    <Text style={styles.receiptButtonText}>See Receipt Photo</Text>
+                  </TouchableOpacity>
                 )}
               </View>
             )}
@@ -230,6 +241,64 @@ export default function ExpensesScreen() {
         onClose={() => setShowAddExpense(false)}
         queryClient={queryClient}
       />
+
+      {/* Receipt Photo Viewer Modal */}
+      <Modal
+        visible={showReceiptViewer}
+        animationType="fade"
+        onRequestClose={() => setShowReceiptViewer(false)}
+      >
+        <SafeAreaView style={styles.receiptViewerContainer} edges={['top', 'bottom']}>
+          <View style={styles.receiptViewerHeader}>
+            <Text style={styles.receiptViewerTitle}>Receipt Photo</Text>
+            <TouchableOpacity onPress={() => setShowReceiptViewer(false)}>
+              <Ionicons name="close" size={32} color={colors.neutral[900]} />
+            </TouchableOpacity>
+          </View>
+
+          {selectedReceiptPhotos.length > 0 && (
+            <View style={styles.receiptViewerContent}>
+              <Image
+                source={{ uri: selectedReceiptPhotos[currentPhotoIndex] }}
+                style={styles.receiptImage}
+                resizeMode="contain"
+              />
+
+              {selectedReceiptPhotos.length > 1 && (
+                <View style={styles.receiptViewerPagination}>
+                  <TouchableOpacity
+                    onPress={() => setCurrentPhotoIndex(Math.max(0, currentPhotoIndex - 1))}
+                    disabled={currentPhotoIndex === 0}
+                    style={styles.paginationButton}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={24}
+                      color={currentPhotoIndex === 0 ? colors.neutral[400] : colors.primary.main}
+                    />
+                  </TouchableOpacity>
+
+                  <Text style={styles.paginationText}>
+                    {currentPhotoIndex + 1} / {selectedReceiptPhotos.length}
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={() => setCurrentPhotoIndex(Math.min(selectedReceiptPhotos.length - 1, currentPhotoIndex + 1))}
+                    disabled={currentPhotoIndex === selectedReceiptPhotos.length - 1}
+                    style={styles.paginationButton}
+                  >
+                    <Ionicons
+                      name="chevron-forward"
+                      size={24}
+                      color={currentPhotoIndex === selectedReceiptPhotos.length - 1 ? colors.neutral[400] : colors.primary.main}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -579,15 +648,16 @@ const styles = StyleSheet.create({
     color: colors.neutral[700],
     flex: 1,
   },
-  receiptBadge: {
-    backgroundColor: colors.success.lightest,
-    paddingHorizontal: spacing.sm,
+  receiptButton: {
+    backgroundColor: '#FF8C42', // Orange color
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.full,
+    marginLeft: 'auto',
   },
-  receiptBadgeText: {
+  receiptButtonText: {
     ...typography.sizes.xs,
-    color: colors.success.dark,
+    color: colors.background.primary,
     fontWeight: typography.weights.semibold,
   },
   emptyContainer: {
@@ -746,5 +816,53 @@ const styles = StyleSheet.create({
   photoModalContent: {
     flex: 1,
     padding: spacing.base,
+  },
+  receiptViewerContainer: {
+    flex: 1,
+    backgroundColor: colors.neutral[900],
+  },
+  receiptViewerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  receiptViewerTitle: {
+    ...typography.sizes.xl,
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
+  },
+  receiptViewerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  receiptImage: {
+    width: '100%',
+    height: '100%',
+  },
+  receiptViewerPagination: {
+    position: 'absolute',
+    bottom: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    gap: spacing.lg,
+    ...shadows.lg,
+  },
+  paginationButton: {
+    padding: spacing.xs,
+  },
+  paginationText: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
   },
 });
