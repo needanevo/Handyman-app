@@ -51,9 +51,18 @@ export default function ContractorRegisterStep3() {
   const params = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const { user, refreshUser } = useAuth();
-  const [selectedSkills, setSelectedSkills] = useState<string[]>(
-    user?.skills || []
-  );
+
+  // Separate standard categories from custom skills on mount
+  const userSkills = user?.skills || [];
+  const standardSkills = userSkills.filter(skill => SERVICE_CATEGORIES.includes(skill));
+  const customSkills = userSkills.filter(skill => !SERVICE_CATEGORIES.includes(skill) && skill !== 'Other');
+
+  // If there are custom skills, add "Other" to standard skills
+  const initialSelectedSkills = customSkills.length > 0
+    ? [...standardSkills, 'Other']
+    : standardSkills;
+
+  const [selectedSkills, setSelectedSkills] = useState<string[]>(initialSelectedSkills);
   const [verifiedAddress, setVerifiedAddress] = useState<AddressComponents | null>(null);
 
   const {
@@ -64,13 +73,13 @@ export default function ContractorRegisterStep3() {
     watch,
   } = useForm<Step3Form>({
     defaultValues: {
-      skills: user?.skills || [],
+      skills: initialSelectedSkills,
       yearsExperience: user?.yearsExperience?.toString() || '',
       businessStreet: user?.addresses?.[0]?.street || '',
       businessCity: user?.addresses?.[0]?.city || '',
       businessState: user?.addresses?.[0]?.state || '',
       businessZip: user?.addresses?.[0]?.zipCode || '',
-      customSkills: '',
+      customSkills: customSkills.join(', '),  // Pre-fill custom skills
     },
   });
 
