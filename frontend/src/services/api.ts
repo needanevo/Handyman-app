@@ -268,8 +268,23 @@ export const contractorAPI = {
     apiClient.put<any>(`/contractor/jobs/${jobId}/photos/${photoId}`, { caption, notes }),
 
   // Expenses
-  getExpenses: (jobId?: string) =>
-    apiClient.get<any[]>('/contractor/expenses', jobId ? { job_id: jobId } : undefined),
+  getExpenses: async (jobId?: string) => {
+    const expenses = await apiClient.get<any[]>('/contractor/expenses', jobId ? { job_id: jobId } : undefined);
+    // Transform snake_case to camelCase
+    return expenses.map((exp: any) => ({
+      id: exp.id,
+      jobId: exp.job_id,
+      category: exp.category,
+      description: exp.description,
+      amount: exp.amount,
+      receiptPhotos: exp.receipt_photos || [],
+      date: exp.date,
+      vendor: exp.vendor,
+      notes: exp.notes,
+      createdAt: exp.created_at,
+      updatedAt: exp.updated_at,
+    }));
+  },
 
   addExpense: (expense: {
     jobId: string;
