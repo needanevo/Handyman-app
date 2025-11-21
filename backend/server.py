@@ -1479,9 +1479,13 @@ async def update_contractor_documents(
         raise HTTPException(500, detail="Failed to update documents")
 
 
+class PortfolioUpdate(BaseModel):
+    portfolio_photos: List[str]
+
+
 @api_router.patch("/contractors/portfolio")
 async def update_contractor_portfolio(
-    portfolio_photos: List[str],
+    data: PortfolioUpdate,
     current_user: User = Depends(get_current_user_dependency)
 ):
     """
@@ -1496,10 +1500,10 @@ async def update_contractor_portfolio(
         raise HTTPException(403, detail="Only contractors can update portfolio")
 
     # Validate photo URLs
-    if not isinstance(portfolio_photos, list):
+    if not isinstance(data.portfolio_photos, list):
         raise HTTPException(400, detail="portfolio_photos must be an array")
 
-    for url in portfolio_photos:
+    for url in data.portfolio_photos:
         if not isinstance(url, str) or not url.startswith("http"):
             raise HTTPException(400, detail="All portfolio photos must be valid URLs")
 
@@ -1508,15 +1512,15 @@ async def update_contractor_portfolio(
         {"id": current_user.id},
         {
             "$set": {
-                "portfolio_photos": portfolio_photos,
+                "portfolio_photos": data.portfolio_photos,
                 "updated_at": datetime.utcnow().isoformat()
             }
         }
     )
 
     if result.modified_count > 0:
-        logger.info(f"Updated portfolio for contractor {current_user.id} ({len(portfolio_photos)} photos)")
-        return {"message": "Portfolio updated successfully", "count": len(portfolio_photos)}
+        logger.info(f"Updated portfolio for contractor {current_user.id} ({len(data.portfolio_photos)} photos)")
+        return {"message": "Portfolio updated successfully", "count": len(data.portfolio_photos)}
     else:
         raise HTTPException(500, detail="Failed to update portfolio")
 
