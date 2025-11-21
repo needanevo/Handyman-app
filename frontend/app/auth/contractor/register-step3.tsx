@@ -330,8 +330,13 @@ export default function ContractorRegisterStep3() {
                 setValue('businessState', address.state);
                 setValue('businessZip', address.zipCode);
               }}
+              initialValue={{
+                street: user?.addresses?.[0]?.street || '',
+                city: user?.addresses?.[0]?.city || '',
+                state: user?.addresses?.[0]?.state || '',
+                zipCode: user?.addresses?.[0]?.zipCode || '',
+              }}
               label=""
-              placeholder="Start typing your business address..."
               required={true}
               error={!verifiedAddress && errors.businessStreet?.message}
             />
