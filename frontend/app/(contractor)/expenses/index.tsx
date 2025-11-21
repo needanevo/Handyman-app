@@ -305,7 +305,11 @@ function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () =
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.modalContent}>
+        <ScrollView
+          style={styles.modalContent}
+          contentContainerStyle={styles.modalContentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Category Selection */}
           <Text style={styles.label}>Category</Text>
           <ScrollView
@@ -625,6 +629,9 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: spacing.base,
+  },
+  modalContentContainer: {
+    paddingBottom: 350, // Extra space for keyboard so notes field is visible
   },
   label: {
     ...typography.sizes.sm,
