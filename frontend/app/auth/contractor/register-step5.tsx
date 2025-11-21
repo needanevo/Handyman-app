@@ -22,17 +22,8 @@ export default function ContractorRegisterStep5() {
 
   const handleComplete = () => {
     // All data already saved by previous steps
-    // Just navigate to welcome/dashboard
-    Alert.alert(
-      'Registration Complete!',
-      'Welcome to The Real Johnson. You can now start accepting jobs in your area.',
-      [
-        {
-          text: 'Get Started',
-          onPress: () => router.replace('/(contractor)/dashboard'),
-        },
-      ]
-    );
+    // Navigate to welcome page
+    router.replace('/auth/contractor/welcome');
   };
 
   const steps = [
@@ -62,9 +53,9 @@ export default function ContractorRegisterStep5() {
   // Extract user data for display
   const businessAddress = user?.addresses?.find(addr => addr.isDefault) || user?.addresses?.[0];
   const documents = {
-    license: user?.license || null,
-    insurance: user?.insurance || null,
-    businessLicense: user?.businessLicense || null,
+    license: user?.documents?.license || null,
+    insurance: user?.documents?.insurance || null,
+    businessLicense: user?.documents?.businessLicense || null,
   };
 
   return (
