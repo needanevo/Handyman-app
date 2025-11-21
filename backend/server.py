@@ -1370,7 +1370,16 @@ async def get_available_jobs(
 async def add_address(
     address: Address, current_user: User = Depends(get_current_user_dependency)
 ):
-    """Add address to user profile"""
+    """
+    Add or update address in user profile.
+
+    If address.is_default is True:
+    - Updates the existing default address (prevents duplicates)
+    - Unsets is_default on all other addresses
+
+    If address.is_default is False:
+    - Adds new address without affecting existing defaults
+    """
     # Geocode address if maps provider is available
     if maps_provider:
         try:
@@ -1383,12 +1392,41 @@ async def add_address(
         except Exception as e:
             logger.warning(f"Geocoding failed: {e}")
 
-    # Add address to user
-    await db.users.update_one(
-        {"id": current_user.id}, {"$push": {"addresses": address.model_dump()}}
-    )
+    user = await db.users.find_one({"id": current_user.id})
+    existing_addresses = user.get("addresses", [])
 
-    return {"message": "Address added successfully", "address_id": address.id}
+    if address.is_default:
+        # Find existing default address
+        existing_default = next(
+            (addr for addr in existing_addresses if addr.get("is_default")),
+            None
+        )
+
+        if existing_default:
+            # UPDATE existing default address (replace it completely)
+            logger.info(f"Updating existing default address for user {current_user.id}")
+            await db.users.update_one(
+                {"id": current_user.id, "addresses.is_default": True},
+                {"$set": {
+                    "addresses.$": address.model_dump()  # Replace the matched address
+                }}
+            )
+            return {"message": "Default address updated successfully", "address_id": address.id}
+        else:
+            # No default exists, add this as the first default
+            logger.info(f"Adding first default address for user {current_user.id}")
+            await db.users.update_one(
+                {"id": current_user.id},
+                {"$push": {"addresses": address.model_dump()}}
+            )
+            return {"message": "Default address added successfully", "address_id": address.id}
+    else:
+        # Not a default address, just add it
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$push": {"addresses": address.model_dump()}}
+        )
+        return {"message": "Address added successfully", "address_id": address.id}
 
 
 @api_router.get("/profile/addresses", response_model=List[Address])
