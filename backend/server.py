@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Body, Request, UploadFile, File, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
 from dotenv import load_dotenv
 from providers import EMAIL_PROVIDERS, AI_PROVIDERS, MAPS_PROVIDERS
 from fastapi.responses import RedirectResponse
