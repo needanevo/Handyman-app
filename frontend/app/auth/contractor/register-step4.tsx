@@ -44,8 +44,11 @@ export default function ContractorRegisterStep4() {
       // Refresh user context to get updated portfolio
       await refreshUser();
 
-      // Registration complete - navigate to welcome page
-      router.replace('/auth/contractor/welcome');
+      // Navigate to confirmation screen
+      router.push({
+        pathname: '/auth/contractor/register-step5',
+        params,
+      });
     } catch (error: any) {
       console.error('Failed to save portfolio:', error);
       Alert.alert(
@@ -62,6 +65,7 @@ export default function ContractorRegisterStep4() {
     { label: 'Documents', completed: true },
     { label: 'Profile', completed: true },
     { label: 'Portfolio', completed: false },
+    { label: 'Review', completed: false },
   ];
 
   const handleStepPress = (stepIndex: number) => {
@@ -129,7 +133,7 @@ export default function ContractorRegisterStep4() {
           {/* Actions */}
           <View style={styles.actions}>
             <Button
-              title="Complete Registration"
+              title="Continue to Review"
               onPress={onSubmit}
               loading={isLoading}
               size="large"

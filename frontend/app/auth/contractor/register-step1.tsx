@@ -111,6 +111,7 @@ export default function ContractorRegisterStep1() {
     { label: 'Documents', completed: false },
     { label: 'Profile', completed: false },
     { label: 'Portfolio', completed: false },
+    { label: 'Review', completed: false },
   ];
 
   const handleStepPress = (stepIndex: number) => {
