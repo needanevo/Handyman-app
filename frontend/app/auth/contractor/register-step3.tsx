@@ -102,16 +102,20 @@ export default function ContractorRegisterStep3() {
       // Get business name from params (set in Step 1) or user context
       const businessName = (params.businessName as string) || user?.businessName;
 
-      // Combine selected skills with custom skills (if "Other" is selected)
-      const allSkills = [...selectedSkills];
-      if (selectedSkills.includes('Other') && data.customSkills) {
-        // Add custom skills to the skills array
-        const customSkillsList = data.customSkills
-          .split(',')
-          .map(s => s.trim())
-          .filter(s => s.length > 0);
-        allSkills.push(...customSkillsList);
-      }
+      // Build final skills array: standard categories + custom skills (excluding "Other")
+      // Remove "Other" placeholder - only keep actual skill names
+      const standardSkills = selectedSkills.filter(skill => skill !== 'Other');
+
+      // Parse custom skills if "Other" was selected
+      const customSkillsList = selectedSkills.includes('Other') && data.customSkills
+        ? data.customSkills
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+        : [];
+
+      // Combine and deduplicate (in case user re-enters same skill)
+      const allSkills = [...new Set([...standardSkills, ...customSkillsList])];
 
       // Save both address and profile in one try block with clear error handling
       let addressSaved = false;
