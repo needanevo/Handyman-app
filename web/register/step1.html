@@ -251,6 +251,14 @@
             e.preventDefault();
             hideError();
 
+            // Check rate limit
+            const rateCheck = checkRateLimit('register');
+            if (!rateCheck.allowed) {
+                showError(`Please wait ${rateCheck.remainingSeconds} second${rateCheck.remainingSeconds > 1 ? 's' : ''} before trying again.`);
+                showRateLimitMessage('submit-button', rateCheck.remainingSeconds);
+                return;
+            }
+
             // Validate all fields
             let hasErrors = false;
             inputs.forEach(input => {
@@ -290,6 +298,9 @@
 
             // Show loading state
             showLoading('submit-button');
+
+            // Set rate limit
+            setRateLimit('register');
 
             try {
                 // Register user with backend

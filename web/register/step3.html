@@ -312,6 +312,14 @@
             e.preventDefault();
             hideError();
 
+            // Check rate limit
+            const rateCheck = checkRateLimit('register-step3');
+            if (!rateCheck.allowed) {
+                showError(`Please wait ${rateCheck.remainingSeconds} second${rateCheck.remainingSeconds > 1 ? 's' : ''} before trying again.`);
+                showRateLimitMessage('submit-button', rateCheck.remainingSeconds);
+                return;
+            }
+
             // Validate all fields
             let hasErrors = false;
 
@@ -355,6 +363,9 @@
             const bio = bioInput.value.trim();
 
             showLoading('submit-button');
+
+            // Set rate limit
+            setRateLimit('register-step3');
 
             try {
                 // Update profile with backend

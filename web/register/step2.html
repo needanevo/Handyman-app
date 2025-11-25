@@ -257,6 +257,14 @@
             e.preventDefault();
             hideError();
 
+            // Check rate limit
+            const rateCheck = checkRateLimit('register-step2');
+            if (!rateCheck.allowed) {
+                showError(`Please wait ${rateCheck.remainingSeconds} second${rateCheck.remainingSeconds > 1 ? 's' : ''} before trying again.`);
+                showRateLimitMessage('submit-button', rateCheck.remainingSeconds);
+                return;
+            }
+
             // Validate required fields for contractors
             if (isContractor) {
                 if (!uploadedFiles.license) {
@@ -283,6 +291,9 @@
             }
 
             showLoading('submit-button');
+
+            // Set rate limit
+            setRateLimit('register-step2');
 
             try {
                 const uploadResults = {};

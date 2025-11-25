@@ -591,7 +591,17 @@ function showLoading(buttonId) {
     if (button) {
         button.disabled = true;
         button.dataset.originalText = button.textContent;
-        button.textContent = 'Loading...';
+
+        // Create spinner element
+        const spinner = document.createElement('span');
+        spinner.className = 'spinner';
+        spinner.id = `${buttonId}-spinner`;
+
+        // Update button text and add spinner
+        const textNode = document.createTextNode(button.dataset.originalText || 'Loading');
+        button.textContent = '';
+        button.appendChild(textNode);
+        button.appendChild(spinner);
     }
 }
 
@@ -599,9 +609,70 @@ function hideLoading(buttonId) {
     const button = document.getElementById(buttonId);
     if (button) {
         button.disabled = false;
+
+        // Remove spinner if exists
+        const spinner = document.getElementById(`${buttonId}-spinner`);
+        if (spinner) {
+            spinner.remove();
+        }
+
+        // Restore original text
         if (button.dataset.originalText) {
             button.textContent = button.dataset.originalText;
         }
+    }
+}
+
+// ==================== Rate Limiting ====================
+const RATE_LIMIT_COOLDOWN = 8000; // 8 seconds
+const rateLimitStore = {};
+
+function checkRateLimit(actionType) {
+    const now = Date.now();
+    const lastAttempt = rateLimitStore[actionType];
+
+    if (lastAttempt && (now - lastAttempt) < RATE_LIMIT_COOLDOWN) {
+        const remainingSeconds = Math.ceil((RATE_LIMIT_COOLDOWN - (now - lastAttempt)) / 1000);
+        return {
+            allowed: false,
+            remainingSeconds: remainingSeconds
+        };
+    }
+
+    return {
+        allowed: true,
+        remainingSeconds: 0
+    };
+}
+
+function setRateLimit(actionType) {
+    rateLimitStore[actionType] = Date.now();
+}
+
+function showRateLimitMessage(elementId, seconds) {
+    const parentEl = document.getElementById(elementId)?.parentElement;
+    if (!parentEl) return;
+
+    // Remove existing rate limit message
+    const existingMsg = parentEl.querySelector('.rate-limit-message');
+    if (existingMsg) {
+        existingMsg.remove();
+    }
+
+    // Create new rate limit message
+    const message = document.createElement('div');
+    message.className = 'rate-limit-message';
+    message.textContent = `Please wait ${seconds} second${seconds > 1 ? 's' : ''} before trying again`;
+
+    // Insert after the button
+    const button = document.getElementById(elementId);
+    if (button && button.parentElement) {
+        button.parentElement.appendChild(message);
+
+        // Auto-remove after countdown
+        setTimeout(() => {
+            message.remove();
+        }, seconds * 1000);
     }
 }
 

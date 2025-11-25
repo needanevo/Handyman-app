@@ -299,6 +299,14 @@
             e.preventDefault();
             hideError();
 
+            // Check rate limit
+            const rateCheck = checkRateLimit('register');
+            if (!rateCheck.allowed) {
+                showError(`Please wait ${rateCheck.remainingSeconds} second${rateCheck.remainingSeconds > 1 ? 's' : ''} before trying again.`);
+                showRateLimitMessage('create-account-btn', rateCheck.remainingSeconds);
+                return;
+            }
+
             // Validate all fields
             let hasErrors = false;
             inputs.forEach(input => {
@@ -335,6 +343,9 @@
             }
 
             showLoading('create-account-btn');
+
+            // Set rate limit
+            setRateLimit('register');
 
             try {
                 // Register customer account

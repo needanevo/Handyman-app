@@ -283,6 +283,14 @@
             e.preventDefault();
             hideError();
 
+            // Check rate limit
+            const rateCheck = checkRateLimit('register-step4');
+            if (!rateCheck.allowed) {
+                showError(`Please wait ${rateCheck.remainingSeconds} second${rateCheck.remainingSeconds > 1 ? 's' : ''} before trying again.`);
+                showRateLimitMessage('submit-button', rateCheck.remainingSeconds);
+                return;
+            }
+
             // Check if we have any files to upload
             const hasFiles = Object.values(uploadedFiles).some(file => file !== null && file !== undefined);
 
@@ -298,6 +306,9 @@
             }
 
             showLoading('submit-button');
+
+            // Set rate limit
+            setRateLimit('register-step4');
 
             try {
                 const portfolioUrls = [];

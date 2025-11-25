@@ -135,6 +135,14 @@
             e.preventDefault();
             hideError();
 
+            // Check rate limit
+            const rateCheck = checkRateLimit('login');
+            if (!rateCheck.allowed) {
+                showError(`Please wait ${rateCheck.remainingSeconds} second${rateCheck.remainingSeconds > 1 ? 's' : ''} before trying again.`);
+                showRateLimitMessage('login-button', rateCheck.remainingSeconds);
+                return;
+            }
+
             // Validate all fields
             let hasErrors = false;
             inputs.forEach(input => {
@@ -157,6 +165,9 @@
             }
 
             showLoading('login-button');
+
+            // Set rate limit
+            setRateLimit('login');
 
             try {
                 // Call login API (stores tokens and fetches user data)
