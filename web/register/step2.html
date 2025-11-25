@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration - Step 2 | The Real Johnson</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="../auth.js"></script>
+</head>
+<body>
+    <div class="register-container">
+        <div class="register-card">
+            <div class="logo">
+                <a href="/">The Real Johnson</a>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-step completed">1</div>
+                <div class="progress-line completed"></div>
+                <div class="progress-step active">2</div>
+                <div class="progress-line"></div>
+                <div class="progress-step">3</div>
+                <div class="progress-line"></div>
+                <div class="progress-step">4</div>
+            </div>
+
+            <h1>Documents & Credentials</h1>
+            <p class="subtitle" id="subtitle"></p>
+
+            <div id="error-message" class="error-message" style="display: none;"></div>
+
+            <form id="documents-form" class="registration-form">
+                <!-- License Upload -->
+                <div class="form-group upload-group">
+                    <label for="license">
+                        Professional License <span id="license-required"></span>
+                    </label>
+                    <input
+                        type="file"
+                        id="license"
+                        name="license"
+                        accept="image/*,.pdf"
+                    >
+                    <div class="upload-preview" id="license-preview" style="display: none;">
+                        <img id="license-img" alt="License preview">
+                        <button type="button" class="remove-btn" onclick="removeFile('license')">✕</button>
+                    </div>
+                    <small>Upload a photo or PDF of your professional license</small>
+                </div>
+
+                <!-- Insurance Upload -->
+                <div class="form-group upload-group">
+                    <label for="insurance">
+                        Insurance Certificate <span id="insurance-required"></span>
+                    </label>
+                    <input
+                        type="file"
+                        id="insurance"
+                        name="insurance"
+                        accept="image/*,.pdf"
+                    >
+                    <div class="upload-preview" id="insurance-preview" style="display: none;">
+                        <img id="insurance-img" alt="Insurance preview">
+                        <button type="button" class="remove-btn" onclick="removeFile('insurance')">✕</button>
+                    </div>
+                    <small>Upload your general liability or professional insurance certificate</small>
+                </div>
+
+                <!-- Business License Upload -->
+                <div class="form-group upload-group">
+                    <label for="businessLicense">
+                        Business License (Optional)
+                    </label>
+                    <input
+                        type="file"
+                        id="businessLicense"
+                        name="businessLicense"
+                        accept="image/*,.pdf"
+                    >
+                    <div class="upload-preview" id="businessLicense-preview" style="display: none;">
+                        <img id="businessLicense-img" alt="Business license preview">
+                        <button type="button" class="remove-btn" onclick="removeFile('businessLicense')">✕</button>
+                    </div>
+                    <small>Business registration or DBA certificate (if applicable)</small>
+                </div>
+
+                <div class="info-box">
+                    <strong id="role-info-title"></strong>
+                    <p id="role-info-text"></p>
+                </div>
+
+                <div class="form-actions">
+                    <a href="step1.html" class="btn btn-secondary">Back</a>
+                    <button type="submit" id="submit-button" class="btn btn-primary">
+                        Continue to Profile
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Check authentication
+        if (!isAuthenticated()) {
+            alert('Please complete Step 1 first');
+            window.location.href = 'step1.html';
+        }
+
+        // Get role and draft data
+        const draft = getRegistrationDraft();
+        const role = draft.role || localStorage.getItem('registration_role') || 'HANDYMAN';
+
+        // Track uploaded files
+        let uploadedFiles = {
+            license: null,
+            insurance: null,
+            businessLicense: null
+        };
+
+        // Configure page based on role
+        const isContractor = role === 'TECHNICIAN';
+
+        if (isContractor) {
+            document.getElementById('subtitle').textContent = 'Licensed contractors must provide credentials';
+            document.getElementById('license-required').innerHTML = '<span class="required">*</span>';
+            document.getElementById('insurance-required').innerHTML = '<span class="required">*</span>';
+            document.getElementById('license').required = true;
+            document.getElementById('insurance').required = true;
+            document.getElementById('role-info-title').textContent = 'Professional Contractor Requirements';
+            document.getElementById('role-info-text').textContent = 'As a licensed contractor, you must upload your professional license and insurance certificate. These help customers trust your expertise and protect everyone involved.';
+        } else {
+            document.getElementById('subtitle').textContent = 'Upload credentials if you have them (optional for handymen)';
+            document.getElementById('role-info-title').textContent = 'Handyman - Build As You Go';
+            document.getElementById('role-info-text').textContent = 'Documents are optional for handymen. You can start working right away and add credentials later as you grow your business. Having licenses and insurance will help you access higher-value jobs over time.';
+        }
+
+        // Handle file selection with preview
+        ['license', 'insurance', 'businessLicense'].forEach(fieldName => {
+            const input = document.getElementById(fieldName);
+            const preview = document.getElementById(`${fieldName}-preview`);
+            const img = document.getElementById(`${fieldName}-img`);
+
+            input.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    // Show preview for images
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            img.src = e.target.result;
+                            preview.style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        // For PDFs, just show a placeholder
+                        img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Ctext x="50%25" y="50%25" font-size="40" text-anchor="middle" dy=".3em"%3EPDF%3C/text%3E%3C/svg%3E';
+                        preview.style.display = 'block';
+                    }
+
+                    // Store file reference
+                    uploadedFiles[fieldName] = file;
+                }
+            });
+        });
+
+        // Remove file function
+        window.removeFile = function(fieldName) {
+            document.getElementById(fieldName).value = '';
+            document.getElementById(`${fieldName}-preview`).style.display = 'none';
+            uploadedFiles[fieldName] = null;
+        };
+
+        // Handle form submission
+        document.getElementById('documents-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            hideError();
+
+            // Validate required fields for contractors
+            if (isContractor) {
+                if (!uploadedFiles.license) {
+                    showError('Professional license is required for contractors');
+                    return;
+                }
+                if (!uploadedFiles.insurance) {
+                    showError('Insurance certificate is required for contractors');
+                    return;
+                }
+            }
+
+            showLoading('submit-button');
+
+            try {
+                const uploadResults = {};
+
+                // Upload license if provided
+                if (uploadedFiles.license) {
+                    const result = await uploadDocument(uploadedFiles.license, 'license');
+                    uploadResults.license = result.url;
+                }
+
+                // Upload insurance if provided
+                if (uploadedFiles.insurance) {
+                    const result = await uploadDocument(uploadedFiles.insurance, 'insurance');
+                    uploadResults.insurance = result.url;
+                }
+
+                // Upload business license if provided
+                if (uploadedFiles.businessLicense) {
+                    const result = await uploadDocument(uploadedFiles.businessLicense, 'business_license');
+                    uploadResults.businessLicense = result.url;
+                }
+
+                // Save to draft
+                saveRegistrationDraft({
+                    documents: uploadResults
+                });
+
+                // Navigate to step 3
+                window.location.href = 'step3.html';
+
+            } catch (error) {
+                hideLoading('submit-button');
+                showError(error.message || 'Failed to upload documents. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>

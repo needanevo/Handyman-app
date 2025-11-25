@@ -1,0 +1,452 @@
+/* ==========================================
+   The Real Johnson - Hire Flow Styles
+   ========================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: #f5f5f5;
+}
+
+/* ========== Container & Layout ========== */
+.hire-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+/* ========== Header ========== */
+.hire-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.hire-logo {
+    font-size: 1.5rem;
+    color: #222;
+    font-weight: 700;
+}
+
+.back-link {
+    color: #FFA500;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.back-link:hover {
+    color: #ff8c00;
+}
+
+/* ========== Progress Bar ========== */
+.progress-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 50px;
+    padding: 20px;
+}
+
+.progress-step {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #ddd;
+    color: #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.progress-step.active {
+    background: #FFA500;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(255, 165, 0, 0.4);
+}
+
+.progress-step.completed {
+    background: #4CAF50;
+    color: #fff;
+}
+
+.progress-line {
+    width: 60px;
+    height: 3px;
+    background: #ddd;
+    transition: background 0.3s ease;
+}
+
+.progress-line.completed {
+    background: #4CAF50;
+}
+
+/* ========== Step Content ========== */
+.step-content {
+    background: #fff;
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.step-title {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    color: #222;
+}
+
+.step-description {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 40px;
+}
+
+/* ========== Forms ========== */
+.hire-form {
+    margin-top: 30px;
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 1rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    transition: border-color 0.3s ease;
+    font-family: inherit;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #FFA500;
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-hint {
+    display: block;
+    font-size: 0.9rem;
+    color: #999;
+    margin-top: 5px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* ========== Category Grid ========== */
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 15px;
+    margin-bottom: 40px;
+}
+
+.category-card {
+    position: relative;
+    cursor: pointer;
+}
+
+.category-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.category-content {
+    border: 3px solid #ddd;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+    background: #fff;
+    height: 100%;
+}
+
+.category-card:hover .category-content {
+    border-color: #FFA500;
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(255, 165, 0, 0.2);
+}
+
+.category-card input:checked + .category-content {
+    border-color: #FFA500;
+    background: #fff8f0;
+}
+
+.category-icon {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.category-name {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #222;
+    margin-bottom: 5px;
+}
+
+.category-desc {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+/* ========== Buttons ========== */
+.btn {
+    display: inline-block;
+    padding: 14px 32px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: none;
+}
+
+.btn-primary {
+    background: #FFA500;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #ff8c00;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 165, 0, 0.3);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-outline {
+    background: transparent;
+    color: #666;
+    border: 2px solid #ddd;
+}
+
+.btn-outline:hover {
+    background: #f5f5f5;
+    border-color: #999;
+}
+
+.form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+    margin-top: 40px;
+}
+
+/* ========== Confirmation Page ========== */
+.confirmation-box {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.confirmation-icon {
+    width: 80px;
+    height: 80px;
+    background: #4CAF50;
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    margin: 0 auto 20px;
+    font-weight: bold;
+}
+
+.confirmation-title {
+    font-size: 2.2rem;
+    color: #222;
+    margin-bottom: 10px;
+}
+
+.confirmation-subtitle {
+    font-size: 1.1rem;
+    color: #666;
+}
+
+.summary-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 8px;
+}
+
+.summary-section h3 {
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+    color: #222;
+}
+
+.summary-item p {
+    margin-bottom: 10px;
+    color: #444;
+    line-height: 1.8;
+}
+
+.summary-item strong {
+    color: #222;
+}
+
+.next-steps-box {
+    background: #fff8f0;
+    border: 2px solid #FFA500;
+    border-radius: 12px;
+    padding: 30px;
+    margin: 40px 0;
+}
+
+.next-steps-box h3 {
+    font-size: 1.5rem;
+    color: #222;
+    margin-bottom: 15px;
+}
+
+.next-steps-box p {
+    margin-bottom: 15px;
+    color: #444;
+    line-height: 1.8;
+}
+
+.next-steps-box ul {
+    margin: 20px 0 20px 30px;
+}
+
+.next-steps-box li {
+    margin-bottom: 10px;
+    color: #444;
+}
+
+.app-buttons {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* ========== Responsive Design ========== */
+@media (max-width: 768px) {
+    .hire-container {
+        padding: 15px;
+    }
+
+    .step-content {
+        padding: 25px;
+    }
+
+    .step-title {
+        font-size: 1.5rem;
+    }
+
+    .step-description {
+        font-size: 1rem;
+    }
+
+    .progress-bar {
+        padding: 10px;
+    }
+
+    .progress-step {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .progress-line {
+        width: 30px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .category-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 10px;
+    }
+
+    .category-content {
+        padding: 15px;
+    }
+
+    .category-icon {
+        font-size: 2rem;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
+
+    .app-buttons {
+        flex-direction: column;
+    }
+
+    .app-buttons .btn {
+        width: 100%;
+    }
+
+    .hire-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .step-title {
+        font-size: 1.3rem;
+    }
+
+    .confirmation-title {
+        font-size: 1.7rem;
+    }
+
+    .category-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .next-steps-box {
+        padding: 20px;
+    }
+}

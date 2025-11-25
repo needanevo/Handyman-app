@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Step 1: Location | The Real Johnson</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="hire-container">
+        <header class="hire-header">
+            <h1 class="hire-logo">The Real Johnson - Hire a Pro</h1>
+            <a href="../" class="back-link">← Back to Home</a>
+        </header>
+
+        <div class="progress-bar">
+            <div class="progress-step active">1</div>
+            <div class="progress-line"></div>
+            <div class="progress-step">2</div>
+            <div class="progress-line"></div>
+            <div class="progress-step">3</div>
+            <div class="progress-line"></div>
+            <div class="progress-step">4</div>
+        </div>
+
+        <div class="step-content">
+            <h2 class="step-title">Step 1 of 4: Where do you need work done?</h2>
+            <p class="step-description">Enter the address where the job will be completed.</p>
+
+            <form id="step1-form" class="hire-form">
+                <div class="form-group">
+                    <label for="address">Street Address *</label>
+                    <input type="text" id="address" name="address" required class="form-control">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="city">City *</label>
+                        <input type="text" id="city" name="city" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="state">State *</label>
+                        <input type="text" id="state" name="state" required class="form-control" maxlength="2" placeholder="e.g., CA">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="zip">ZIP Code *</label>
+                    <input type="text" id="zip" name="zip" required class="form-control" pattern="[0-9]{5}" maxlength="5">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Next →</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Load existing draft if any
+        const draft = loadDraft();
+        if (draft.address) document.getElementById('address').value = draft.address;
+        if (draft.city) document.getElementById('city').value = draft.city;
+        if (draft.state) document.getElementById('state').value = draft.state;
+        if (draft.zip) document.getElementById('zip').value = draft.zip;
+
+        // Handle form submission
+        document.getElementById('step1-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = {
+                address: document.getElementById('address').value,
+                city: document.getElementById('city').value,
+                state: document.getElementById('state').value,
+                zip: document.getElementById('zip').value
+            };
+
+            saveDraft(formData);
+            window.location.href = 'step2.html';
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Real Johnson - Build. Earn. Hire.</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header Navigation -->
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">The Real Johnson</div>
+                <nav class="main-nav">
+                    <a href="#how-it-works">How It Works</a>
+                    <a href="handyman/">For Handymen</a>
+                    <a href="contractor/">For Contractors</a>
+                    <a href="login/" class="nav-link-login">Sign In</a>
+                    <a href="register/" class="button primary-small">Get Started</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="hero" class="hero-section">
+        <div class="container">
+            <h1 class="hero-title">Build. Earn. Hire.</h1>
+            <p class="hero-subtitle">
+                For homeowners: Find skilled professionals for your projects.<br>
+                For workers: Keep more of what you earn.
+            </p>
+            <div class="cta-buttons">
+                <a href="hire/" class="button primary">Hire a Pro</a>
+                <a href="handyman/" class="button secondary">Become a Handyman</a>
+                <a href="contractor/" class="button secondary">Become a Contractor</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section id="how-it-works" class="section">
+        <div class="container">
+            <h2 class="section-title">How It Works</h2>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <h3>Describe Your Job</h3>
+                    <p>Tell us what you need done. Add photos and details to help workers understand the scope.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <h3>Get Matched</h3>
+                    <p>Qualified handymen and contractors in your area submit proposals with pricing and timelines.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <h3>Complete & Review</h3>
+                    <p>Work gets done, payment is handled securely, and you review your experience.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Handyman Empowerment Section -->
+    <section id="handyman-empowerment" class="handyman-section">
+        <div class="container">
+            <h2 class="section-title-white">Stop Giving 40-60% to a Boss</h2>
+            <p class="section-subtitle-white">
+                You do the work. You should keep what you earn.<br>
+                Start as a handyman, grow into a contractor, build your business.
+            </p>
+            <div class="empowerment-stats">
+                <div class="stat-item">
+                    <div class="stat-number">15%</div>
+                    <div class="stat-label">Our Fee</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">85%</div>
+                    <div class="stat-label">You Keep</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">$0</div>
+                    <div class="stat-label">Hidden Fees</div>
+                </div>
+            </div>
+            <a href="handyman/" class="button white-button">Start as a Handyman</a>
+        </div>
+    </section>
+
+    <!-- Contractor Professional Section -->
+    <section id="contractor-professional" class="contractor-section">
+        <div class="container">
+            <h2 class="section-title">For Licensed Contractors</h2>
+            <p class="section-subtitle">
+                Grow your business with verified leads and professional tools.
+            </p>
+            <div class="contractor-benefits">
+                <div class="benefit-item">
+                    <span class="benefit-icon">✓</span>
+                    <span>Higher-value projects</span>
+                </div>
+                <div class="benefit-item">
+                    <span class="benefit-icon">✓</span>
+                    <span>Reputation system</span>
+                </div>
+                <div class="benefit-item">
+                    <span class="benefit-icon">✓</span>
+                    <span>Transparent pricing</span>
+                </div>
+                <div class="benefit-item">
+                    <span class="benefit-icon">✓</span>
+                    <span>Direct client relationships</span>
+                </div>
+            </div>
+            <a href="contractor/" class="button primary">Grow Your Contracting Business</a>
+        </div>
+    </section>
+
+    <!-- Job Request Section -->
+    <section id="job-request" class="section job-request-section">
+        <div class="container">
+            <h2 class="section-title">Start a Job Request</h2>
+            <p class="section-subtitle">Tell us where you need work done</p>
+            <form class="job-request-form" onsubmit="event.preventDefault(); window.location.href='hire/';">
+                <div class="form-row">
+                    <input type="text" placeholder="Street Address" class="form-input" required>
+                    <input type="text" placeholder="City" class="form-input" required>
+                </div>
+                <div class="form-row">
+                    <input type="text" placeholder="State" class="form-input" style="width: 30%;" required>
+                    <input type="text" placeholder="ZIP Code" class="form-input" style="width: 30%;" required>
+                </div>
+                <button type="submit" class="button primary">Start Job Request</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="section features-section">
+        <div class="container">
+            <h2 class="section-title">Why Choose The Real Johnson</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3>Transparent Pricing</h3>
+                    <p>See multiple proposals before you commit. No surprise fees.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤝</div>
+                    <h3>Direct-to-Worker</h3>
+                    <p>Work directly with the person doing the job. No middleman markup.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⭐</div>
+                    <h3>Ratings & Reviews</h3>
+                    <p>Real feedback from real customers. Build trust through quality work.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Secure Payments</h3>
+                    <p>Payment held securely until work is complete and approved.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📱</div>
+                    <h3>Easy Communication</h3>
+                    <p>Message workers, share photos, and track progress in the app.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📈</div>
+                    <h3>Growth Tools</h3>
+                    <p>For workers: track earnings, mileage, and business growth milestones.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Philosophy Section -->
+    <section id="philosophy" class="section philosophy-section">
+        <div class="container">
+            <h2 class="section-title">Why It Matters</h2>
+            <div class="philosophy-content">
+                <p class="philosophy-text">
+                    Blue-collar workers built America. They fix our homes, install our systems,
+                    and keep our communities running. Yet too often, they're forced to give up
+                    40-60% of their earnings to middlemen who add little value.
+                </p>
+                <p class="philosophy-text">
+                    The Real Johnson exists to fix that. We believe skilled workers deserve to
+                    keep what they earn. We believe homeowners deserve transparent pricing and
+                    direct access to qualified professionals.
+                </p>
+                <p class="philosophy-text">
+                    Our platform charges a fair 15% fee—just enough to maintain the platform,
+                    handle payments, and provide support. The rest goes where it belongs: to the
+                    person who did the work.
+                </p>
+                <p class="philosophy-highlight">
+                    Fair pay. Direct relationships. Real work.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- App Download Section -->
+    <section id="app-download" class="section app-download-section">
+        <div class="container">
+            <h2 class="section-title">Get The App</h2>
+            <p class="section-subtitle">Full features available in our mobile app (Coming Soon)</p>
+            <div class="app-buttons">
+                <a href="#ios-placeholder" class="button app-button ios-button">
+                    <span class="button-label">Download on the</span>
+                    <span class="button-title">App Store</span>
+                    <span class="coming-soon-badge">Coming Soon</span>
+                </a>
+                <a href="#android-placeholder" class="button app-button android-button">
+                    <span class="button-label">Get it on</span>
+                    <span class="button-title">Google Play</span>
+                    <span class="coming-soon-badge">Coming Soon</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section id="testimonials" class="section testimonials-section">
+        <div class="container">
+            <h2 class="section-title">What People Say</h2>
+            <div class="testimonials-grid">
+                <div class="testimonial-item">
+                    <div class="stars">★★★★★</div>
+                    <p class="testimonial-quote">
+                        "Finally, a platform that doesn't take half my paycheck. I'm making
+                        40% more per job than I did with other services."
+                    </p>
+                    <div class="testimonial-author">— Marcus T., Handyman</div>
+                </div>
+                <div class="testimonial-item">
+                    <div class="stars">★★★★★</div>
+                    <p class="testimonial-quote">
+                        "Got three proposals in 24 hours. Chose based on reviews and price.
+                        Work was done perfectly and on time."
+                    </p>
+                    <div class="testimonial-author">— Sarah K., Homeowner</div>
+                </div>
+                <div class="testimonial-item">
+                    <div class="stars">★★★★★</div>
+                    <p class="testimonial-quote">
+                        "I started as a handyman 6 months ago. Now I'm getting enough work
+                        to start my own LLC. This platform changed my life."
+                    </p>
+                    <div class="testimonial-author">— James R., Growing Business Owner</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer / Contact -->
+    <footer id="contact" class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>The Real Johnson</h3>
+                    <p>Fair pay. Direct relationships. Real work.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Legal</h4>
+                    <nav class="footer-nav">
+                        <a href="legal/terms.html">Terms of Service</a>
+                        <a href="legal/privacy.html">Privacy Policy</a>
+                        <a href="legal/contractor-agreement.html">Contractor Agreement</a>
+                    </nav>
+                </div>
+                <div class="footer-section">
+                    <h4>Get Started</h4>
+                    <nav class="footer-nav">
+                        <a href="hire/">Hire a Pro</a>
+                        <a href="handyman/">Become a Handyman</a>
+                        <a href="contractor/">Become a Contractor</a>
+                    </nav>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>
+                        <a href="mailto:info@therealjohnson.com">info@therealjohnson.com</a>
+                    </p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 The Real Johnson. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

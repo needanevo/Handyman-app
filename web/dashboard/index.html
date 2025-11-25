@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | The Real Johnson</title>
+    <script src="../auth.js"></script>
+</head>
+<body>
+    <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <div style="text-align: center;">
+            <h1 style="color: #FFA500;">The Real Johnson</h1>
+            <p>Loading your dashboard...</p>
+        </div>
+    </div>
+
+    <script>
+        // Require authentication
+        if (!requireAuth()) {
+            // requireAuth redirects to login if not authenticated
+        } else {
+            // Redirect to role-specific dashboard
+            redirectToDashboard();
+        }
+    </script>
+</body>
+</html>

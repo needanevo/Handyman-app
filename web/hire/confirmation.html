@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmation | The Real Johnson</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="../auth.js"></script>
+</head>
+<body>
+    <div class="hire-container">
+        <header class="hire-header">
+            <h1 class="hire-logo">The Real Johnson - Hire a Pro</h1>
+            <a href="../" class="back-link">← Back to Home</a>
+        </header>
+
+        <div class="step-content">
+            <div class="confirmation-box">
+                <div class="confirmation-icon">✓</div>
+                <h2 class="confirmation-title">Your Job Request is Ready!</h2>
+                <p class="confirmation-subtitle">Create an account to save this job and get matched with qualified workers.</p>
+            </div>
+
+            <!-- Account Creation Section -->
+            <div class="account-section" id="account-section" style="display: block;">
+                <h3>Create Your Account</h3>
+                <p class="account-note">
+                    Save this job request and access it from any device. Your account syncs between web and mobile.
+                </p>
+
+                <div id="error-message" class="error-message" style="display: none;"></div>
+
+                <form id="account-form" class="account-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="firstName">First Name *</label>
+                            <input
+                                type="text"
+                                id="firstName"
+                                name="firstName"
+                                required
+                                autocomplete="given-name"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="lastName">Last Name *</label>
+                            <input
+                                type="text"
+                                id="lastName"
+                                name="lastName"
+                                required
+                                autocomplete="family-name"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email Address *</label>
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            required
+                            autocomplete="email"
+                            placeholder="you@example.com"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Phone Number *</label>
+                        <input
+                            type="tel"
+                            id="phone"
+                            name="phone"
+                            required
+                            autocomplete="tel"
+                            placeholder="(555) 123-4567"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Create Password *</label>
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            required
+                            autocomplete="new-password"
+                            minlength="8"
+                            placeholder="Minimum 8 characters"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password *</label>
+                        <input
+                            type="password"
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            required
+                            autocomplete="new-password"
+                            minlength="8"
+                        >
+                    </div>
+
+                    <button type="submit" id="create-account-btn" class="btn btn-primary btn-block">
+                        Create Account & Save Job
+                    </button>
+
+                    <p class="login-prompt">
+                        Already have an account? <a href="/login/">Sign in instead</a>
+                    </p>
+                </form>
+            </div>
+
+            <!-- Summary Section (shown after account creation) -->
+            <div id="summary-container" style="display: none;">
+
+            <div class="summary-section">
+                <h3>📍 Location</h3>
+                <div class="summary-item" id="summary-location">
+                    <p>Loading...</p>
+                </div>
+            </div>
+
+            <div class="summary-section">
+                <h3>🛠️ Service Category</h3>
+                <div class="summary-item" id="summary-category">
+                    <p>Loading...</p>
+                </div>
+            </div>
+
+            <div class="summary-section">
+                <h3>📋 Job Details</h3>
+                <div class="summary-item" id="summary-details">
+                    <p>Loading...</p>
+                </div>
+            </div>
+
+            <div class="summary-section">
+                <h3>💵 Budget & Timing</h3>
+                <div class="summary-item" id="summary-budget">
+                    <p>Loading...</p>
+                </div>
+            </div>
+
+            <div class="next-steps-box">
+                <h3>📱 Next Steps</h3>
+                <p>
+                    Your job request has been saved! Download <strong>The Real Johnson</strong> mobile app
+                    to submit your job and get matched with qualified workers.
+                </p>
+                <p>
+                    In the app, you can:
+                </p>
+                <ul>
+                    <li>Submit your saved job request</li>
+                    <li>Receive proposals from qualified workers</li>
+                    <li>Message workers directly</li>
+                    <li>Track job progress in real-time</li>
+                    <li>Make secure payments</li>
+                </ul>
+                <div class="app-buttons" style="margin-top: 30px;">
+                    <a href="#ios-placeholder" class="btn btn-primary">Download on iOS (Coming Soon)</a>
+                    <a href="#android-placeholder" class="btn btn-primary">Download on Android (Coming Soon)</a>
+                </div>
+                <p style="margin-top: 20px; color: #666; font-size: 0.95rem;">
+                    ✨ <strong>Your account syncs automatically</strong> - Sign in with the same email and password on mobile.
+                </p>
+            </div>
+
+            <div class="form-actions">
+                <a href="/dashboard/" class="btn btn-primary">Go to Dashboard</a>
+                <a href="../" class="btn btn-outline">Back to Home</a>
+            </div>
+            </div><!-- close summary-container -->
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Check if already logged in
+        if (isAuthenticated()) {
+            // Show summary immediately
+            document.getElementById('account-section').style.display = 'none';
+            document.getElementById('summary-container').style.display = 'block';
+            displaySummary();
+        }
+
+        // Handle account creation form
+        document.getElementById('account-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            hideError();
+
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Validate passwords
+            if (password !== confirmPassword) {
+                showError('Passwords do not match');
+                return;
+            }
+
+            if (password.length < 8) {
+                showError('Password must be at least 8 characters');
+                return;
+            }
+
+            showLoading('create-account-btn');
+
+            try {
+                // Register customer account
+                const userData = {
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: email,
+                    phone: phone,
+                    password: password,
+                    role: 'CUSTOMER'
+                };
+
+                // Call register API (stores tokens and user data)
+                const user = await register(userData);
+
+                // Account created successfully - show summary
+                document.getElementById('account-section').style.display = 'none';
+                document.getElementById('summary-container').style.display = 'block';
+                displaySummary();
+
+                // Note: Job data is saved in localStorage and will be accessible in mobile app
+                // Mobile app can retrieve it via the hire flow or from backend later
+
+            } catch (error) {
+                hideLoading('create-account-btn');
+                showError(error.message || 'Failed to create account. Please try again.');
+            }
+        });
+
+        // Function to display job summary
+        function displaySummary() {
+            const draft = loadDraft();
+
+            // Location
+            const locationHTML = `
+                <p><strong>${draft.address || 'N/A'}</strong></p>
+                <p>${draft.city || 'N/A'}, ${draft.state || 'N/A'} ${draft.zip || 'N/A'}</p>
+            `;
+            document.getElementById('summary-location').innerHTML = locationHTML;
+
+            // Category
+            const categoryHTML = `<p><strong>${draft.category || 'Not selected'}</strong></p>`;
+            document.getElementById('summary-category').innerHTML = categoryHTML;
+
+            // Details
+            let detailsHTML = `
+                <p><strong>Title:</strong> ${draft.title || 'Not provided'}</p>
+                <p><strong>Description:</strong> ${draft.description || 'Not provided'}</p>
+            `;
+            if (draft.photo1 || draft.photo2 || draft.photo3) {
+                detailsHTML += `<p><strong>Photos:</strong> ${[draft.photo1, draft.photo2, draft.photo3].filter(p => p).length} image(s)</p>`;
+            }
+            if (draft.notes) {
+                detailsHTML += `<p><strong>Additional Notes:</strong> ${draft.notes}</p>`;
+            }
+            document.getElementById('summary-details').innerHTML = detailsHTML;
+
+            // Budget & Timing
+            let budgetHTML = '';
+            if (draft.budgetMin || draft.budgetMax) {
+                budgetHTML += `<p><strong>Budget Range:</strong> $${draft.budgetMin || '?'} - $${draft.budgetMax || '?'}</p>`;
+            } else {
+                budgetHTML += `<p><strong>Budget Range:</strong> Not specified</p>`;
+            }
+            budgetHTML += `<p><strong>Urgency:</strong> ${draft.urgency || 'Not specified'}</p>`;
+            if (draft.timing) {
+                budgetHTML += `<p><strong>Timing:</strong> ${draft.timing}</p>`;
+            }
+            if (draft.contractorPreference && draft.contractorPreference !== 'no_preference') {
+                const prefText = draft.contractorPreference === 'handyman' ? 'Handyman' : 'Licensed Contractor';
+                budgetHTML += `<p><strong>Worker Preference:</strong> ${prefText}</p>`;
+            }
+            document.getElementById('summary-budget').innerHTML = budgetHTML;
+        }
+    </script>
+</body>
+</html>

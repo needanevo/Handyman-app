@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Dashboard | The Real Johnson</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="../auth.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="/">The Real Johnson</a>
+                </div>
+                <nav class="header-nav">
+                    <button id="logout-btn" class="btn btn-text">Logout</button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+        <div class="container">
+            <!-- Welcome Section -->
+            <div class="welcome-section">
+                <h1>Welcome, <span id="user-name">Customer</span>!</h1>
+                <p class="welcome-text">
+                    Your account is ready. Download our mobile app to submit job requests,
+                    track progress, and communicate with contractors.
+                </p>
+            </div>
+
+            <!-- Success Message -->
+            <div class="success-card">
+                <div class="success-icon">✅</div>
+                <div class="success-content">
+                    <h2>Account Created Successfully!</h2>
+                    <p>
+                        Your customer profile is ready. Download the mobile app to submit
+                        job requests and connect with qualified contractors and handymen.
+                    </p>
+                </div>
+            </div>
+
+            <!-- App Download Section -->
+            <div class="app-download-section">
+                <h2>Download the Mobile App</h2>
+                <p class="section-subtitle">
+                    Submit job requests, upload photos, get quotes, and track your projects
+                    all from your phone. Your login credentials work on both web and mobile.
+                </p>
+
+                <div class="app-download-cards">
+                    <div class="app-card">
+                        <div class="app-icon">📱</div>
+                        <h3>iOS App</h3>
+                        <p>Download from the App Store</p>
+                        <a href="#ios-download" class="btn btn-primary">
+                            <span class="download-icon">⬇️</span> Download for iPhone
+                        </a>
+                        <small class="coming-soon">Coming Soon</small>
+                    </div>
+
+                    <div class="app-card">
+                        <div class="app-icon">🤖</div>
+                        <h3>Android App</h3>
+                        <p>Download from Google Play</p>
+                        <a href="#android-download" class="btn btn-primary">
+                            <span class="download-icon">⬇️</span> Download for Android
+                        </a>
+                        <small class="coming-soon">Coming Soon</small>
+                    </div>
+                </div>
+
+                <div class="app-features">
+                    <h3>What you can do in the app:</h3>
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <span class="feature-icon">📝</span>
+                            <span>Submit job requests with photos</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">💵</span>
+                            <span>Get transparent quotes</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">👷</span>
+                            <span>View contractor profiles and reviews</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">📅</span>
+                            <span>Schedule and track jobs</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">💬</span>
+                            <span>Message contractors directly</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">💳</span>
+                            <span>Secure payment processing</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Info -->
+            <div class="account-info">
+                <h2>Your Account Details</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Name:</span>
+                        <span class="info-value" id="user-fullname">loading...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Email:</span>
+                        <span class="info-value" id="user-email">loading...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Phone:</span>
+                        <span class="info-value" id="user-phone">loading...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Account Type:</span>
+                        <span class="info-value">Customer</span>
+                    </div>
+                </div>
+                <p class="seamless-note">
+                    ✨ <strong>Seamless Sync:</strong> Your account automatically syncs between
+                    web and mobile. Sign in with the same email and password on any device.
+                </p>
+            </div>
+
+            <!-- What's Next -->
+            <div class="next-steps">
+                <h2>What's Next?</h2>
+                <div class="steps-list">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Download the mobile app</h3>
+                            <p>Available for iOS and Android (coming soon)</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Sign in with your credentials</h3>
+                            <p>Use the same email and password you just created</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Submit your first job request</h3>
+                            <p>Take photos, describe the work, and set your budget</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Review quotes and hire</h3>
+                            <p>Compare contractors, read reviews, and choose the best fit</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Browse Jobs (placeholder) -->
+            <div class="browse-section">
+                <h2>Browse Available Services</h2>
+                <p class="section-subtitle">
+                    See what kinds of jobs our contractors and handymen can help you with
+                </p>
+                <a href="/#services" class="btn btn-outline">View All Services</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="dashboard-footer">
+        <div class="container">
+            <p>&copy; 2025 The Real Johnson. All rights reserved.</p>
+            <nav>
+                <a href="/legal/terms.html">Terms</a>
+                <a href="/legal/privacy.html">Privacy</a>
+            </nav>
+        </div>
+    </footer>
+
+    <script>
+        // Require authentication
+        if (!requireAuth()) {
+            // Redirects to login
+        }
+
+        // Load user data
+        const user = getUserData();
+        if (user) {
+            // Update UI with user info
+            const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Customer';
+            document.getElementById('user-name').textContent = user.first_name || 'Customer';
+            document.getElementById('user-fullname').textContent = fullName;
+            document.getElementById('user-email').textContent = user.email || 'N/A';
+            document.getElementById('user-phone').textContent = user.phone || 'N/A';
+        }
+
+        // Logout handler
+        document.getElementById('logout-btn').addEventListener('click', async function() {
+            if (confirm('Are you sure you want to logout?')) {
+                await logout();
+            }
+        });
+    </script>
+</body>
+</html>

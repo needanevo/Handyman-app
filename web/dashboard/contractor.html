@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contractor Dashboard | The Real Johnson</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="../auth.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="/">The Real Johnson</a>
+                </div>
+                <nav class="header-nav">
+                    <button id="logout-btn" class="btn btn-text">Logout</button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+        <div class="container">
+            <!-- Welcome Section -->
+            <div class="welcome-section">
+                <h1>Welcome back, <span id="user-name">Contractor</span>!</h1>
+                <p class="welcome-text">
+                    Your account is active and ready to accept jobs. Download our mobile app
+                    to get instant notifications when new jobs are posted nearby.
+                </p>
+            </div>
+
+            <!-- Success Message -->
+            <div class="success-card">
+                <div class="success-icon">✅</div>
+                <div class="success-content">
+                    <h2>Registration Complete!</h2>
+                    <p>
+                        Your contractor profile has been created successfully. You can now start
+                        accepting jobs through our mobile app.
+                    </p>
+                </div>
+            </div>
+
+            <!-- App Download Section -->
+            <div class="app-download-section">
+                <h2>Download the Mobile App</h2>
+                <p class="section-subtitle">
+                    Access your account, browse available jobs, and communicate with customers
+                    directly from your phone. Your login credentials work on both web and mobile.
+                </p>
+
+                <div class="app-download-cards">
+                    <div class="app-card">
+                        <div class="app-icon">📱</div>
+                        <h3>iOS App</h3>
+                        <p>Download from the App Store</p>
+                        <a href="#ios-download" class="btn btn-primary">
+                            <span class="download-icon">⬇️</span> Download for iPhone
+                        </a>
+                        <small class="coming-soon">Coming Soon</small>
+                    </div>
+
+                    <div class="app-card">
+                        <div class="app-icon">🤖</div>
+                        <h3>Android App</h3>
+                        <p>Download from Google Play</p>
+                        <a href="#android-download" class="btn btn-primary">
+                            <span class="download-icon">⬇️</span> Download for Android
+                        </a>
+                        <small class="coming-soon">Coming Soon</small>
+                    </div>
+                </div>
+
+                <div class="app-features">
+                    <h3>What you can do in the app:</h3>
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <span class="feature-icon">🔍</span>
+                            <span>Browse jobs within 50 miles</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">📸</span>
+                            <span>Upload portfolio photos</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">💬</span>
+                            <span>Message customers directly</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">💰</span>
+                            <span>Track earnings and payouts</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">⭐</span>
+                            <span>Build your reputation with reviews</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">🔔</span>
+                            <span>Get instant job notifications</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Info -->
+            <div class="account-info">
+                <h2>Your Account Details</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Email:</span>
+                        <span class="info-value" id="user-email">loading...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Phone:</span>
+                        <span class="info-value" id="user-phone">loading...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Business Name:</span>
+                        <span class="info-value" id="user-business">loading...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Account Type:</span>
+                        <span class="info-value" id="user-role">loading...</span>
+                    </div>
+                </div>
+                <p class="seamless-note">
+                    ✨ <strong>Seamless Sync:</strong> Your account automatically syncs between
+                    web and mobile. Sign in with the same email and password on any device.
+                </p>
+            </div>
+
+            <!-- What's Next -->
+            <div class="next-steps">
+                <h2>What's Next?</h2>
+                <div class="steps-list">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Download the mobile app</h3>
+                            <p>Available for iOS and Android (coming soon)</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Sign in with your credentials</h3>
+                            <p>Use the same email and password you just created</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Complete your profile</h3>
+                            <p>Add portfolio photos and verify your documents</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Start accepting jobs</h3>
+                            <p>Browse available work and start earning!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="dashboard-footer">
+        <div class="container">
+            <p>&copy; 2025 The Real Johnson. All rights reserved.</p>
+            <nav>
+                <a href="/legal/terms.html">Terms</a>
+                <a href="/legal/privacy.html">Privacy</a>
+                <a href="/legal/contractor-agreement.html">Contractor Agreement</a>
+            </nav>
+        </div>
+    </footer>
+
+    <script>
+        // Require authentication
+        if (!requireAuth()) {
+            // Redirects to login
+        }
+
+        // Load user data
+        const user = getUserData();
+        if (user) {
+            // Update UI with user info
+            document.getElementById('user-name').textContent = user.first_name || 'Contractor';
+            document.getElementById('user-email').textContent = user.email || 'N/A';
+            document.getElementById('user-phone').textContent = user.phone || 'N/A';
+            document.getElementById('user-business').textContent = user.business_name || 'N/A';
+
+            const roleDisplay = user.role === 'TECHNICIAN' ? 'Licensed Contractor' :
+                              user.role === 'HANDYMAN' ? 'Handyman' :
+                              user.role;
+            document.getElementById('user-role').textContent = roleDisplay;
+        }
+
+        // Clear registration draft since registration is complete
+        clearRegistrationDraft();
+
+        // Logout handler
+        document.getElementById('logout-btn').addEventListener('click', async function() {
+            if (confirm('Are you sure you want to logout?')) {
+                await logout();
+            }
+        });
+    </script>
+</body>
+</html>

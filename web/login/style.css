@@ -1,0 +1,318 @@
+/* ==========================================
+   The Real Johnson - Login Page Styles
+   ========================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* ========== Container ========== */
+.login-container {
+    width: 100%;
+    max-width: 450px;
+}
+
+.login-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* ========== Logo ========== */
+.logo {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.logo a {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #FFA500;
+    text-decoration: none;
+}
+
+/* ========== Headers ========== */
+h1 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    color: #222;
+    text-align: center;
+}
+
+.subtitle {
+    text-align: center;
+    color: #666;
+    margin-bottom: 30px;
+    font-size: 1rem;
+}
+
+/* ========== Forms ========== */
+.login-form {
+    margin-bottom: 30px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+input[type="email"],
+input[type="password"] {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.3s ease;
+}
+
+input:focus {
+    outline: none;
+    border-color: #FFA500;
+}
+
+/* ========== Form Options ========== */
+.form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+    color: #666;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin-right: 8px;
+}
+
+.forgot-link {
+    font-size: 0.9rem;
+    color: #FFA500;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.forgot-link:hover {
+    text-decoration: underline;
+}
+
+/* ========== Error Messages ========== */
+.error-message {
+    background: #ffebee;
+    color: #c62828;
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #c62828;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* ========== Buttons ========== */
+.btn {
+    display: inline-block;
+    padding: 14px 30px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.btn-primary {
+    background: #FFA500;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #ff8c00;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 165, 0, 0.4);
+}
+
+.btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-outline {
+    background: transparent;
+    color: #FFA500;
+    border: 2px solid #FFA500;
+}
+
+.btn-outline:hover {
+    background: #FFA500;
+    color: #fff;
+}
+
+/* ========== Divider ========== */
+.login-divider {
+    text-align: center;
+    margin: 30px 0;
+    position: relative;
+}
+
+.login-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #e0e0e0;
+}
+
+.login-divider span {
+    background: #fff;
+    padding: 0 15px;
+    color: #999;
+    font-size: 0.9rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* ========== Register Prompt ========== */
+.register-prompt {
+    text-align: center;
+}
+
+.register-prompt p {
+    margin-bottom: 15px;
+    color: #666;
+}
+
+.register-links {
+    margin-bottom: 10px;
+}
+
+.role-hint {
+    font-size: 0.85rem;
+    color: #999;
+    margin-top: 10px;
+}
+
+/* ========== App Download Prompt ========== */
+.app-download-prompt {
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 1px solid #e0e0e0;
+    text-align: center;
+}
+
+.download-text {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+.download-text strong {
+    color: #333;
+}
+
+.app-buttons-mini {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.app-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #f9f9f9;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #333;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.app-link:hover {
+    background: #fff;
+    border-color: #FFA500;
+    color: #FFA500;
+    transform: translateY(-2px);
+}
+
+.app-icon {
+    font-size: 1.2rem;
+}
+
+.seamless-note {
+    font-size: 0.8rem;
+    color: #999;
+    font-style: italic;
+}
+
+/* ========== Responsive Design ========== */
+@media (max-width: 480px) {
+    .login-card {
+        padding: 30px 20px;
+    }
+
+    h1 {
+        font-size: 1.75rem;
+    }
+
+    .logo a {
+        font-size: 1.5rem;
+    }
+
+    .form-options {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .app-buttons-mini {
+        flex-direction: column;
+    }
+
+    .app-link {
+        width: 100%;
+        justify-content: center;
+    }
+}

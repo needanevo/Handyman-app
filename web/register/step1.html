@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration - Step 1 | The Real Johnson</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="../auth.js"></script>
+</head>
+<body>
+    <div class="register-container">
+        <div class="register-card">
+            <div class="logo">
+                <a href="/">The Real Johnson</a>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-step active">1</div>
+                <div class="progress-line"></div>
+                <div class="progress-step">2</div>
+                <div class="progress-line"></div>
+                <div class="progress-step">3</div>
+                <div class="progress-line"></div>
+                <div class="progress-step">4</div>
+            </div>
+
+            <h1>Basic Information</h1>
+            <p class="subtitle">Create your account to get started</p>
+
+            <div id="error-message" class="error-message" style="display: none;"></div>
+
+            <form id="registration-form" class="registration-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">First Name *</label>
+                        <input
+                            type="text"
+                            id="firstName"
+                            name="firstName"
+                            required
+                            autocomplete="given-name"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lastName">Last Name *</label>
+                        <input
+                            type="text"
+                            id="lastName"
+                            name="lastName"
+                            required
+                            autocomplete="family-name"
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address *</label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        required
+                        autocomplete="email"
+                        placeholder="you@example.com"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Phone Number *</label>
+                    <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        required
+                        autocomplete="tel"
+                        placeholder="(555) 123-4567"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="businessName">Business Name *</label>
+                    <input
+                        type="text"
+                        id="businessName"
+                        name="businessName"
+                        required
+                        autocomplete="organization"
+                        placeholder="e.g., John's Handyman Services"
+                    >
+                    <small>This will be displayed to customers</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password *</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        required
+                        autocomplete="new-password"
+                        minlength="8"
+                        placeholder="Minimum 8 characters"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password *</label>
+                    <input
+                        type="password"
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        required
+                        autocomplete="new-password"
+                        minlength="8"
+                    >
+                </div>
+
+                <div class="form-actions">
+                    <a href="index.html" class="btn btn-secondary">Back</a>
+                    <button type="submit" id="submit-button" class="btn btn-primary">
+                        Create Account & Continue
+                    </button>
+                </div>
+            </form>
+
+            <p class="step-note">
+                * Required fields. Your account will be created immediately so you can upload
+                documents in the next steps. This ensures seamless access across web and mobile.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Get role from previous page
+        const role = localStorage.getItem('registration_role') || 'HANDYMAN';
+
+        // Load any existing draft data
+        const draft = getRegistrationDraft();
+        if (draft.firstName) document.getElementById('firstName').value = draft.firstName;
+        if (draft.lastName) document.getElementById('lastName').value = draft.lastName;
+        if (draft.email) document.getElementById('email').value = draft.email;
+        if (draft.phone) document.getElementById('phone').value = draft.phone;
+        if (draft.businessName) document.getElementById('businessName').value = draft.businessName;
+
+        // Handle form submission
+        document.getElementById('registration-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            hideError();
+
+            // Get form values
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const businessName = document.getElementById('businessName').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Validate passwords match
+            if (password !== confirmPassword) {
+                showError('Passwords do not match');
+                return;
+            }
+
+            // Validate password length
+            if (password.length < 8) {
+                showError('Password must be at least 8 characters');
+                return;
+            }
+
+            // Show loading state
+            showLoading('submit-button');
+
+            try {
+                // Register user with backend
+                const userData = {
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: email,
+                    phone: phone,
+                    business_name: businessName,
+                    password: password,
+                    role: role
+                };
+
+                // Call register API (this will store tokens and user data)
+                const user = await register(userData);
+
+                // Save to registration draft
+                saveRegistrationDraft({
+                    firstName,
+                    lastName,
+                    email,
+                    phone,
+                    businessName,
+                    role,
+                    userId: user.id
+                });
+
+                // Navigate to step 2
+                window.location.href = 'step2.html';
+
+            } catch (error) {
+                hideLoading('submit-button');
+                showError(error.message || 'Registration failed. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>
