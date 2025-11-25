@@ -1,118 +1,97 @@
 """
-Job model for managing handyman service jobs.
+Job model for Phase 4 architecture.
 
-Jobs are created when a customer accepts a quote and represent
-the actual work to be performed by a contractor.
+Jobs represent work requests from customers that can receive proposals from handymen/contractors.
 """
 
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime
 from enum import Enum
 import uuid
 
 
 class JobStatus(str, Enum):
-    """Job status workflow"""
-    REQUESTED = "requested"  # Customer created job request, waiting for contractor
-    QUOTED = "quoted"  # Contractor provided quote/estimate
-    ACCEPTED = "accepted"  # Customer accepted, contractor assigned
-    SCHEDULED = "scheduled"  # Date scheduled
-    IN_PROGRESS = "in_progress"  # Work started
-    COMPLETED = "completed"  # Work finished
-    CANCELLED = "cancelled"  # Job cancelled
-    # Legacy statuses (for migration)
-    PENDING = "pending"  # Alias for REQUESTED
+    """Job lifecycle states"""
+    DRAFT = "draft"
+    PUBLISHED = "published"  # Visible in feed, accepting proposals
+    PROPOSAL_SELECTED = "proposal_selected"  # Customer chose a proposal
+    SCHEDULED = "scheduled"
+    IN_PROGRESS = "in_progress"
+    COMPLETED_PENDING_REVIEW = "completed_pending_review"
+    COMPLETED = "completed"
+    CANCELLED_BY_CUSTOMER = "cancelled_by_customer"
+    CANCELLED_BY_CONTRACTOR = "cancelled_by_contractor"
+
+
+class ContractorTypePreference(str, Enum):
+    """Customer's preference for contractor type"""
+    HANDYMAN = "handyman"
+    LICENSED = "licensed"
+    NO_PREFERENCE = "no_preference"
+
+
+class JobAddress(BaseModel):
+    """Address embedded in job"""
+    street: str
+    city: str
+    state: str
+    zip: str
+    lat: Optional[float] = None
+    lon: Optional[float] = None
 
 
 class Job(BaseModel):
-    """Job represents actual work to be performed"""
+    """Job represents a work request that can receive proposals"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
     # References
     customer_id: str
-    contractor_id: Optional[str] = None  # Assigned contractor
-    quote_id: Optional[str] = None  # Original quote (optional for direct job creation)
+    assigned_contractor_id: Optional[str] = None  # Set when proposal accepted
+
+    # Status
+    status: JobStatus = JobStatus.DRAFT
 
     # Job details
-    status: JobStatus = JobStatus.REQUESTED
     service_category: str
+    address: JobAddress
     description: str
-    photos: List[str] = []  # Photo URLs from Linode Object Storage
-    urgency: Optional[str] = None  # normal, urgent, flexible
-    preferred_dates: List[str] = []  # ISO date strings
-    budget_min: Optional[float] = None
+    photos: List[str] = []  # Photo URLs from Linode
     budget_max: Optional[float] = None
-    source: str = "app"  # app, web, phone, referral
+    urgency: str = "low"  # low, medium, high
+    preferred_timing: Optional[str] = None  # Free text or ISO window
+    contractor_type_preference: Optional[ContractorTypePreference] = None
 
-    # Scheduling
-    scheduled_date: Optional[datetime] = None
-    estimated_duration_hours: Optional[float] = None
-    completed_date: Optional[datetime] = None
-
-    # Location
-    address_id: str
-
-    # Financial
-    estimated_total: Optional[float] = None  # Calculated estimate
-    agreed_amount: Optional[float] = None  # Final agreed price after negotiation
-    deposit_amount: Optional[float] = None
-    deposit_paid: bool = False
-    final_amount: Optional[float] = None  # May differ from agreed after work
-    paid_in_full: bool = False
-
-    # Metadata
+    # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    # Notes and tracking
-    customer_notes: Optional[str] = None
-    contractor_notes: Optional[str] = None
-    cancellation_reason: Optional[str] = None
+    # Scheduling (set when status → scheduled)
+    scheduled_start: Optional[datetime] = None
+    scheduled_end: Optional[datetime] = None
 
-    # Photos (work progress/completion)
-    before_photos: List[str] = []
-    after_photos: List[str] = []
+    # Proposal linkage
+    accepted_proposal_id: Optional[str] = None
 
-
-class JobCreate(BaseModel):
-    """Request to create a job from accepted quote"""
-    quote_id: str
-    preferred_date: Optional[str] = None  # ISO date string
-    customer_notes: Optional[str] = None
-
-
-class JobUpdate(BaseModel):
-    """Update job fields"""
-    status: Optional[JobStatus] = None
-    contractor_id: Optional[str] = None
-    scheduled_date: Optional[datetime] = None
-    estimated_duration_hours: Optional[float] = None
-    completed_date: Optional[datetime] = None
-    contractor_notes: Optional[str] = None
-    before_photos: Optional[List[str]] = None
-    after_photos: Optional[List[str]] = None
-    final_amount: Optional[float] = None
-    paid_in_full: Optional[bool] = None
+    # Payout linkage
+    payout_id: Optional[str] = None
 
 
 class JobCreateRequest(BaseModel):
-    """Request to create a job directly (no quote required)"""
+    """Request to create a new job"""
     service_category: str
-    address_id: str
+    address: JobAddress
     description: str
-    photos: List[str] = []  # Photo URLs from Linode
-    budget_min: Optional[float] = 0
+    photos: List[str] = []
     budget_max: Optional[float] = None
-    urgency: str = "normal"  # normal, urgent, flexible
-    preferred_dates: List[str] = []  # ISO date strings
-    source: str = "app"  # app, web, phone, referral
-    status: str = "requested"  # Always starts as requested
+    urgency: str = "low"
+    preferred_timing: Optional[str] = None
+    contractor_type_preference: Optional[ContractorTypePreference] = None
+    status: JobStatus = JobStatus.DRAFT  # Can be DRAFT or PUBLISHED
 
 
-class JobCreateResponse(BaseModel):
-    """Response after creating a job"""
-    job_id: str
-    status: str
-    estimated_total: float
-    created_at: str  # ISO datetime string
+class JobStatusUpdate(BaseModel):
+    """Request to update job status"""
+    status: JobStatus
+    scheduled_start: Optional[datetime] = None
+    scheduled_end: Optional[datetime] = None

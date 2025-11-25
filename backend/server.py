@@ -36,8 +36,24 @@ from models import (
     QuoteResponse,
     QuoteStatus,
     QuoteItem,
+    Job,
+    JobStatus,
+    JobCreateRequest,
+    JobStatusUpdate,
+    ContractorTypePreference,
+    JobAddress,
+    Proposal,
+    ProposalStatus,
+    ProposalCreateRequest,
+    ProposalResponse,
+    ContractorRole,
+    Payout,
+    PayoutStatus,
+    WalletSummary,
+    GrowthSummary,
+    GrowthSummaryResponse,
 )
-from models.job import Job, JobCreate, JobUpdate, JobStatus, JobCreateRequest, JobCreateResponse
+# Job models imported from models/__init__.py above
 
 # Import authentication
 from auth.auth_handler import (
@@ -50,6 +66,11 @@ from auth.auth_handler import (
 # Import services
 from services.pricing_engine import PricingEngine
 from services.contractor_routing import ContractorRouter
+from services.job_lifecycle import JobLifecycleService
+from services.proposal_service import ProposalService
+from services.job_feed_service import JobFeedService
+from services.payout_service import PayoutService
+from services.growth_service import GrowthService
 
 # Import providers
 from providers.openai_provider import OpenAiProvider
@@ -71,6 +92,13 @@ db = client[os.environ["DB_NAME"]]
 auth_handler = AuthHandler(db)
 pricing_engine = PricingEngine()
 contractor_router = ContractorRouter(db)
+
+# Initialize Phase 4 services
+job_lifecycle = JobLifecycleService(db)
+proposal_service = ProposalService(db)
+job_feed_service = JobFeedService(db)
+payout_service = PayoutService(db)
+growth_service = GrowthService(db)
 
 # Initialize providers based on feature flags
 active_ai = (
@@ -955,7 +983,6 @@ async def create_job(
         description=job_data.description,
         photos=job_data.photos,
         address_id=job_data.address_id,
-        budget_min=job_data.budget_min,
         budget_max=job_data.budget_max,
         urgency=job_data.urgency,
         preferred_dates=job_data.preferred_dates,
@@ -2070,6 +2097,363 @@ async def send_quote(quote_id: str, current_user: User = Depends(require_admin))
     return {"message": "Quote sent successfully"}
 
 
+# ==================== PHASE 4: JOB FEED & PROPOSALS ====================
+
+
+@api_router.get("/handyman/jobs/feed")
+async def get_jobs_feed(
+    limit: int = 50,
+    offset: int = 0,
+    current_user: User = Depends(require_technician_or_admin)
+):
+    """
+    Get available jobs feed for handyman/contractor.
+    Filters by skills, location (50 mile radius), and contractor type preference.
+    """
+    jobs = await job_feed_service.get_available_jobs_feed(
+        contractor_id=current_user.id,
+        limit=limit,
+        offset=offset
+    )
+
+    # Convert to dict for JSON serialization
+    return [job.model_dump() for job in jobs]
+
+
+@api_router.get("/handyman/jobs/active")
+async def get_active_jobs(
+    limit: int = 50,
+    offset: int = 0,
+    current_user: User = Depends(require_technician_or_admin)
+):
+    """
+    Get active jobs for handyman/contractor.
+    Jobs where contractor is assigned and status is active.
+    """
+    jobs = await job_feed_service.get_active_jobs(
+        contractor_id=current_user.id,
+        limit=limit,
+        offset=offset
+    )
+
+    return [job.model_dump() for job in jobs]
+
+
+@api_router.get("/handyman/jobs/history")
+async def get_job_history(
+    limit: int = 50,
+    offset: int = 0,
+    current_user: User = Depends(require_technician_or_admin)
+):
+    """
+    Get job history for handyman/contractor.
+    Completed and cancelled jobs.
+    """
+    jobs = await job_feed_service.get_job_history(
+        contractor_id=current_user.id,
+        limit=limit,
+        offset=offset
+    )
+
+    return [job.model_dump() for job in jobs]
+
+
+@api_router.post("/jobs")
+async def create_job(
+    job_request: JobCreateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Create a new job (customer only).
+    Can be created as draft or published.
+    """
+    if current_user.role != UserRole.CUSTOMER:
+        raise HTTPException(status_code=403, detail="Only customers can create jobs")
+
+    # Create job
+    job = Job(
+        customer_id=current_user.id,
+        service_category=job_request.service_category,
+        address=job_request.address,
+        description=job_request.description,
+        photos=job_request.photos,
+        budget_max=job_request.budget_max,
+        urgency=job_request.urgency,
+        preferred_timing=job_request.preferred_timing,
+        contractor_type_preference=job_request.contractor_type_preference,
+        status=job_request.status
+    )
+
+    # Insert to database
+    job_dict = job.model_dump()
+    await db.jobs.insert_one(job_dict)
+
+    return {
+        "job_id": job.id,
+        "status": job.status,
+        "created_at": job.created_at.isoformat()
+    }
+
+
+@api_router.patch("/jobs/{job_id}/status")
+async def update_job_status(
+    job_id: str,
+    status_update: JobStatusUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update job status using state machine.
+    Enforces allowed transitions and handles side effects.
+    """
+    # Get job
+    job_data = await db.jobs.find_one({"id": job_id})
+    if not job_data:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job = Job(**job_data)
+
+    # Determine actor role and validate permissions
+    actor_role = current_user.role.value
+
+    # Verify user has permission for this transition
+    if current_user.role == UserRole.CUSTOMER:
+        if job.customer_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not your job")
+    elif current_user.role in [UserRole.HANDYMAN, UserRole.TECHNICIAN]:
+        if job.assigned_contractor_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not assigned to you")
+
+    # Prepare additional data
+    additional_data = {}
+    if status_update.scheduled_start:
+        additional_data["scheduled_start"] = status_update.scheduled_start
+    if status_update.scheduled_end:
+        additional_data["scheduled_end"] = status_update.scheduled_end
+
+    # Apply transition
+    try:
+        from services.job_lifecycle import JobLifecycleError
+        updated_job = await job_lifecycle.apply_transition(
+            job=job,
+            new_status=status_update.status,
+            actor_id=current_user.id,
+            actor_role=actor_role,
+            additional_data=additional_data if additional_data else None
+        )
+
+        return updated_job.model_dump()
+    except JobLifecycleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ==================== PROPOSALS ====================
+
+
+@api_router.post("/jobs/{job_id}/proposals")
+async def create_proposal(
+    job_id: str,
+    proposal_request: ProposalCreateRequest,
+    current_user: User = Depends(require_technician_or_admin)
+):
+    """
+    Create a proposal for a job (handyman/contractor only).
+    Only valid when job status = published.
+    """
+    try:
+        from services.proposal_service import ProposalError
+        proposal = await proposal_service.create_proposal(
+            job_id=job_id,
+            contractor_id=current_user.id,
+            contractor_role=current_user.role,
+            proposal_request=proposal_request
+        )
+
+        return ProposalResponse(
+            id=proposal.id,
+            job_id=proposal.job_id,
+            contractor_id=proposal.contractor_id,
+            quoted_price=proposal.quoted_price,
+            status=proposal.status,
+            created_at=proposal.created_at
+        ).model_dump()
+    except ProposalError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.get("/jobs/{job_id}/proposals")
+async def get_proposals_for_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all proposals for a job (customer only).
+    """
+    if current_user.role != UserRole.CUSTOMER:
+        raise HTTPException(status_code=403, detail="Only customers can view proposals")
+
+    try:
+        from services.proposal_service import ProposalError
+        proposals = await proposal_service.get_proposals_for_job(
+            job_id=job_id,
+            customer_id=current_user.id
+        )
+
+        return [proposal.model_dump() for proposal in proposals]
+    except ProposalError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.post("/proposals/{proposal_id}/accept")
+async def accept_proposal(
+    proposal_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Accept a proposal (customer only).
+    Sets proposal status, assigns contractor to job, moves job to proposal_selected.
+    """
+    if current_user.role != UserRole.CUSTOMER:
+        raise HTTPException(status_code=403, detail="Only customers can accept proposals")
+
+    # Get proposal
+    proposal_data = await db.proposals.find_one({"id": proposal_id})
+    if not proposal_data:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    proposal = Proposal(**proposal_data)
+
+    # Get job
+    job_data = await db.jobs.find_one({"id": proposal.job_id})
+    if not job_data:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job = Job(**job_data)
+
+    # Verify customer owns the job
+    if job.customer_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your job")
+
+    # Verify proposal is pending
+    if proposal.status != ProposalStatus.PENDING:
+        raise HTTPException(status_code=400, detail=f"Proposal status is {proposal.status}, must be pending")
+
+    # Apply transition using lifecycle service
+    try:
+        from services.job_lifecycle import JobLifecycleError
+        updated_job = await job_lifecycle.apply_transition(
+            job=job,
+            new_status=JobStatus.PROPOSAL_SELECTED,
+            actor_id=current_user.id,
+            actor_role=current_user.role.value,
+            additional_data={
+                "accepted_proposal_id": proposal.id,
+                "assigned_contractor_id": proposal.contractor_id
+            }
+        )
+
+        return {
+            "message": "Proposal accepted",
+            "job": updated_job.model_dump()
+        }
+    except JobLifecycleError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.post("/proposals/{proposal_id}/withdraw")
+async def withdraw_proposal(
+    proposal_id: str,
+    current_user: User = Depends(require_technician_or_admin)
+):
+    """
+    Withdraw a proposal (contractor only).
+    """
+    try:
+        from services.proposal_service import ProposalError
+        proposal = await proposal_service.withdraw_proposal(
+            proposal_id=proposal_id,
+            contractor_id=current_user.id
+        )
+
+        return proposal.model_dump()
+    except ProposalError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ==================== PAYOUTS & WALLET ====================
+
+
+@api_router.get("/handyman/wallet/summary")
+async def get_wallet_summary(
+    current_user: User = Depends(require_technician_or_admin)
+):
+    """
+    Get wallet summary for handyman/contractor.
+    Shows lifetime earnings, available balance, and pending payouts.
+    """
+    summary = await payout_service.get_wallet_summary(current_user.id)
+    return summary.model_dump()
+
+
+@api_router.get("/handyman/payouts")
+async def get_payouts(
+    limit: int = 50,
+    offset: int = 0,
+    current_user: User = Depends(require_technician_or_admin)
+):
+    """
+    Get paginated list of payouts for handyman/contractor.
+    """
+    payouts = await payout_service.get_payouts(
+        contractor_id=current_user.id,
+        limit=limit,
+        offset=offset
+    )
+
+    return [payout.model_dump() for payout in payouts]
+
+
+# ==================== GROWTH TRACKING ====================
+
+
+@api_router.get("/handyman/growth/summary")
+async def get_growth_summary(
+    current_user: User = Depends(require_technician_or_admin)
+):
+    """
+    Get growth summary for handyman/contractor.
+    Shows job count, revenue, ratings, and business milestones.
+    """
+    summary = await growth_service.get_summary(current_user.id)
+
+    if not summary:
+        # Return empty summary if none exists yet
+        return GrowthSummary(
+            user_id=current_user.id,
+            role=ContractorGrowthRole.HANDYMAN if current_user.role == UserRole.HANDYMAN else ContractorGrowthRole.CONTRACTOR
+        ).model_dump()
+
+    return summary.model_dump()
+
+
+@api_router.get("/handyman/growth/events")
+async def get_growth_events(
+    limit: int = 50,
+    offset: int = 0,
+    current_user: User = Depends(require_technician_or_admin)
+):
+    """
+    Get paginated growth events for handyman/contractor.
+    Shows timeline of milestones and achievements.
+    """
+    events = await growth_service.get_events(
+        user_id=current_user.id,
+        limit=limit,
+        offset=offset
+    )
+
+    return [event.model_dump() for event in events]
+
+
 # ==================== UTILITY ROUTES ====================
 
 
@@ -2115,10 +2499,38 @@ async def startup_event():
 
     # Create indexes for better performance
     try:
+        # Existing indexes
         await db.users.create_index("email", unique=True)
         await db.quotes.create_index("customer_id")
         await db.quotes.create_index("status")
         await db.services.create_index("category")
+
+        # Phase 4: Jobs indexes
+        await db.jobs.create_index("status")
+        await db.jobs.create_index("service_category")
+        await db.jobs.create_index([("address.zip", 1)])
+        await db.jobs.create_index([("address.lat", "2dsphere"), ("address.lon", "2dsphere")])
+        await db.jobs.create_index("assigned_contractor_id")
+        await db.jobs.create_index("customer_id")
+
+        # Phase 4: Proposals indexes
+        await db.proposals.create_index("job_id")
+        await db.proposals.create_index("contractor_id")
+        await db.proposals.create_index("status")
+
+        # Phase 4: Payouts indexes
+        await db.payouts.create_index("contractor_id")
+        await db.payouts.create_index("status")
+        await db.payouts.create_index("job_id")
+
+        # Phase 4: Growth Events indexes
+        await db.growth_events.create_index("user_id")
+        await db.growth_events.create_index("type")
+        await db.growth_events.create_index([("user_id", 1), ("created_at", -1)])
+
+        # Phase 4: Growth Summary indexes
+        await db.growth_summary.create_index("user_id", unique=True)
+
         logger.info("Database indexes created successfully")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")

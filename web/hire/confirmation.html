@@ -412,10 +412,10 @@
 
             // Budget & Timing
             let budgetHTML = '';
-            if (draft.budgetMin || draft.budgetMax) {
-                budgetHTML += `<p><strong>Budget Range:</strong> $${draft.budgetMin || '?'} - $${draft.budgetMax || '?'}</p>`;
+            if (draft.budgetMax) {
+                budgetHTML += `<p><strong>Maximum Budget:</strong> $${draft.budgetMax}</p>`;
             } else {
-                budgetHTML += `<p><strong>Budget Range:</strong> Not specified</p>`;
+                budgetHTML += `<p><strong>Maximum Budget:</strong> Not specified</p>`;
             }
             budgetHTML += `<p><strong>Urgency:</strong> ${draft.urgency || 'Not specified'}</p>`;
             if (draft.timing) {

@@ -345,8 +345,7 @@ export default function JobRequestScreen() {
         description: data.description,
         photos: photos.filter(p => p.status === 'success' && p.url).map(p => p.url!),
         preferred_dates: [], // Will be enhanced later with date picker
-        budget_min: 0,
-        budget_max: parseFloat(data.maxBudget) || 0,
+        maxBudget: parseFloat(data.maxBudget) || 0,
         urgency: data.urgency,
         source: 'app',
         status: 'requested',

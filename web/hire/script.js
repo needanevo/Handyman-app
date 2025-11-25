@@ -62,8 +62,8 @@ function getDraftSummary() {
         category: draft.category || 'Not selected',
         title: draft.title || 'Not provided',
         description: draft.description || 'Not provided',
-        budget: draft.budgetMin && draft.budgetMax
-            ? `$${draft.budgetMin} - $${draft.budgetMax}`
+        budget: draft.budgetMax
+            ? `$${draft.budgetMax} max`
             : 'Not specified',
         urgency: draft.urgency || 'Not specified',
         timing: draft.timing || 'Not specified',

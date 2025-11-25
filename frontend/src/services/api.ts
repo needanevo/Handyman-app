@@ -119,8 +119,7 @@ export const jobsAPI = {
     description: string;
     photos: string[];
     preferred_dates: string[];
-    budget_min: number;
-    budget_max: number;
+    maxBudget: number;
     urgency: string;
     source: string;
     status: string;

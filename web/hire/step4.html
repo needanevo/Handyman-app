@@ -29,16 +29,9 @@
 
             <form id="step4-form" class="hire-form">
                 <div class="form-group">
-                    <label>Budget Range (Optional)</label>
-                    <p class="form-hint">Provide an estimated budget range to help workers tailor their proposals.</p>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <input type="number" id="budgetMin" name="budgetMin" class="form-control" placeholder="Min ($)" min="0">
-                        </div>
-                        <div class="form-group">
-                            <input type="number" id="budgetMax" name="budgetMax" class="form-control" placeholder="Max ($)" min="0">
-                        </div>
-                    </div>
+                    <label for="budgetMax">Maximum Budget (Optional)</label>
+                    <p class="form-hint">Provide your maximum budget to help workers tailor their proposals.</p>
+                    <input type="number" id="budgetMax" name="budgetMax" class="form-control" placeholder="e.g., 500" min="0">
                 </div>
 
                 <div class="form-group">
@@ -78,7 +71,6 @@
     <script>
         // Load existing draft if any
         const draft = loadDraft();
-        if (draft.budgetMin) document.getElementById('budgetMin').value = draft.budgetMin;
         if (draft.budgetMax) document.getElementById('budgetMax').value = draft.budgetMax;
         if (draft.urgency) document.getElementById('urgency').value = draft.urgency;
         if (draft.timing) document.getElementById('timing').value = draft.timing;
@@ -89,7 +81,6 @@
             e.preventDefault();
 
             const formData = {
-                budgetMin: document.getElementById('budgetMin').value,
                 budgetMax: document.getElementById('budgetMax').value,
                 urgency: document.getElementById('urgency').value,
                 timing: document.getElementById('timing').value,
