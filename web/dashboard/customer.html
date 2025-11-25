@@ -34,6 +34,75 @@
                 </p>
             </div>
 
+            <!-- Profile Health Score -->
+            <div class="profile-health-card">
+                <div class="health-header">
+                    <h2>Account Status</h2>
+                    <div class="health-score" id="health-score">
+                        <span class="score-value" id="score-value">0</span>
+                        <span class="score-max">/100</span>
+                    </div>
+                </div>
+                <div class="health-bar">
+                    <div class="health-fill" id="health-fill" style="width: 0%"></div>
+                </div>
+                <p class="health-description" id="health-description">Complete your account setup to get started</p>
+
+                <div class="profile-checklist">
+                    <div class="checklist-item" id="check-email">
+                        <span class="check-icon">⏳</span>
+                        <span class="check-text">Email verified</span>
+                    </div>
+                    <div class="checklist-item" id="check-phone">
+                        <span class="check-icon">⏳</span>
+                        <span class="check-text">Phone number added</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- My Job Requests -->
+            <div class="job-requests-section">
+                <div class="section-header">
+                    <h2>My Job Requests</h2>
+                    <span class="job-count" id="job-count">0 active jobs</span>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="jobs-empty">
+                    <div class="empty-icon">📋</div>
+                    <h3>No Job Requests Yet</h3>
+                    <p class="empty-description">
+                        Ready to get started? Submit your first job request through our mobile app.
+                        Our contractors will review your request and send you quotes within 24 hours.
+                    </p>
+                    <div class="how-it-works">
+                        <h4>How It Works:</h4>
+                        <ol class="steps-list-compact">
+                            <li>
+                                <strong>Download the app</strong> - Available for iOS and Android
+                            </li>
+                            <li>
+                                <strong>Submit a job request</strong> - Take photos, describe the work, set your budget
+                            </li>
+                            <li>
+                                <strong>Review quotes</strong> - Compare contractors and their proposals
+                            </li>
+                            <li>
+                                <strong>Hire & track</strong> - Choose a contractor and monitor progress
+                            </li>
+                        </ol>
+                    </div>
+                    <a href="#app-download" class="btn btn-primary btn-lg scroll-to-app">
+                        📱 Download App to Get Started
+                    </a>
+                </div>
+
+                <!-- Job Cards (shown when user has jobs) -->
+                <div class="jobs-grid" id="jobs-grid" style="display: none;">
+                    <!-- Job cards will be inserted here via JavaScript -->
+                </div>
+            </div>
+
             <!-- Success Message -->
             <div class="success-card">
                 <div class="success-icon">✅</div>
@@ -197,6 +266,9 @@
             // Redirects to login
         }
 
+        // Smooth scroll to top on page load
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
         // Load user data
         const user = getUserData();
         if (user) {
@@ -206,11 +278,82 @@
             document.getElementById('user-fullname').textContent = fullName;
             document.getElementById('user-email').textContent = user.email || 'N/A';
             document.getElementById('user-phone').textContent = user.phone || 'N/A';
+
+            // Calculate Account Health Score
+            calculateAccountHealth(user);
         }
 
-        // Logout handler
+        // Calculate and display account health
+        function calculateAccountHealth(user) {
+            let score = 0;
+            const checks = {
+                email: false,
+                phone: false
+            };
+
+            // Check email (50 points)
+            if (user.email && user.email.trim() !== '') {
+                score += 50;
+                checks.email = true;
+            }
+
+            // Check phone (50 points)
+            if (user.phone && user.phone.trim() !== '') {
+                score += 50;
+                checks.phone = true;
+            }
+
+            // Update score display
+            document.getElementById('score-value').textContent = score;
+            const healthFill = document.getElementById('health-fill');
+            healthFill.style.width = score + '%';
+
+            // Color coding
+            if (score === 100) {
+                healthFill.style.background = '#4caf50';
+                document.getElementById('health-description').textContent = 'Your account is complete and ready to go!';
+            } else if (score >= 50) {
+                healthFill.style.background = '#FFA500';
+                document.getElementById('health-description').textContent = 'Almost there! Complete your account setup.';
+            } else {
+                healthFill.style.background = '#ff4444';
+                document.getElementById('health-description').textContent = 'Complete your account setup to get started.';
+            }
+
+            // Update checkmarks
+            updateCheckmark('check-email', checks.email);
+            updateCheckmark('check-phone', checks.phone);
+        }
+
+        function updateCheckmark(elementId, isComplete) {
+            const element = document.getElementById(elementId);
+            const icon = element.querySelector('.check-icon');
+            if (isComplete) {
+                icon.textContent = '✅';
+                element.classList.add('completed');
+            } else {
+                icon.textContent = '⚠️';
+                element.classList.add('pending');
+            }
+        }
+
+        // Smooth scroll to app download section
+        document.querySelector('.scroll-to-app')?.addEventListener('click', function(e) {
+            e.preventDefault();
+            const appSection = document.querySelector('.app-download-section');
+            if (appSection) {
+                appSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+
+        // Logout handler with smooth transition
         document.getElementById('logout-btn').addEventListener('click', async function() {
             if (confirm('Are you sure you want to logout?')) {
+                // Show loading state
+                this.textContent = 'Logging out...';
+                this.disabled = true;
+
+                // Clear tokens
                 await logout();
             }
         });

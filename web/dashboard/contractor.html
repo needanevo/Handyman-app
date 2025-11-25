@@ -34,6 +34,49 @@
                 </p>
             </div>
 
+            <!-- Profile Health Score -->
+            <div class="profile-health-card">
+                <div class="health-header">
+                    <h2>Profile Health</h2>
+                    <div class="health-score" id="health-score">
+                        <span class="score-value" id="score-value">0</span>
+                        <span class="score-max">/100</span>
+                    </div>
+                </div>
+                <div class="health-bar">
+                    <div class="health-fill" id="health-fill" style="width: 0%"></div>
+                </div>
+                <p class="health-description" id="health-description">Complete your profile to improve your chances of getting hired</p>
+
+                <div class="profile-checklist">
+                    <div class="checklist-item" id="check-basic">
+                        <span class="check-icon">⏳</span>
+                        <span class="check-text">Basic information</span>
+                    </div>
+                    <div class="checklist-item" id="check-documents">
+                        <span class="check-icon">⏳</span>
+                        <span class="check-text">Documents uploaded</span>
+                    </div>
+                    <div class="checklist-item" id="check-skills">
+                        <span class="check-icon">⏳</span>
+                        <span class="check-text">Skills & experience added</span>
+                    </div>
+                    <div class="checklist-item" id="check-portfolio">
+                        <span class="check-icon">⏳</span>
+                        <span class="check-text">Portfolio photos uploaded</span>
+                    </div>
+                </div>
+
+                <div class="missing-steps-alert" id="missing-steps" style="display: none;">
+                    <div class="alert-icon">⚠️</div>
+                    <div class="alert-content">
+                        <strong>Action Required</strong>
+                        <p>Complete the missing steps above to activate your profile and start receiving job offers.</p>
+                        <button class="btn btn-warning btn-sm" id="complete-profile-btn">Complete Profile</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Success Message -->
             <div class="success-card">
                 <div class="success-icon">✅</div>
@@ -43,6 +86,23 @@
                         Your contractor profile has been created successfully. You can now start
                         accepting jobs through our mobile app.
                     </p>
+                </div>
+            </div>
+
+            <!-- Portfolio Preview -->
+            <div class="portfolio-preview-section" id="portfolio-section" style="display: none;">
+                <h2>Your Portfolio</h2>
+                <p class="section-subtitle">
+                    Showcase your best work to attract more customers
+                </p>
+                <div class="portfolio-grid" id="portfolio-grid">
+                    <!-- Portfolio photos will be inserted here -->
+                </div>
+                <div class="portfolio-empty" id="portfolio-empty">
+                    <div class="empty-icon">📸</div>
+                    <h3>No Portfolio Photos Yet</h3>
+                    <p>Add photos of your best work to stand out to customers. Contractors with portfolios get 3x more job offers!</p>
+                    <a href="/register/step4.html" class="btn btn-primary">Add Portfolio Photos</a>
                 </div>
             </div>
 
@@ -189,6 +249,9 @@
             // Redirects to login
         }
 
+        // Smooth scroll to top on page load
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
         // Load user data
         const user = getUserData();
         if (user) {
@@ -202,14 +265,127 @@
                               user.role === 'HANDYMAN' ? 'Handyman' :
                               user.role;
             document.getElementById('user-role').textContent = roleDisplay;
+
+            // Calculate Profile Health Score
+            calculateProfileHealth(user);
+
+            // Show portfolio if user has photos
+            displayPortfolio(user);
         }
+
+        // Calculate and display profile health
+        function calculateProfileHealth(user) {
+            let score = 0;
+            const checks = {
+                basic: false,
+                documents: false,
+                skills: false,
+                portfolio: false
+            };
+
+            // Check basic info (25 points)
+            if (user.first_name && user.last_name && user.email && user.phone && user.business_name) {
+                score += 25;
+                checks.basic = true;
+            }
+
+            // Check documents (25 points)
+            if (user.documents && (user.documents.license || user.documents.insurance || user.documents.business_license)) {
+                score += 25;
+                checks.documents = true;
+            }
+
+            // Check skills (25 points)
+            if (user.skills && user.skills.length > 0) {
+                score += 25;
+                checks.skills = true;
+            }
+
+            // Check portfolio (25 points)
+            if (user.portfolio_photos && user.portfolio_photos.length > 0) {
+                score += 25;
+                checks.portfolio = true;
+            }
+
+            // Update score display
+            document.getElementById('score-value').textContent = score;
+            const healthFill = document.getElementById('health-fill');
+            healthFill.style.width = score + '%';
+
+            // Color coding
+            if (score >= 80) {
+                healthFill.style.background = '#4caf50';
+                document.getElementById('health-description').textContent = 'Excellent! Your profile is complete and ready to attract customers.';
+            } else if (score >= 50) {
+                healthFill.style.background = '#FFA500';
+                document.getElementById('health-description').textContent = 'Good progress! Complete the remaining steps to maximize your opportunities.';
+            } else {
+                healthFill.style.background = '#ff4444';
+                document.getElementById('health-description').textContent = 'Complete your profile to improve your chances of getting hired.';
+            }
+
+            // Update checkmarks
+            updateCheckmark('check-basic', checks.basic);
+            updateCheckmark('check-documents', checks.documents);
+            updateCheckmark('check-skills', checks.skills);
+            updateCheckmark('check-portfolio', checks.portfolio);
+
+            // Show alert if profile incomplete
+            if (score < 100) {
+                document.getElementById('missing-steps').style.display = 'flex';
+            }
+        }
+
+        function updateCheckmark(elementId, isComplete) {
+            const element = document.getElementById(elementId);
+            const icon = element.querySelector('.check-icon');
+            if (isComplete) {
+                icon.textContent = '✅';
+                element.classList.add('completed');
+            } else {
+                icon.textContent = '⚠️';
+                element.classList.add('pending');
+            }
+        }
+
+        function displayPortfolio(user) {
+            if (user.portfolio_photos && user.portfolio_photos.length > 0) {
+                document.getElementById('portfolio-section').style.display = 'block';
+                document.getElementById('portfolio-empty').style.display = 'none';
+
+                const portfolioGrid = document.getElementById('portfolio-grid');
+                portfolioGrid.innerHTML = '';
+
+                user.portfolio_photos.forEach((photoUrl, index) => {
+                    const photoCard = document.createElement('div');
+                    photoCard.className = 'portfolio-photo';
+                    photoCard.innerHTML = `
+                        <img src="${photoUrl}" alt="Portfolio photo ${index + 1}" loading="lazy">
+                    `;
+                    portfolioGrid.appendChild(photoCard);
+                });
+            } else {
+                document.getElementById('portfolio-section').style.display = 'block';
+                document.getElementById('portfolio-grid').style.display = 'none';
+            }
+        }
+
+        // Complete profile button
+        document.getElementById('complete-profile-btn')?.addEventListener('click', function() {
+            window.location.href = '/register/step2.html';
+        });
 
         // Clear registration draft since registration is complete
         clearRegistrationDraft();
 
-        // Logout handler
+        // Logout handler with smooth transition
         document.getElementById('logout-btn').addEventListener('click', async function() {
             if (confirm('Are you sure you want to logout?')) {
+                // Show loading state
+                this.textContent = 'Logging out...';
+                this.disabled = true;
+
+                // Clear tokens
                 await logout();
             }
         });
