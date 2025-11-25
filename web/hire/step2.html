@@ -3,31 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Step 2: Service Category | The Real Johnson</title>
+    <title>Step 2: Service Category | The Real Johnson - Hire a Handyman</title>
+    <meta name="description" content="Select your service category - plumbing, electrical, carpentry, painting, and more. Get matched with the right professional.">
+
+    <!-- OpenGraph Meta Tags -->
+    <meta property="og:title" content="Hire a Pro - Step 2: Service Category | The Real Johnson">
+    <meta property="og:description" content="Choose your service type and get matched with skilled professionals">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://therealjohnson.com/hire/step2">
+    <meta property="og:image" content="https://therealjohnson.com/og-image.jpg">
+
+    <!-- JSON-LD Schema -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "name": "The Real Johnson",
+        "description": "Platform connecting homeowners with skilled handymen and contractors",
+        "url": "https://therealjohnson.com",
+        "priceRange": "$$",
+        "areaServed": "United States",
+        "serviceType": ["Home Repair", "Handyman Services", "Contractor Services"]
+    }
+    </script>
+
+    <link rel="stylesheet" href="../global.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <a href="#main-content" class="skip-to-content" aria-label="Skip to main content">Skip to main content</a>
+
     <div class="hire-container">
-        <header class="hire-header">
+        <header class="hire-header" role="banner">
             <h1 class="hire-logo">The Real Johnson - Hire a Pro</h1>
-            <a href="../" class="back-link">← Back to Home</a>
+            <a href="../" class="back-link" aria-label="Go back to home page">← Back to Home</a>
         </header>
 
-        <div class="progress-bar">
+        <div class="progress-bar" role="navigation" aria-label="Progress through job request steps">
             <div class="progress-step completed">1</div>
             <div class="progress-line completed"></div>
-            <div class="progress-step active">2</div>
+            <div class="progress-step active" aria-current="step">2</div>
             <div class="progress-line"></div>
             <div class="progress-step">3</div>
             <div class="progress-line"></div>
             <div class="progress-step">4</div>
         </div>
 
-        <div class="step-content">
+        <main id="main-content" class="step-content">
             <h2 class="step-title">Step 2 of 4: What type of work do you need?</h2>
             <p class="step-description">Select the category that best matches your job.</p>
 
-            <form id="step2-form" class="hire-form">
+            <form id="step2-form" class="hire-form" aria-label="Service category selection form">
                 <div class="category-grid">
                     <label class="category-card">
                         <input type="radio" name="category" value="Plumbing" required>
