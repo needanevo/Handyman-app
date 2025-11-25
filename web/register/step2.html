@@ -39,13 +39,15 @@
                         type="file"
                         id="license"
                         name="license"
-                        accept="image/*,.pdf"
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
                     >
                     <div class="upload-preview" id="license-preview" style="display: none;">
                         <img id="license-img" alt="License preview">
                         <button type="button" class="remove-btn" onclick="removeFile('license')">✕</button>
                     </div>
-                    <small>Upload a photo or PDF of your professional license</small>
+                    <div class="upload-status" id="license-status" style="display: none;"></div>
+                    <span class="field-error" id="license-error"></span>
+                    <small>Max 10MB • JPG, PNG, GIF, WebP, or PDF</small>
                 </div>
 
                 <!-- Insurance Upload -->
@@ -57,13 +59,15 @@
                         type="file"
                         id="insurance"
                         name="insurance"
-                        accept="image/*,.pdf"
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
                     >
                     <div class="upload-preview" id="insurance-preview" style="display: none;">
                         <img id="insurance-img" alt="Insurance preview">
                         <button type="button" class="remove-btn" onclick="removeFile('insurance')">✕</button>
                     </div>
-                    <small>Upload your general liability or professional insurance certificate</small>
+                    <div class="upload-status" id="insurance-status" style="display: none;"></div>
+                    <span class="field-error" id="insurance-error"></span>
+                    <small>Max 10MB • JPG, PNG, GIF, WebP, or PDF</small>
                 </div>
 
                 <!-- Business License Upload -->
@@ -75,13 +79,15 @@
                         type="file"
                         id="businessLicense"
                         name="businessLicense"
-                        accept="image/*,.pdf"
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
                     >
                     <div class="upload-preview" id="businessLicense-preview" style="display: none;">
                         <img id="businessLicense-img" alt="Business license preview">
                         <button type="button" class="remove-btn" onclick="removeFile('businessLicense')">✕</button>
                     </div>
-                    <small>Business registration or DBA certificate (if applicable)</small>
+                    <div class="upload-status" id="businessLicense-status" style="display: none;"></div>
+                    <span class="field-error" id="businessLicense-error"></span>
+                    <small>Max 10MB • JPG, PNG, GIF, WebP, or PDF</small>
                 </div>
 
                 <div class="info-box">
@@ -134,41 +140,117 @@
             document.getElementById('role-info-text').textContent = 'Documents are optional for handymen. You can start working right away and add credentials later as you grow your business. Having licenses and insurance will help you access higher-value jobs over time.';
         }
 
-        // Handle file selection with preview
+        // Track upload URLs (for successfully uploaded files)
+        let uploadedUrls = {
+            license: null,
+            insurance: null,
+            businessLicense: null
+        };
+
+        // Handle file selection with validation and preview
         ['license', 'insurance', 'businessLicense'].forEach(fieldName => {
             const input = document.getElementById(fieldName);
             const preview = document.getElementById(`${fieldName}-preview`);
             const img = document.getElementById(`${fieldName}-img`);
+            const errorEl = document.getElementById(`${fieldName}-error`);
+            const statusEl = document.getElementById(`${fieldName}-status`);
 
-            input.addEventListener('change', function() {
+            input.addEventListener('change', async function() {
                 const file = this.files[0];
-                if (file) {
-                    // Show preview for images
-                    if (file.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            img.src = e.target.result;
-                            preview.style.display = 'block';
-                        };
-                        reader.readAsDataURL(file);
-                    } else {
-                        // For PDFs, just show a placeholder
-                        img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Ctext x="50%25" y="50%25" font-size="40" text-anchor="middle" dy=".3em"%3EPDF%3C/text%3E%3C/svg%3E';
-                        preview.style.display = 'block';
-                    }
 
-                    // Store file reference
-                    uploadedFiles[fieldName] = file;
+                // Clear previous error and status
+                errorEl.style.display = 'none';
+                statusEl.style.display = 'none';
+                preview.style.display = 'none';
+
+                if (!file) {
+                    uploadedFiles[fieldName] = null;
+                    uploadedUrls[fieldName] = null;
+                    return;
                 }
+
+                // Validate file
+                const validation = validateFile(file, {
+                    maxSize: 10 * 1024 * 1024, // 10MB
+                    allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'application/pdf']
+                });
+
+                if (!validation.valid) {
+                    errorEl.textContent = validation.errors.join('. ');
+                    errorEl.style.display = 'block';
+                    this.value = ''; // Clear the invalid file
+                    return;
+                }
+
+                // Show preview for images
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        img.src = e.target.result;
+                        preview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    // For PDFs, show placeholder
+                    img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Ctext x="50%25" y="50%25" font-size="40" text-anchor="middle" dy=".3em"%3EPDF%3C/text%3E%3C/svg%3E';
+                    preview.style.display = 'block';
+                }
+
+                // Show file info
+                statusEl.textContent = `Selected: ${file.name} (${formatFileSize(file.size)})`;
+                statusEl.style.display = 'block';
+                statusEl.style.color = '#666';
+
+                // Store file reference
+                uploadedFiles[fieldName] = file;
+                uploadedUrls[fieldName] = null; // Clear any previous upload
             });
         });
 
         // Remove file function
         window.removeFile = function(fieldName) {
-            document.getElementById(fieldName).value = '';
-            document.getElementById(`${fieldName}-preview`).style.display = 'none';
+            const input = document.getElementById(fieldName);
+            const preview = document.getElementById(`${fieldName}-preview`);
+            const errorEl = document.getElementById(`${fieldName}-error`);
+            const statusEl = document.getElementById(`${fieldName}-status`);
+
+            input.value = '';
+            preview.style.display = 'none';
+            errorEl.style.display = 'none';
+            statusEl.style.display = 'none';
             uploadedFiles[fieldName] = null;
+            uploadedUrls[fieldName] = null;
         };
+
+        // Helper function to upload a single file with progress feedback
+        async function uploadSingleFile(fieldName, file, documentType) {
+            const statusEl = document.getElementById(`${fieldName}-status`);
+            const errorEl = document.getElementById(`${fieldName}-error`);
+
+            try {
+                // Show uploading status
+                statusEl.textContent = `Uploading ${file.name}...`;
+                statusEl.style.display = 'block';
+                statusEl.style.color = '#FFA500';
+
+                const result = await uploadDocument(file, documentType);
+
+                // Show success
+                statusEl.textContent = `✓ Uploaded successfully`;
+                statusEl.style.color = '#4caf50';
+
+                return result.url;
+            } catch (error) {
+                // Show error
+                statusEl.textContent = '';
+                statusEl.style.display = 'none';
+                const friendlyError = getUserFriendlyError(error, 'upload');
+                errorEl.textContent = friendlyError;
+                errorEl.style.display = 'block';
+
+                throw error;
+            }
+        }
 
         // Handle form submission
         document.getElementById('documents-form').addEventListener('submit', async function(e) {
@@ -178,36 +260,87 @@
             // Validate required fields for contractors
             if (isContractor) {
                 if (!uploadedFiles.license) {
-                    showError('Professional license is required for contractors');
+                    showError('Professional license is required for contractors. Please select a file.');
+                    document.getElementById('license').focus();
                     return;
                 }
                 if (!uploadedFiles.insurance) {
-                    showError('Insurance certificate is required for contractors');
+                    showError('Insurance certificate is required for contractors. Please select a file.');
+                    document.getElementById('insurance').focus();
                     return;
                 }
+            }
+
+            // Check if we have any files to upload
+            const hasFiles = uploadedFiles.license || uploadedFiles.insurance || uploadedFiles.businessLicense;
+            if (!hasFiles && !isContractor) {
+                // Allow handymen to skip this step if no files selected
+                saveRegistrationDraft({
+                    documents: {}
+                });
+                window.location.href = 'step3.html';
+                return;
             }
 
             showLoading('submit-button');
 
             try {
                 const uploadResults = {};
+                const uploadErrors = [];
 
-                // Upload license if provided
-                if (uploadedFiles.license) {
-                    const result = await uploadDocument(uploadedFiles.license, 'license');
-                    uploadResults.license = result.url;
+                // Upload files one at a time to show progress
+                if (uploadedFiles.license && !uploadedUrls.license) {
+                    try {
+                        uploadResults.license = await uploadSingleFile('license', uploadedFiles.license, 'license');
+                        uploadedUrls.license = uploadResults.license;
+                    } catch (error) {
+                        uploadErrors.push('Failed to upload license');
+                    }
+                } else if (uploadedUrls.license) {
+                    uploadResults.license = uploadedUrls.license;
                 }
 
-                // Upload insurance if provided
-                if (uploadedFiles.insurance) {
-                    const result = await uploadDocument(uploadedFiles.insurance, 'insurance');
-                    uploadResults.insurance = result.url;
+                if (uploadedFiles.insurance && !uploadedUrls.insurance) {
+                    try {
+                        uploadResults.insurance = await uploadSingleFile('insurance', uploadedFiles.insurance, 'insurance');
+                        uploadedUrls.insurance = uploadResults.insurance;
+                    } catch (error) {
+                        uploadErrors.push('Failed to upload insurance');
+                    }
+                } else if (uploadedUrls.insurance) {
+                    uploadResults.insurance = uploadedUrls.insurance;
                 }
 
-                // Upload business license if provided
-                if (uploadedFiles.businessLicense) {
-                    const result = await uploadDocument(uploadedFiles.businessLicense, 'business_license');
-                    uploadResults.businessLicense = result.url;
+                if (uploadedFiles.businessLicense && !uploadedUrls.businessLicense) {
+                    try {
+                        uploadResults.businessLicense = await uploadSingleFile('businessLicense', uploadedFiles.businessLicense, 'business_license');
+                        uploadedUrls.businessLicense = uploadResults.businessLicense;
+                    } catch (error) {
+                        uploadErrors.push('Failed to upload business license');
+                    }
+                } else if (uploadedUrls.businessLicense) {
+                    uploadResults.businessLicense = uploadedUrls.businessLicense;
+                }
+
+                // Check if required uploads failed
+                if (isContractor) {
+                    if (!uploadResults.license || !uploadResults.insurance) {
+                        hideLoading('submit-button');
+                        showError('Required documents failed to upload. Please check the errors above and try again.');
+                        return;
+                    }
+                }
+
+                // If any non-required uploads failed, warn but allow to continue
+                if (uploadErrors.length > 0 && !isContractor) {
+                    hideLoading('submit-button');
+                    const confirmContinue = confirm(
+                        'Some documents failed to upload. You can continue without them and add them later, or click Cancel to try uploading again.'
+                    );
+                    if (!confirmContinue) {
+                        return;
+                    }
+                    showLoading('submit-button');
                 }
 
                 // Save to draft
@@ -220,7 +353,7 @@
 
             } catch (error) {
                 hideLoading('submit-button');
-                showError(error.message || 'Failed to upload documents. Please try again.');
+                showError(error, 'error-message', 'upload');
             }
         });
     </script>
