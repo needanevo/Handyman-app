@@ -40,7 +40,10 @@
                                 name="firstName"
                                 required
                                 autocomplete="given-name"
+                                minlength="2"
+                                maxlength="50"
                             >
+                            <span class="field-error"></span>
                         </div>
 
                         <div class="form-group">
@@ -51,7 +54,10 @@
                                 name="lastName"
                                 required
                                 autocomplete="family-name"
+                                minlength="2"
+                                maxlength="50"
                             >
+                            <span class="field-error"></span>
                         </div>
                     </div>
 
@@ -65,6 +71,7 @@
                             autocomplete="email"
                             placeholder="you@example.com"
                         >
+                        <span class="field-error"></span>
                     </div>
 
                     <div class="form-group">
@@ -77,6 +84,8 @@
                             autocomplete="tel"
                             placeholder="(555) 123-4567"
                         >
+                        <span class="field-error"></span>
+                        <small>Enter 10-digit phone number</small>
                     </div>
 
                     <div class="form-group">
@@ -90,6 +99,13 @@
                             minlength="8"
                             placeholder="Minimum 8 characters"
                         >
+                        <span class="field-error"></span>
+                        <div class="password-strength" id="password-strength" style="display: none;">
+                            <div class="strength-bar">
+                                <div class="strength-fill" id="strength-fill"></div>
+                            </div>
+                            <span class="strength-text" id="strength-text"></span>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -102,6 +118,7 @@
                             autocomplete="new-password"
                             minlength="8"
                         >
+                        <span class="field-error"></span>
                     </div>
 
                     <button type="submit" id="create-account-btn" class="btn btn-primary btn-block">
@@ -188,26 +205,132 @@
             displaySummary();
         }
 
+        // Get form inputs
+        const firstNameInput = document.getElementById('firstName');
+        const lastNameInput = document.getElementById('lastName');
+        const emailInput = document.getElementById('email');
+        const phoneInput = document.getElementById('phone');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const inputs = [firstNameInput, lastNameInput, emailInput, phoneInput, passwordInput];
+
+        // Setup real-time validation for all inputs
+        inputs.forEach(input => {
+            // Validate on blur
+            input.addEventListener('blur', function() {
+                if (this.value) {
+                    validateField(this, true);
+                }
+            });
+
+            // Clear error on focus
+            input.addEventListener('focus', function() {
+                const errorEl = this.parentElement.querySelector('.field-error');
+                if (errorEl) errorEl.style.display = 'none';
+                this.classList.remove('error');
+            });
+
+            // Validate on input for real-time feedback after first blur
+            input.addEventListener('input', function() {
+                if (this.classList.contains('error') || this.classList.contains('valid')) {
+                    validateField(this, true);
+                }
+            });
+        });
+
+        // Password strength indicator
+        const strengthIndicator = document.getElementById('password-strength');
+        const strengthFill = document.getElementById('strength-fill');
+        const strengthText = document.getElementById('strength-text');
+
+        passwordInput.addEventListener('input', function() {
+            const password = this.value;
+            if (password.length > 0) {
+                strengthIndicator.style.display = 'block';
+                const strength = validatePassword(password);
+
+                let score = 0;
+                if (strength.minLength) score++;
+                if (strength.hasUpperCase) score++;
+                if (strength.hasLowerCase) score++;
+                if (strength.hasNumber) score++;
+
+                const percentage = (score / 4) * 100;
+                strengthFill.style.width = percentage + '%';
+
+                if (score <= 1) {
+                    strengthFill.style.background = '#ff4444';
+                    strengthText.textContent = 'Weak';
+                } else if (score === 2) {
+                    strengthFill.style.background = '#ffa500';
+                    strengthText.textContent = 'Fair';
+                } else if (score === 3) {
+                    strengthFill.style.background = '#ffeb3b';
+                    strengthText.textContent = 'Good';
+                } else {
+                    strengthFill.style.background = '#4caf50';
+                    strengthText.textContent = 'Strong';
+                }
+            } else {
+                strengthIndicator.style.display = 'none';
+            }
+        });
+
+        // Confirm password validation
+        confirmPasswordInput.addEventListener('input', function() {
+            const password = passwordInput.value;
+            const confirmPassword = this.value;
+
+            const errorEl = this.parentElement.querySelector('.field-error');
+            if (confirmPassword && password !== confirmPassword) {
+                errorEl.textContent = 'Passwords do not match';
+                errorEl.style.display = 'block';
+                this.classList.add('error');
+                this.classList.remove('valid');
+            } else if (confirmPassword) {
+                errorEl.style.display = 'none';
+                this.classList.remove('error');
+                this.classList.add('valid');
+            }
+        });
+
         // Handle account creation form
         document.getElementById('account-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             hideError();
 
-            const firstName = document.getElementById('firstName').value.trim();
-            const lastName = document.getElementById('lastName').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const phone = document.getElementById('phone').value.trim();
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
+            // Validate all fields
+            let hasErrors = false;
+            inputs.forEach(input => {
+                if (!validateField(input, true)) {
+                    hasErrors = true;
+                }
+            });
 
-            // Validate passwords
-            if (password !== confirmPassword) {
-                showError('Passwords do not match');
+            if (hasErrors) {
+                showError('Please fix the errors in the form before continuing.');
                 return;
             }
 
-            if (password.length < 8) {
+            const firstName = firstNameInput.value.trim();
+            const lastName = lastNameInput.value.trim();
+            const email = emailInput.value.trim();
+            const phone = phoneInput.value.trim();
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+
+            // Validate passwords match
+            if (password !== confirmPassword) {
+                showError('Passwords do not match');
+                confirmPasswordInput.focus();
+                return;
+            }
+
+            // Validate password strength
+            const passwordStrength = validatePassword(password);
+            if (!passwordStrength.valid) {
                 showError('Password must be at least 8 characters');
+                passwordInput.focus();
                 return;
             }
 
@@ -237,7 +360,14 @@
 
             } catch (error) {
                 hideLoading('create-account-btn');
-                showError(error.message || 'Failed to create account. Please try again.');
+                showError(error, 'error-message', 'register');
+
+                // Focus on first field for duplicate email errors
+                if (error.message && error.message.toLowerCase().includes('email')) {
+                    emailInput.focus();
+                } else if (error.message && error.message.toLowerCase().includes('phone')) {
+                    phoneInput.focus();
+                }
             }
         });
 

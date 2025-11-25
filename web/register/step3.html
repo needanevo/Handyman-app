@@ -83,6 +83,7 @@
                             <span>Other</span>
                         </label>
                     </div>
+                    <span class="field-error" id="skills-error"></span>
                     <small>Select all services you're comfortable providing</small>
                 </div>
 
@@ -95,7 +96,10 @@
                         name="businessAddress"
                         required
                         placeholder="123 Main St"
+                        minlength="5"
+                        maxlength="100"
                     >
+                    <span class="field-error"></span>
                 </div>
 
                 <div class="form-row">
@@ -106,7 +110,10 @@
                             id="city"
                             name="city"
                             required
+                            minlength="2"
+                            maxlength="50"
                         >
+                        <span class="field-error"></span>
                     </div>
 
                     <div class="form-group">
@@ -118,7 +125,10 @@
                             required
                             maxlength="2"
                             placeholder="MD"
+                            pattern="[A-Z]{2}"
+                            title="2-letter state code (e.g., MD, VA, DC)"
                         >
+                        <span class="field-error"></span>
                     </div>
 
                     <div class="form-group">
@@ -130,7 +140,9 @@
                             required
                             pattern="[0-9]{5}"
                             placeholder="21201"
+                            title="5-digit ZIP code"
                         >
+                        <span class="field-error"></span>
                     </div>
                 </div>
 
@@ -150,6 +162,7 @@
                         <option value="5-10">5-10 years</option>
                         <option value="10+">10+ years</option>
                     </select>
+                    <span class="field-error"></span>
                 </div>
 
                 <!-- Bio/Description -->
@@ -162,6 +175,7 @@
                         maxlength="500"
                         placeholder="Tell customers about your background, specialties, and what makes you great at what you do..."
                     ></textarea>
+                    <span class="field-error"></span>
                     <small><span id="bio-count">0</span>/500 characters</small>
                 </div>
 
@@ -209,26 +223,135 @@
             bioCount.textContent = draft.bio.length;
         }
 
-        // Handle form submission
+        // ========== Skills Validation ==========
+        const skillCheckboxes = document.querySelectorAll('input[name="skills"]');
+        const skillsError = document.getElementById('skills-error');
+
+        function validateSkills() {
+            const checkedSkills = document.querySelectorAll('input[name="skills"]:checked');
+            if (checkedSkills.length === 0) {
+                skillsError.textContent = 'Please select at least one service';
+                skillsError.style.display = 'block';
+                return false;
+            } else {
+                skillsError.style.display = 'none';
+                return true;
+            }
+        }
+
+        // Real-time skills validation
+        skillCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Only validate if user has interacted
+                if (document.querySelector('input[name="skills"]:checked') ||
+                    skillsError.style.display === 'block') {
+                    validateSkills();
+                }
+            });
+        });
+
+        // ========== Address Field Validation ==========
+        const requiredInputs = [
+            document.getElementById('businessAddress'),
+            document.getElementById('city'),
+            document.getElementById('state'),
+            document.getElementById('zip')
+        ];
+
+        const experienceSelect = document.getElementById('experience');
+
+        // Setup real-time validation for all required inputs
+        requiredInputs.forEach(input => {
+            // Validate on blur
+            input.addEventListener('blur', function() {
+                if (this.value) {
+                    validateField(this, true);
+                }
+            });
+
+            // Clear error on focus
+            input.addEventListener('focus', function() {
+                const errorEl = this.parentElement.querySelector('.field-error');
+                if (errorEl) errorEl.style.display = 'none';
+                this.classList.remove('error');
+            });
+
+            // Validate on input for real-time feedback after first blur
+            input.addEventListener('input', function() {
+                if (this.classList.contains('error') || this.classList.contains('valid')) {
+                    validateField(this, true);
+                }
+            });
+        });
+
+        // State field: auto-uppercase
+        const stateInput = document.getElementById('state');
+        stateInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+
+        // ZIP field: only allow digits
+        const zipInput = document.getElementById('zip');
+        zipInput.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '').substring(0, 5);
+        });
+
+        // Experience select validation
+        experienceSelect.addEventListener('change', function() {
+            validateField(this, true);
+        });
+
+        experienceSelect.addEventListener('focus', function() {
+            const errorEl = this.parentElement.querySelector('.field-error');
+            if (errorEl) errorEl.style.display = 'none';
+            this.classList.remove('error');
+        });
+
+        // ========== Form Submission ==========
         document.getElementById('profile-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             hideError();
 
-            // Get selected skills
-            const skillCheckboxes = document.querySelectorAll('input[name="skills"]:checked');
-            const skills = Array.from(skillCheckboxes).map(cb => cb.value);
+            // Validate all fields
+            let hasErrors = false;
 
-            if (skills.length === 0) {
-                showError('Please select at least one service you can provide');
+            // Validate skills
+            if (!validateSkills()) {
+                hasErrors = true;
+            }
+
+            // Validate required inputs
+            requiredInputs.forEach(input => {
+                if (!validateField(input, true)) {
+                    hasErrors = true;
+                }
+            });
+
+            // Validate experience
+            if (!validateField(experienceSelect, true)) {
+                hasErrors = true;
+            }
+
+            if (hasErrors) {
+                showError('Please fix the errors in the form before continuing.');
+                // Scroll to first error
+                const firstError = document.querySelector('.field-error[style*="block"]') || skillsError;
+                if (firstError.style.display === 'block') {
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
                 return;
             }
+
+            // Get selected skills
+            const selectedSkills = Array.from(document.querySelectorAll('input[name="skills"]:checked'))
+                .map(cb => cb.value);
 
             // Get form values
             const businessAddress = document.getElementById('businessAddress').value.trim();
             const city = document.getElementById('city').value.trim();
-            const state = document.getElementById('state').value.trim().toUpperCase();
-            const zip = document.getElementById('zip').value.trim();
-            const experience = document.getElementById('experience').value;
+            const state = stateInput.value.trim();
+            const zip = zipInput.value.trim();
+            const experience = experienceSelect.value;
             const bio = bioInput.value.trim();
 
             showLoading('submit-button');
@@ -236,7 +359,7 @@
             try {
                 // Update profile with backend
                 await updateProfile({
-                    skills: skills,
+                    skills: selectedSkills,
                     business_address: {
                         street: businessAddress,
                         city: city,
@@ -249,7 +372,7 @@
 
                 // Save to draft
                 saveRegistrationDraft({
-                    skills,
+                    skills: selectedSkills,
                     businessAddress,
                     city,
                     state,
@@ -263,7 +386,7 @@
 
             } catch (error) {
                 hideLoading('submit-button');
-                showError(error.message || 'Failed to save profile. Please try again.');
+                showError(error, 'error-message', 'profile');
             }
         });
     </script>

@@ -46,12 +46,15 @@
                             type="file"
                             id="photo1"
                             name="photo1"
-                            accept="image/*"
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                         >
                         <div class="upload-preview" id="photo1-preview" style="display: none;">
                             <img id="photo1-img" alt="Portfolio photo 1">
                             <button type="button" class="remove-btn" onclick="removePhoto('photo1')">✕</button>
                         </div>
+                        <div class="upload-status" id="photo1-status" style="display: none;"></div>
+                        <span class="field-error" id="photo1-error"></span>
+                        <small>Max 10MB • JPG, PNG, GIF, WebP</small>
                     </div>
 
                     <div class="form-group upload-group">
@@ -60,12 +63,15 @@
                             type="file"
                             id="photo2"
                             name="photo2"
-                            accept="image/*"
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                         >
                         <div class="upload-preview" id="photo2-preview" style="display: none;">
                             <img id="photo2-img" alt="Portfolio photo 2">
                             <button type="button" class="remove-btn" onclick="removePhoto('photo2')">✕</button>
                         </div>
+                        <div class="upload-status" id="photo2-status" style="display: none;"></div>
+                        <span class="field-error" id="photo2-error"></span>
+                        <small>Max 10MB • JPG, PNG, GIF, WebP</small>
                     </div>
 
                     <div class="form-group upload-group">
@@ -74,12 +80,15 @@
                             type="file"
                             id="photo3"
                             name="photo3"
-                            accept="image/*"
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                         >
                         <div class="upload-preview" id="photo3-preview" style="display: none;">
                             <img id="photo3-img" alt="Portfolio photo 3">
                             <button type="button" class="remove-btn" onclick="removePhoto('photo3')">✕</button>
                         </div>
+                        <div class="upload-status" id="photo3-status" style="display: none;"></div>
+                        <span class="field-error" id="photo3-error"></span>
+                        <small>Max 10MB • JPG, PNG, GIF, WebP</small>
                     </div>
 
                     <div class="form-group upload-group">
@@ -88,12 +97,15 @@
                             type="file"
                             id="photo4"
                             name="photo4"
-                            accept="image/*"
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                         >
                         <div class="upload-preview" id="photo4-preview" style="display: none;">
                             <img id="photo4-img" alt="Portfolio photo 4">
                             <button type="button" class="remove-btn" onclick="removePhoto('photo4')">✕</button>
                         </div>
+                        <div class="upload-status" id="photo4-status" style="display: none;"></div>
+                        <span class="field-error" id="photo4-error"></span>
+                        <small>Max 10MB • JPG, PNG, GIF, WebP</small>
                     </div>
 
                     <div class="form-group upload-group">
@@ -102,12 +114,15 @@
                             type="file"
                             id="photo5"
                             name="photo5"
-                            accept="image/*"
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                         >
                         <div class="upload-preview" id="photo5-preview" style="display: none;">
                             <img id="photo5-img" alt="Portfolio photo 5">
                             <button type="button" class="remove-btn" onclick="removePhoto('photo5')">✕</button>
                         </div>
+                        <div class="upload-status" id="photo5-status" style="display: none;"></div>
+                        <span class="field-error" id="photo5-error"></span>
+                        <small>Max 10MB • JPG, PNG, GIF, WebP</small>
                     </div>
 
                     <div class="form-group upload-group">
@@ -116,12 +131,15 @@
                             type="file"
                             id="photo6"
                             name="photo6"
-                            accept="image/*"
+                            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                         >
                         <div class="upload-preview" id="photo6-preview" style="display: none;">
                             <img id="photo6-img" alt="Portfolio photo 6">
                             <button type="button" class="remove-btn" onclick="removePhoto('photo6')">✕</button>
                         </div>
+                        <div class="upload-status" id="photo6-status" style="display: none;"></div>
+                        <span class="field-error" id="photo6-error"></span>
+                        <small>Max 10MB • JPG, PNG, GIF, WebP</small>
                     </div>
                 </div>
 
@@ -156,52 +174,163 @@
             window.location.href = 'step1.html';
         }
 
-        // Track uploaded photos
-        const uploadedPhotos = {};
+        // Track uploaded files and URLs
+        const uploadedFiles = {};
+        const uploadedUrls = {};
 
-        // Setup file previews
+        // Setup file input handlers with validation
         for (let i = 1; i <= 6; i++) {
-            const input = document.getElementById(`photo${i}`);
-            const preview = document.getElementById(`photo${i}-preview`);
-            const img = document.getElementById(`photo${i}-img`);
+            const photoId = `photo${i}`;
+            const input = document.getElementById(photoId);
+            const preview = document.getElementById(`${photoId}-preview`);
+            const img = document.getElementById(`${photoId}-img`);
+            const errorEl = document.getElementById(`${photoId}-error`);
+            const statusEl = document.getElementById(`${photoId}-status`);
 
             input.addEventListener('change', function() {
                 const file = this.files[0];
-                if (file && file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        img.src = e.target.result;
-                        preview.style.display = 'block';
-                    };
-                    reader.readAsDataURL(file);
-                    uploadedPhotos[`photo${i}`] = file;
+
+                // Clear previous error and status
+                errorEl.style.display = 'none';
+                statusEl.style.display = 'none';
+                preview.style.display = 'none';
+
+                if (!file) {
+                    uploadedFiles[photoId] = null;
+                    uploadedUrls[photoId] = null;
+                    return;
                 }
+
+                // Validate file
+                const validation = validateFile(file, {
+                    maxSize: 10 * 1024 * 1024, // 10MB
+                    allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+                });
+
+                if (!validation.valid) {
+                    errorEl.textContent = validation.errors.join('. ');
+                    errorEl.style.display = 'block';
+                    this.value = ''; // Clear the invalid file
+                    return;
+                }
+
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    img.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+
+                // Show file info
+                statusEl.textContent = `Selected: ${file.name} (${formatFileSize(file.size)})`;
+                statusEl.style.display = 'block';
+                statusEl.style.color = '#666';
+
+                // Store file reference
+                uploadedFiles[photoId] = file;
+                uploadedUrls[photoId] = null; // Clear any previous upload
             });
         }
 
         // Remove photo function
         window.removePhoto = function(photoId) {
-            document.getElementById(photoId).value = '';
-            document.getElementById(`${photoId}-preview`).style.display = 'none';
-            delete uploadedPhotos[photoId];
+            const input = document.getElementById(photoId);
+            const preview = document.getElementById(`${photoId}-preview`);
+            const errorEl = document.getElementById(`${photoId}-error`);
+            const statusEl = document.getElementById(`${photoId}-status`);
+
+            input.value = '';
+            preview.style.display = 'none';
+            errorEl.style.display = 'none';
+            statusEl.style.display = 'none';
+            uploadedFiles[photoId] = null;
+            uploadedUrls[photoId] = null;
         };
+
+        // Helper function to upload a single photo with progress feedback
+        async function uploadSinglePhoto(photoId, file) {
+            const statusEl = document.getElementById(`${photoId}-status`);
+            const errorEl = document.getElementById(`${photoId}-error`);
+
+            try {
+                // Show uploading status
+                statusEl.textContent = `Uploading ${file.name}...`;
+                statusEl.style.display = 'block';
+                statusEl.style.color = '#FFA500';
+
+                const result = await uploadPortfolioPhoto(file);
+
+                // Show success
+                statusEl.textContent = `✓ Uploaded successfully`;
+                statusEl.style.color = '#4caf50';
+
+                return result.url;
+            } catch (error) {
+                // Show error
+                statusEl.textContent = '';
+                statusEl.style.display = 'none';
+                const friendlyError = getUserFriendlyError(error, 'upload');
+                errorEl.textContent = friendlyError;
+                errorEl.style.display = 'block';
+
+                throw error;
+            }
+        }
 
         // Handle form submission
         document.getElementById('portfolio-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             hideError();
 
+            // Check if we have any files to upload
+            const hasFiles = Object.values(uploadedFiles).some(file => file !== null && file !== undefined);
+
+            if (!hasFiles) {
+                // Allow skipping portfolio step entirely
+                saveRegistrationDraft({
+                    portfolioPhotos: [],
+                    registrationComplete: true
+                });
+                localStorage.removeItem('registration_role');
+                window.location.href = '/dashboard/';
+                return;
+            }
+
             showLoading('submit-button');
 
             try {
                 const portfolioUrls = [];
+                const uploadErrors = [];
 
-                // Upload all selected photos
-                for (const [key, file] of Object.entries(uploadedPhotos)) {
-                    if (file) {
-                        const result = await uploadPortfolioPhoto(file);
-                        portfolioUrls.push(result.url);
+                // Upload files one at a time to show progress
+                for (let i = 1; i <= 6; i++) {
+                    const photoId = `photo${i}`;
+                    const file = uploadedFiles[photoId];
+
+                    if (file && !uploadedUrls[photoId]) {
+                        try {
+                            const url = await uploadSinglePhoto(photoId, file);
+                            uploadedUrls[photoId] = url;
+                            portfolioUrls.push(url);
+                        } catch (error) {
+                            uploadErrors.push(`Photo ${i} failed to upload`);
+                        }
+                    } else if (uploadedUrls[photoId]) {
+                        portfolioUrls.push(uploadedUrls[photoId]);
                     }
+                }
+
+                // If any uploads failed, allow retry or skip
+                if (uploadErrors.length > 0) {
+                    hideLoading('submit-button');
+                    const confirmContinue = confirm(
+                        'Some photos failed to upload. You can click Submit again to retry the failed uploads, or click Cancel to fix the issues first.'
+                    );
+                    if (!confirmContinue) {
+                        return;
+                    }
+                    showLoading('submit-button');
                 }
 
                 // Update profile with portfolio URLs if any were uploaded
@@ -225,7 +354,7 @@
 
             } catch (error) {
                 hideLoading('submit-button');
-                showError(error.message || 'Failed to upload photos. Please try again or skip this step.');
+                showError(error, 'error-message', 'upload');
             }
         });
     </script>
