@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found | The Real Johnson</title>
+    <meta name="description" content="The page you're looking for doesn't exist. Return to The Real Johnson homepage.">
+    <link rel="stylesheet" href="global.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: var(--space-2);
+        }
+
+        .error-container {
+            text-align: center;
+            max-width: 600px;
+        }
+
+        .error-code {
+            font-size: 8rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            line-height: 1;
+            margin-bottom: var(--space-2);
+            animation: fadeIn 0.5s ease;
+        }
+
+        .error-title {
+            font-size: var(--font-size-3xl);
+            margin-bottom: var(--space-2);
+            color: var(--text-primary);
+            animation: fadeIn 0.7s ease;
+        }
+
+        .error-message {
+            font-size: var(--font-size-lg);
+            color: var(--text-secondary);
+            margin-bottom: var(--space-4);
+            line-height: 1.6;
+            animation: fadeIn 0.9s ease;
+        }
+
+        .error-actions {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+            animation: fadeIn 1.1s ease;
+        }
+
+        .logo {
+            display: inline-block;
+            font-size: var(--font-size-2xl);
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: var(--space-4);
+            text-decoration: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .logo:hover {
+            color: var(--primary-hover);
+            text-decoration: none;
+        }
+
+        @media (min-width: 768px) {
+            .error-actions {
+                flex-direction: row;
+                justify-content: center;
+            }
+
+            .btn {
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <a href="/" class="logo" aria-label="Return to homepage">The Real Johnson</a>
+
+        <div class="error-code" aria-hidden="true">404</div>
+
+        <h1 class="error-title">Page Not Found</h1>
+
+        <p class="error-message">
+            We couldn't find the page you're looking for. It might have been moved,
+            deleted, or the URL might be incorrect.
+        </p>
+
+        <div class="error-actions">
+            <a href="/" class="btn btn-primary" aria-label="Go to homepage">
+                Return Home
+            </a>
+            <a href="/register/" class="btn btn-outline" aria-label="Create account">
+                Create Account
+            </a>
+        </div>
+
+        <p class="text-muted mt-4" style="font-size: var(--font-size-sm);">
+            📱 Download our mobile app for iOS and Android (coming soon)
+        </p>
+    </div>
+</body>
+</html>
