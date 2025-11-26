@@ -3,37 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registration - Step 3 | The Real Johnson</title>
+    <title>Registration Step 3: Skills & Experience | The Real Johnson</title>
+    <meta name="description" content="Complete your contractor registration - share your skills, business location, and experience. Step 3 of 4 to join The Real Johnson platform.">
+
+    <!-- OpenGraph Meta Tags -->
+    <meta property="og:title" content="Contractor Registration Step 3 | The Real Johnson">
+    <meta property="og:description" content="Share your skills and experience to complete your contractor profile">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://therealjohnson.com/register/step3">
+    <meta property="og:image" content="https://therealjohnson.com/og-image.jpg">
+
+    <!-- JSON-LD Schema -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "name": "The Real Johnson",
+        "description": "Platform connecting homeowners with skilled handymen and contractors",
+        "url": "https://therealjohnson.com",
+        "priceRange": "$$",
+        "areaServed": "United States",
+        "serviceType": ["Home Repair", "Handyman Services", "Contractor Services"]
+    }
+    </script>
+
+    <link rel="stylesheet" href="../global.css">
     <link rel="stylesheet" href="style.css">
     <script src="../auth.js"></script>
 </head>
 <body>
-    <div class="register-container">
+    <a href="#main-content" class="skip-to-content" aria-label="Skip to main content">Skip to main content</a>
+
+    <div class="register-container" id="main-content">
         <div class="register-card">
             <div class="logo">
-                <a href="/">The Real Johnson</a>
+                <a href="/" aria-label="The Real Johnson home page">The Real Johnson</a>
             </div>
 
-            <div class="progress-bar">
-                <div class="progress-step completed">1</div>
-                <div class="progress-line completed"></div>
-                <div class="progress-step completed">2</div>
-                <div class="progress-line completed"></div>
-                <div class="progress-step active">3</div>
-                <div class="progress-line"></div>
-                <div class="progress-step">4</div>
+            <div class="progress-bar" role="navigation" aria-label="Registration progress">
+                <div class="progress-step completed" aria-label="Step 1 completed">1</div>
+                <div class="progress-line completed" aria-hidden="true"></div>
+                <div class="progress-step completed" aria-label="Step 2 completed">2</div>
+                <div class="progress-line completed" aria-hidden="true"></div>
+                <div class="progress-step active" aria-current="step" aria-label="Step 3 current">3</div>
+                <div class="progress-line" aria-hidden="true"></div>
+                <div class="progress-step" aria-label="Step 4 upcoming">4</div>
             </div>
 
             <h1>Your Skills & Experience</h1>
             <p class="subtitle">Tell customers what you can do</p>
 
-            <div id="error-message" class="error-message" style="display: none;"></div>
+            <div id="error-message" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
 
-            <form id="profile-form" class="registration-form">
+            <form id="profile-form" class="registration-form" aria-label="Skills and experience registration form">
                 <!-- Skills Selection -->
                 <div class="form-group">
                     <label>Services You Offer *</label>
-                    <div class="skills-grid">
+                    <div class="skills-grid" role="group" aria-label="Select services you offer">
                         <label class="skill-checkbox">
                             <input type="checkbox" name="skills" value="Drywall">
                             <span>Drywall</span>
@@ -98,8 +124,10 @@
                         placeholder="123 Main St"
                         minlength="5"
                         maxlength="100"
+                        aria-required="true"
+                        aria-describedby="address-hint"
                     >
-                    <span class="field-error"></span>
+                    <span class="field-error" role="alert"></span>
                 </div>
 
                 <div class="form-row">
@@ -146,7 +174,7 @@
                     </div>
                 </div>
 
-                <small class="form-note">
+                <small class="form-note" id="address-hint">
                     We use your business address to show you jobs within 50 miles.
                     Your exact address is never shared with customers until you accept a job.
                 </small>
@@ -154,7 +182,7 @@
                 <!-- Years of Experience -->
                 <div class="form-group">
                     <label for="experience">Years of Experience *</label>
-                    <select id="experience" name="experience" required>
+                    <select id="experience" name="experience" required aria-required="true">
                         <option value="">Select experience level</option>
                         <option value="0-1">Less than 1 year</option>
                         <option value="1-3">1-3 years</option>
@@ -180,8 +208,8 @@
                 </div>
 
                 <div class="form-actions">
-                    <a href="step2.html" class="btn btn-secondary">Back</a>
-                    <button type="submit" id="submit-button" class="btn btn-primary">
+                    <a href="step2.html" class="btn btn-secondary" aria-label="Go back to step 2">Back</a>
+                    <button type="submit" id="submit-button" class="btn btn-primary" aria-label="Continue to portfolio upload">
                         Continue to Portfolio
                     </button>
                 </div>

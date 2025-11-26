@@ -3,33 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registration - Step 4 | The Real Johnson</title>
+    <title>Registration Step 4: Portfolio Photos | The Real Johnson</title>
+    <meta name="description" content="Complete your contractor registration - upload portfolio photos to showcase your work. Final step to join The Real Johnson platform.">
+
+    <!-- OpenGraph Meta Tags -->
+    <meta property="og:title" content="Contractor Registration Step 4 | The Real Johnson">
+    <meta property="og:description" content="Upload portfolio photos to showcase your best work and attract more customers">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://therealjohnson.com/register/step4">
+    <meta property="og:image" content="https://therealjohnson.com/og-image.jpg">
+
+    <!-- JSON-LD Schema -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "name": "The Real Johnson",
+        "description": "Platform connecting homeowners with skilled handymen and contractors",
+        "url": "https://therealjohnson.com",
+        "priceRange": "$$",
+        "areaServed": "United States",
+        "serviceType": ["Home Repair", "Handyman Services", "Contractor Services"]
+    }
+    </script>
+
+    <link rel="stylesheet" href="../global.css">
     <link rel="stylesheet" href="style.css">
     <script src="../auth.js"></script>
 </head>
 <body>
-    <div class="register-container">
+    <a href="#main-content" class="skip-to-content" aria-label="Skip to main content">Skip to main content</a>
+
+    <div class="register-container" id="main-content">
         <div class="register-card">
             <div class="logo">
-                <a href="/">The Real Johnson</a>
+                <a href="/" aria-label="The Real Johnson home page">The Real Johnson</a>
             </div>
 
-            <div class="progress-bar">
-                <div class="progress-step completed">1</div>
-                <div class="progress-line completed"></div>
-                <div class="progress-step completed">2</div>
-                <div class="progress-line completed"></div>
-                <div class="progress-step completed">3</div>
-                <div class="progress-line completed"></div>
-                <div class="progress-step active">4</div>
+            <div class="progress-bar" role="navigation" aria-label="Registration progress">
+                <div class="progress-step completed" aria-label="Step 1 completed">1</div>
+                <div class="progress-line completed" aria-hidden="true"></div>
+                <div class="progress-step completed" aria-label="Step 2 completed">2</div>
+                <div class="progress-line completed" aria-hidden="true"></div>
+                <div class="progress-step completed" aria-label="Step 3 completed">3</div>
+                <div class="progress-line completed" aria-hidden="true"></div>
+                <div class="progress-step active" aria-current="step" aria-label="Step 4 current">4</div>
             </div>
 
             <h1>Portfolio Photos</h1>
             <p class="subtitle">Showcase your best work (optional but highly recommended)</p>
 
-            <div id="error-message" class="error-message" style="display: none;"></div>
+            <div id="error-message" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
 
-            <form id="portfolio-form" class="registration-form">
+            <form id="portfolio-form" class="registration-form" aria-label="Portfolio photo upload form">
                 <div class="info-box">
                     <strong>Why add portfolio photos?</strong>
                     <p>
@@ -154,8 +180,8 @@
                 </div>
 
                 <div class="form-actions">
-                    <a href="step3.html" class="btn btn-secondary">Back</a>
-                    <button type="submit" id="submit-button" class="btn btn-primary">
+                    <a href="step3.html" class="btn btn-secondary" aria-label="Go back to step 3">Back</a>
+                    <button type="submit" id="submit-button" class="btn btn-primary" aria-label="Complete registration and submit">
                         Complete Registration
                     </button>
                 </div>
