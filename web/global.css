@@ -273,6 +273,56 @@ a:focus-visible {
     width: 100%;
 }
 
+/* ========== Logo System ========== */
+.logo {
+    display: inline-block;
+    line-height: 0;
+}
+
+.logo-img {
+    height: 40px;
+    width: auto;
+    display: block;
+    transition: opacity var(--transition-base);
+}
+
+.logo-img:hover {
+    opacity: 0.85;
+}
+
+/* Logo in Headers */
+.page-header .logo-img,
+.hire-header .logo-img,
+.dashboard-header .logo-img {
+    height: 36px;
+}
+
+.register-card .logo-img {
+    height: 32px;
+    margin-bottom: var(--space-2);
+}
+
+/* Logo in Footers */
+.footer .logo-img,
+.dashboard-footer .logo-img {
+    height: 28px;
+    opacity: 0.9;
+    margin-bottom: var(--space-2);
+}
+
+/* Responsive Logo Sizing */
+@media (max-width: 768px) {
+    .logo-img {
+        height: 32px;
+    }
+
+    .page-header .logo-img,
+    .hire-header .logo-img,
+    .dashboard-header .logo-img {
+        height: 28px;
+    }
+}
+
 /* ========== Form System ========== */
 .form-group {
     margin-bottom: var(--space-3);
