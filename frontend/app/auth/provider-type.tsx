@@ -11,36 +11,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
-import { Button } from '../../src/components/Button';
 
-export default function RoleSelectionScreen() {
+export default function ProviderTypeScreen() {
   const router = useRouter();
-
-  const handleCustomerSelect = () => {
-    router.push('/auth/register?role=customer');
-  };
-
-  const handleContractorSelect = () => {
-    router.push('/auth/contractor/onboarding-intro');
-  };
-
-  const handleHandymanSelect = () => {
-    router.push('/auth/handyman/onboarding-intro');
-  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header */}
+        {/* Header with Back Button */}
         <View style={styles.header}>
-          <Button
-            title=""
+          <TouchableOpacity
             onPress={() => router.back()}
-            variant="ghost"
-            size="small"
-            icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
             style={styles.backButton}
-          />
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
+          </TouchableOpacity>
         </View>
 
         {/* Logo & Title */}
@@ -50,111 +35,71 @@ export default function RoleSelectionScreen() {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.title}>Join The Real Johnson</Text>
-          <Text style={styles.subtitle}>Choose how you want to use our platform</Text>
+          <Text style={styles.title}>Join as a Service Provider</Text>
+          <Text style={styles.subtitle}>Tell us about your licensing status</Text>
         </View>
 
-        {/* Role Cards */}
-        <View style={styles.rolesContainer}>
-          {/* Customer Card */}
+        {/* Provider Type Cards */}
+        <View style={styles.cardsContainer}>
+          {/* Licensed Contractor Card */}
           <TouchableOpacity
-            style={styles.roleCard}
-            onPress={handleCustomerSelect}
+            style={[styles.card, styles.licensedCard]}
+            onPress={() => router.push('/auth/contractor/register-step1')}
             activeOpacity={0.7}
           >
             <View style={[styles.iconCircle, { backgroundColor: colors.primary.lightest }]}>
-              <Ionicons name="home" size={40} color={colors.primary.main} />
+              <Ionicons name="ribbon" size={48} color={colors.primary.main} />
             </View>
 
-            <Text style={styles.roleTitle}>I need repairs</Text>
-            <Text style={styles.roleDescription}>
-              Get your home fixed by verified professionals
+            <Text style={styles.cardTitle}>I am licensed</Text>
+            <Text style={styles.cardDescription}>
+              I have a contractor's license, business insurance, or professional certifications
             </Text>
 
             <View style={styles.featuresList}>
               <View style={styles.featureItem}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
-                <Text style={styles.featureText}>AI-powered instant quotes</Text>
+                <Text style={styles.featureText}>Higher pricing tier</Text>
               </View>
               <View style={styles.featureItem}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
-                <Text style={styles.featureText}>Escrow payment protection</Text>
+                <Text style={styles.featureText}>Larger job opportunities</Text>
               </View>
               <View style={styles.featureItem}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
-                <Text style={styles.featureText}>Licensed contractors & handymen</Text>
+                <Text style={styles.featureText}>Priority placement</Text>
               </View>
               <View style={styles.featureItem}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
-                <Text style={styles.featureText}>Track job progress</Text>
+                <Text style={styles.featureText}>Professional badge</Text>
               </View>
             </View>
 
             <View style={styles.cardButton}>
-              <Text style={styles.cardButtonText}>Continue as Homeowner</Text>
+              <Text style={styles.cardButtonText}>Continue as Licensed Contractor</Text>
               <Ionicons name="arrow-forward" size={20} color={colors.primary.main} />
             </View>
           </TouchableOpacity>
 
-          {/* Contractor Card */}
+          {/* Unlicensed Handyman Card */}
           <TouchableOpacity
-            style={styles.roleCard}
-            onPress={handleContractorSelect}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.iconCircle, { backgroundColor: colors.secondary.lightest }]}>
-              <Ionicons name="construct" size={40} color={colors.secondary.main} />
-            </View>
-
-            <Text style={styles.roleTitle}>I do repairs</Text>
-            <Text style={styles.roleDescription}>
-              Find customers and grow your handyman business
-            </Text>
-
-            <View style={styles.featuresList}>
-              <View style={styles.featureItem}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
-                <Text style={styles.featureText}>Get matched with jobs</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
-                <Text style={styles.featureText}>Secure milestone payments</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
-                <Text style={styles.featureText}>Build your reputation</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
-                <Text style={styles.featureText}>Showcase your work</Text>
-              </View>
-            </View>
-
-            <View style={styles.cardButton}>
-              <Text style={styles.cardButtonText}>Continue as Contractor</Text>
-              <Ionicons name="arrow-forward" size={20} color={colors.primary.main} />
-            </View>
-          </TouchableOpacity>
-
-          {/* Handyman Card - NEW! */}
-          <TouchableOpacity
-            style={[styles.roleCard, styles.handymanCard]}
-            onPress={handleHandymanSelect}
+            style={[styles.card, styles.handymanCard]}
+            onPress={() => router.push('/auth/handyman/register-step1')}
             activeOpacity={0.7}
           >
             <View style={[styles.iconCircle, { backgroundColor: '#FFA50020' }]}>
-              <Ionicons name="hammer" size={40} color="#FFA500" />
+              <Ionicons name="hammer" size={48} color="#FFA500" />
             </View>
 
-            <Text style={styles.roleTitle}>I'm starting my business</Text>
-            <Text style={styles.roleDescription}>
-              Begin as a handyman and grow into a licensed contractor
+            <Text style={styles.cardTitle}>I am unlicensed</Text>
+            <Text style={styles.cardDescription}>
+              I'm starting my handyman business or working toward getting licensed
             </Text>
 
             <View style={styles.featuresList}>
               <View style={styles.featureItem}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
-                <Text style={styles.featureText}>No license required to start</Text>
+                <Text style={styles.featureText}>Start immediately</Text>
               </View>
               <View style={styles.featureItem}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
@@ -162,7 +107,7 @@ export default function RoleSelectionScreen() {
               </View>
               <View style={styles.featureItem}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
-                <Text style={styles.featureText}>Get jobs immediately</Text>
+                <Text style={styles.featureText}>Smaller jobs to start</Text>
               </View>
               <View style={styles.featureItem}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
@@ -174,14 +119,6 @@ export default function RoleSelectionScreen() {
               <Text style={[styles.cardButtonText, { color: '#FFA500' }]}>Start as Handyman</Text>
               <Ionicons name="arrow-forward" size={20} color="#FFA500" />
             </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Login Link */}
-        <View style={styles.loginContainer}>
-          <Text style={styles.loginText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/auth/login')}>
-            <Text style={styles.loginLink}>Sign In</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -200,20 +137,23 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   header: {
-    paddingTop: spacing.sm,
-    marginBottom: spacing.md,
+    paddingTop: spacing.md,
+    marginBottom: spacing.lg,
   },
   backButton: {
-    alignSelf: 'flex-start',
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   titleSection: {
     alignItems: 'center',
     marginBottom: spacing['2xl'],
   },
   logo: {
-    width: 80,
-    height: 80,
-    marginBottom: spacing.base,
+    width: 100,
+    height: 100,
+    marginBottom: spacing.lg,
   },
   title: {
     ...typography.sizes['3xl'],
@@ -227,11 +167,10 @@ const styles = StyleSheet.create({
     color: colors.neutral[600],
     textAlign: 'center',
   },
-  rolesContainer: {
-    gap: spacing.lg,
-    marginBottom: spacing['2xl'],
+  cardsContainer: {
+    gap: spacing.xl,
   },
-  roleCard: {
+  card: {
     backgroundColor: colors.background.primary,
     borderRadius: borderRadius.xl,
     padding: spacing.xl,
@@ -239,27 +178,36 @@ const styles = StyleSheet.create({
     borderColor: colors.neutral[200],
     ...shadows.md,
   },
+  licensedCard: {
+    borderColor: colors.primary.main,
+    borderWidth: 2,
+  },
+  handymanCard: {
+    borderColor: '#FFA500',
+    borderWidth: 2,
+  },
   iconCircle: {
-    width: 80,
-    height: 80,
+    width: 96,
+    height: 96,
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: spacing.lg,
   },
-  roleTitle: {
+  cardTitle: {
     ...typography.sizes['2xl'],
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
-  roleDescription: {
+  cardDescription: {
     ...typography.sizes.base,
     color: colors.neutral[600],
     textAlign: 'center',
     marginBottom: spacing.xl,
+    lineHeight: 22,
   },
   featuresList: {
     gap: spacing.md,
@@ -289,24 +237,5 @@ const styles = StyleSheet.create({
     ...typography.sizes.lg,
     fontWeight: typography.weights.semibold,
     color: colors.primary.main,
-  },
-  loginContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: spacing.lg,
-  },
-  loginText: {
-    ...typography.sizes.base,
-    color: colors.neutral[600],
-  },
-  loginLink: {
-    ...typography.sizes.base,
-    color: colors.primary.main,
-    fontWeight: typography.weights.semibold,
-  },
-  handymanCard: {
-    borderColor: '#FFA500',
-    borderWidth: 2,
   },
 });
