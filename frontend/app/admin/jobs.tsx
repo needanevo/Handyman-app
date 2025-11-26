@@ -302,14 +302,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   title: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h2,
     color: colors.neutral[900],
     marginTop: spacing.md,
     marginBottom: spacing.xs,
   },
   subtitle: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
   },
   searchContainer: {
@@ -328,7 +327,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[900],
   },
   filtersContainer: {
@@ -348,7 +347,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary.main,
   },
   filterChipText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
     fontWeight: typography.weights.medium,
   },
@@ -377,8 +376,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   category: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
   },
   statusBadge: {
@@ -390,7 +388,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   statusText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     fontWeight: typography.weights.semibold,
     textTransform: 'capitalize',
   },
@@ -403,7 +401,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   detailText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
   },
   emptyState: {
@@ -414,12 +412,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   emptyTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.neutral[700],
   },
   emptyText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[500],
     textAlign: 'center',
   },
