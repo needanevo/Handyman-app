@@ -261,14 +261,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   title: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h2,
     color: colors.neutral[900],
     marginTop: spacing.md,
     marginBottom: spacing.xs,
   },
   subtitle: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
   },
   searchContainer: {
@@ -287,7 +286,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[900],
   },
   filtersContainer: {
@@ -307,7 +306,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary.main,
   },
   filterChipText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
     fontWeight: typography.weights.medium,
   },
@@ -334,8 +333,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userName: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
     marginBottom: spacing.sm,
   },
@@ -346,7 +344,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   roleText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     fontWeight: typography.weights.semibold,
   },
   userDetails: {
@@ -358,7 +356,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   detailText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
   },
   emptyState: {
@@ -369,12 +367,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   emptyTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.neutral[700],
   },
   emptyText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[500],
     textAlign: 'center',
   },

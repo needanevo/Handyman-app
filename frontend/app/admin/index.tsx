@@ -134,13 +134,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xl,
   },
   title: {
-    ...typography.sizes['3xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h1,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   subtitle: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
   },
   grid: {
@@ -164,13 +163,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   cardTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   cardDescription: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
     marginBottom: spacing.sm,
   },
@@ -183,8 +181,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   sectionTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h3,
     color: colors.neutral[900],
     marginBottom: spacing.md,
   },
@@ -205,18 +202,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h3,
     color: colors.primary.main,
     marginBottom: spacing.xs,
   },
   statLabel: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
     textAlign: 'center',
   },
   helperText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[500],
     fontStyle: 'italic',
     textAlign: 'center',
