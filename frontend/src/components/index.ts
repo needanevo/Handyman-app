@@ -17,3 +17,4 @@ export { Input } from './Input';
 export { PhotoUploader } from './PhotoUploader';
 export { EmptyState } from './EmptyState';
 export { LoadingSpinner } from './LoadingSpinner';
+export { BrandedHeader } from './BrandedHeader';
