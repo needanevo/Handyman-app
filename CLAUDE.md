@@ -4,6 +4,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-11-26 22:35] — Phase 6 Task 3: Change Order System UI
+
+**Files Created:**
+- `frontend/app/(contractor)/change-order/create/[jobId].tsx`
+- `frontend/app/(customer)/change-order/[changeOrderId].tsx`
+- `frontend/app/(contractor)/change-order/list/[jobId].tsx`
+
+**Purpose:**
+Created complete change order workflow UI connected to Phase 5 backend endpoints. Contractors can create change orders with photos and additional cost/hours, customers can approve/reject with notes, contractors can view list of all change orders with status badges and decision notes.
+
+**Key Features:**
+- Cost validation supports negative values (credits to customer)
+- Visual indicators (green for credits, yellow for additional costs)
+- Photo upload capability (max 5 photos)
+- Status tracking (pending/approved/rejected)
+- Decision notes system for customer feedback
+
+**Next Steps:**
+- TASK 4: Create Admin Dashboard UI
+- TASK 5: Add temporary app icon + splash
+- TASK 6: Apply placeholder branding
+
+---
+
 ### [2025-11-26 22:30] — Phase 6 Task 2: Warranty System UI
 
 **Files Created:**
