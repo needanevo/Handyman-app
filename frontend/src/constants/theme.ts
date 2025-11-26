@@ -6,6 +6,16 @@
  */
 
 export const colors = {
+  // Brand Colors - Core identity
+  brand: {
+    navy: '#0A1117',   // Primary brand color - headers, buttons, emphasis
+    gold: '#F0A81F',   // Accent color - CTAs, highlights, success states
+    paper: '#EFE8DE',  // Background color - surfaces, cards
+    white: '#FFFFFF',  // Pure white - text on dark, clean backgrounds
+    black: '#000000',  // Pure black - strong text, borders
+    gray: '#6B7280',   // Neutral gray - secondary text, subtle elements
+  },
+
   // Primary - Trust and action
   primary: {
     main: '#E88035', // Kinder (from a_slow_uncovering.html)
@@ -91,6 +101,36 @@ export const typography = {
     '2xl': { fontSize: 24, lineHeight: 32 },
     '3xl': { fontSize: 30, lineHeight: 36 },
     '4xl': { fontSize: 36, lineHeight: 40 },
+  },
+
+  // Semantic heading styles
+  headings: {
+    h1: { fontSize: 36, lineHeight: 40, fontWeight: '700' as const }, // Page titles
+    h2: { fontSize: 30, lineHeight: 36, fontWeight: '700' as const }, // Section titles
+    h3: { fontSize: 24, lineHeight: 32, fontWeight: '600' as const }, // Subsection titles
+    h4: { fontSize: 20, lineHeight: 28, fontWeight: '600' as const }, // Card titles
+    h5: { fontSize: 18, lineHeight: 28, fontWeight: '600' as const }, // List headers
+    h6: { fontSize: 16, lineHeight: 24, fontWeight: '600' as const }, // Small headers
+  },
+
+  // Body text styles
+  body: {
+    large: { fontSize: 18, lineHeight: 28, fontWeight: '400' as const },
+    regular: { fontSize: 16, lineHeight: 24, fontWeight: '400' as const },
+    small: { fontSize: 14, lineHeight: 20, fontWeight: '400' as const },
+  },
+
+  // Button text styles
+  button: {
+    large: { fontSize: 18, lineHeight: 24, fontWeight: '600' as const },
+    medium: { fontSize: 16, lineHeight: 20, fontWeight: '600' as const },
+    small: { fontSize: 14, lineHeight: 18, fontWeight: '600' as const },
+  },
+
+  // Caption text styles
+  caption: {
+    regular: { fontSize: 14, lineHeight: 20, fontWeight: '400' as const },
+    small: { fontSize: 12, lineHeight: 16, fontWeight: '400' as const },
   },
 
   // Font weights
