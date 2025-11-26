@@ -4,6 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-11-26 22:45] — Phase 6 Task 5: App Icon & Splash Screen
+
+**Files Modified:**
+- `frontend/app.json`
+
+**Purpose:**
+Updated Expo app configuration to use temporary branding for app icon and splash screen using the black and white logo variant with brand-paper background color.
+
+**Changes:**
+- App icon: Changed to `Handyman_logo_bw.png`
+- Splash screen image: Changed to `Handyman_logo_bw.png`
+- Splash background color: Changed to `#EFE8DE` (brand-paper)
+
+**Next Steps:**
+- TASK 6: Apply placeholder branding across UI (navbar, footer, landing page, dashboards)
+
+---
+
 ### [2025-11-26 22:40] — Phase 6 Task 4: Admin Dashboard UI
 
 **Files Created:**
