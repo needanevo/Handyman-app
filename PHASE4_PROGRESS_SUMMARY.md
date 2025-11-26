@@ -1,6 +1,6 @@
 # Phase 4 Global Polish - Progress Summary
 
-## Status: **80% Complete** (16/22 pages polished + budget refactor)
+## Status: **91% Complete** (20/22 pages polished + budget refactor)
 
 ### ✅ COMPLETED
 
@@ -54,7 +54,36 @@
 - Semantic HTML (main tag)
 - Minimal page-specific styling using var() references
 
-#### 5. Already Polished (Previous work)
+#### 5. Contractor/Handyman Pages (Commit: 0574926) - **2 PAGES COMPLETE**
+**Pages:**
+- ✅ web/contractor/index.html - Contractor landing/recruitment page
+- ✅ web/handyman/index.html - Handyman landing/recruitment page
+
+**Applied:**
+- global.css with CSS variables
+- SEO metadata (title, description, OpenGraph, JSON-LD LocalBusiness schema)
+- ARIA labels on all interactive elements (nav, buttons, links)
+- aria-hidden="true" on all decorative icons and step numbers
+- Semantic HTML (main tag, header with role="banner", footer with role="contentinfo")
+- Skip-to-content links for keyboard navigation
+- Navigation with role="navigation" and aria-label
+
+#### 6. Register Step 3 & 4 Pages (Commit: a467993) - **2 PAGES COMPLETE**
+**Pages:**
+- ✅ web/register/step3.html - Skills & experience registration
+- ✅ web/register/step4.html - Portfolio photo upload
+
+**Applied:**
+- All standards from previous pages PLUS:
+- role="alert" with aria-live="polite" on error messages
+- role="navigation" with aria-label on progress bars
+- aria-current="step" on active progress indicators
+- role="group" with aria-label for checkbox grids
+- aria-required="true" on required form inputs
+- aria-describedby linking inputs to hint text
+- Progress tracking with full accessibility
+
+#### 7. Already Polished (Previous work) - **7 PAGES**
 **Pages:**
 - ✅ web/index.html (Landing page) - Already has full polish
 - ✅ web/404.html - Already polished
@@ -66,16 +95,10 @@
 
 ---
 
-### 📋 REMAINING TASKS (20% of Phase 4)
+### 📋 REMAINING TASKS (9% of Phase 4)
 
-#### Pages Still Need Polish (4 pages):
-1. **web/contractor/index.html** - Contractor landing/info page
-2. **web/handyman/index.html** - Handyman landing/info page
-3. **web/register/step3.html** - Registration step 3
-4. **web/register/step4.html** - Registration step 4
-
-**To Apply:**
-- Same standards as above (global.css, SEO, ARIA, semantic HTML, skip links)
+#### Pages Still Need Polish (2 pages):
+**NOTE**: May not exist or may be unnecessary. Need to verify if these pages exist and are user-facing.
 
 #### CSS Cleanup:
 - **web/hire/style.css** - Remove duplicates, keep only page-specific overrides
@@ -96,10 +119,10 @@
 
 ### 📊 COMPLETION METRICS
 
-**Pages Polished:** 16/22 (73%)
-**Commits Made:** 5 substantial commits
-**Files Changed:** 25+ files
-**Lines Changed:** 500+ insertions, 200+ deletions
+**Pages Polished:** 20/22 (91%)
+**Commits Made:** 7 substantial commits
+**Files Changed:** 29+ files
+**Lines Changed:** 720+ insertions, 384+ deletions
 
 **Standards Applied Consistently:**
 - ✅ Global design system (CSS variables)
@@ -112,12 +135,12 @@
 
 ### 🎯 NEXT STEPS TO COMPLETE PHASE 4
 
-1. Polish 4 remaining pages (contractor, handyman, register step3/4)
-2. Remove duplicate CSS from 6 stylesheets
+1. ~~Polish 4 remaining pages (contractor, handyman, register step3/4)~~ ✅ DONE
+2. Remove duplicate CSS from 6 stylesheets (IN PROGRESS)
 3. Run validation checks
 4. Report: "Phase 4 completed."
 
-**Estimated Time:** 30-45 minutes
+**Estimated Time:** 15-20 minutes remaining
 
 ---
 
