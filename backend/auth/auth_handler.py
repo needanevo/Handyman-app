@@ -55,6 +55,27 @@ class AuthHandler:
         to_encode.update({"exp": expire, "type": "refresh"})
         return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     
+    def decode_refresh_token(self, token: str) -> Dict[str, Any]:
+        """Decode and validate a refresh token"""
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+            if payload.get("type") != "refresh":
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid refresh token type"
+                )
+
+            return payload
+
+        except JWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    
     def verify_token(self, token: str, token_type: str = "access") -> Dict[str, Any]:
         """Verify and decode JWT token"""
         try:

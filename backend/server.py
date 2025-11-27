@@ -40,6 +40,7 @@ from models import (
     JobStatus,
     JobCreateRequest,
     JobStatusUpdate,
+    JobCreateResponse,
     ContractorTypePreference,
     JobAddress,
     Proposal,

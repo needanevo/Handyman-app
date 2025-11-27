@@ -95,3 +95,11 @@ class JobStatusUpdate(BaseModel):
     status: JobStatus
     scheduled_start: Optional[datetime] = None
     scheduled_end: Optional[datetime] = None
+
+
+class JobCreateResponse(BaseModel):
+    """Response after creating a job"""
+    job_id: str
+    status: str
+    estimated_total: float
+    created_at: str
