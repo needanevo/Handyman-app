@@ -52,13 +52,30 @@ from models import (
     WalletSummary,
     GrowthSummary,
     GrowthSummaryResponse,
+    MileageLog,
+    MileageCreateRequest,
+    TimeLog,
+    TimeLogStartRequest,
+    TimeLogStopRequest,
+    JobPhoto,
+    JobPhotoUpdateRequest,
+    MonthlyReport,
+    YearlyReport,
+    TaxReport,
+    WarrantyRequest,
+    WarrantyRequestCreate,
+    WarrantyDecision,
+    WarrantyStatus,
+    ChangeOrder,
+    ChangeOrderCreate,
+    ChangeOrderDecision,
+    ChangeOrderStatus,
 )
 # Job models imported from models/__init__.py above
 
 # Import authentication
 from auth.auth_handler import (
     AuthHandler,
-    get_current_user,
     require_admin,
     require_technician_or_admin,
 )
@@ -231,6 +248,49 @@ async def get_current_user_info(
     return current_user
 
 
+@api_router.post("/auth/refresh", response_model=Token)
+async def refresh_token(refresh: dict = Body(...)):
+    """
+    Refresh access token using proper refresh-token decoder
+    """
+    try:
+        refresh_token = refresh.get("refresh_token")
+        if not refresh_token:
+            raise HTTPException(400, "refresh_token is required")
+
+        # Correct decoder — built for REFRESH tokens only
+        payload = auth_handler.decode_refresh_token(refresh_token)
+
+        user_id = payload.get("user_id")
+        email = payload.get("email")
+
+        if not user_id or not email:
+            raise HTTPException(401, "Invalid refresh token")
+
+        # Verify user still exists
+        user = await auth_handler.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(401, "User not found")
+
+        # Create new tokens
+        new_access = auth_handler.create_access_token({
+            "user_id": user_id,
+            "email": email,
+            "role": user.role
+        })
+
+        new_refresh = auth_handler.create_refresh_token({
+            "user_id": user_id,
+            "email": email
+        })
+
+        return Token(access_token=new_access, refresh_token=new_refresh)
+
+    except Exception as e:
+        logger.error(f"Refresh error: {e}")
+        raise HTTPException(401, "Invalid refresh token")
+
+
 # ==================== SERVICE CATALOG ROUTES ====================
 
 
@@ -272,18 +332,18 @@ async def create_service(
 
 
 # ==================== QUOTE ROUTES ====================
-# >>> PHOTO_DEBUG_START
-@api_router.post("/photo")
-async def debug_photo(request: Request, file: UploadFile = File(...)):
-    sp = request.app.state.storage if hasattr(request.app.state, "storage") else None
-    if not sp:
-        raise HTTPException(500, "Storage provider not initialized")
-    data = await file.read()
-    logger.info(f"📸 /photo: name={file.filename}, bytes={len(data)}")
-    key = f"debug/{uuid.uuid4()}_{file.filename}"
-    url = await sp.upload_photo_bytes(data, key)
-    logger.info(f"✅ /photo uploaded: {url}")
-    return {"url": url, "key": key}
+# >>> PHOTO_DEBUG_START (DEBUG ENDPOINT - DEVELOPMENT ONLY)
+# @api_router.post("/photo")
+# async def debug_photo(request: Request, file: UploadFile = File(...)):
+#     sp = request.app.state.storage if hasattr(request.app.state, "storage") else None
+#     if not sp:
+#         raise HTTPException(500, "Storage provider not initialized")
+#     data = await file.read()
+#     logger.info(f"📸 /photo: name={file.filename}, bytes={len(data)}")
+#     key = f"debug/{uuid.uuid4()}_{file.filename}"
+#     url = await sp.upload_photo_bytes(data, key)
+#     logger.info(f"✅ /photo uploaded: {url}")
+#     return {"url": url, "key": key}
 # <<< PHOTO_DEBUG_END
 @api_router.post("/photos/upload")
 async def upload_photo_immediately(
@@ -1813,164 +1873,6 @@ async def upload_contractor_job_photo(
 
 
 
-
-@api_router.post("/contractor/photos/document")
-async def upload_contractor_document(
-    file: UploadFile = File(...),
-    document_type: str = Form(...),  # 'license', 'insurance', 'business_license'
-    current_user: User = Depends(get_current_user_dependency)
-):
-    """
-    Upload contractor document (license, insurance, business license)
-    Saves to: contractors/{contractor_id}/profile/{document_type}_{filename}
-    """
-    if current_user.role != UserRole.TECHNICIAN:
-        raise HTTPException(403, detail="Only contractors can upload documents")
-
-    try:
-        # Validate document type
-        valid_types = ['license', 'insurance', 'business_license']
-        if document_type not in valid_types:
-            raise HTTPException(400, detail=f"Invalid document type. Must be one of: {valid_types}")
-
-        # Validate it's an image
-        if not file.content_type or not file.content_type.startswith('image/'):
-            raise HTTPException(400, detail="File must be an image")
-
-        # Read file data
-        file_data = await file.read()
-        if len(file_data) == 0:
-            raise HTTPException(400, detail="Empty file received")
-
-        # Generate filename
-        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
-        filename = f"{uuid.uuid4().hex[:8]}.{file_extension}"
-
-        # Upload to contractor-specific path
-        url = await storage_provider.upload_contractor_document(
-            file_data=file_data,
-            contractor_id=current_user.id,
-            document_type=document_type,
-            filename=filename,
-            content_type=file.content_type
-        )
-
-        logger.info(f"Contractor document uploaded: {document_type} for {current_user.id}")
-
-        return {
-            "success": True,
-            "url": url,
-            "document_type": document_type
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Upload error: {str(e)}")
-        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
-
-
-@api_router.post("/contractor/photos/portfolio")
-async def upload_contractor_portfolio_photo(
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user_dependency)
-):
-    """
-    Upload contractor portfolio photo
-    Saves to: contractors/{contractor_id}/portfolio/{filename}
-    """
-    if current_user.role != UserRole.TECHNICIAN:
-        raise HTTPException(403, detail="Only contractors can upload portfolio photos")
-
-    try:
-        # Validate it's an image
-        if not file.content_type or not file.content_type.startswith('image/'):
-            raise HTTPException(400, detail="File must be an image")
-
-        # Read file data
-        file_data = await file.read()
-        if len(file_data) == 0:
-            raise HTTPException(400, detail="Empty file received")
-
-        # Generate filename
-        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
-        filename = f"portfolio_{uuid.uuid4().hex[:8]}.{file_extension}"
-
-        # Upload to contractor portfolio path
-        url = await storage_provider.upload_contractor_portfolio(
-            file_data=file_data,
-            contractor_id=current_user.id,
-            filename=filename,
-            content_type=file.content_type
-        )
-
-        logger.info(f"Contractor portfolio photo uploaded for {current_user.id}")
-
-        return {
-            "success": True,
-            "url": url
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Upload error: {str(e)}")
-        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
-
-
-@api_router.post("/contractor/photos/job/{job_id}")
-async def upload_contractor_job_photo(
-    job_id: str,
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user_dependency)
-):
-    """
-    Upload contractor job photo (progress, completion, etc.)
-    Saves to: contractors/{contractor_id}/jobs/{job_id}/{filename}
-    """
-    if current_user.role != UserRole.TECHNICIAN:
-        raise HTTPException(403, detail="Only contractors can upload job photos")
-
-    try:
-        # Validate it's an image
-        if not file.content_type or not file.content_type.startswith('image/'):
-            raise HTTPException(400, detail="File must be an image")
-
-        # Read file data
-        file_data = await file.read()
-        if len(file_data) == 0:
-            raise HTTPException(400, detail="Empty file received")
-
-        # Generate filename
-        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        filename = f"{timestamp}_{uuid.uuid4().hex[:8]}.{file_extension}"
-
-        # Upload to contractor job path
-        url = await storage_provider.upload_contractor_job_photo(
-            file_data=file_data,
-            contractor_id=current_user.id,
-            job_id=job_id,
-            filename=filename,
-            content_type=file.content_type
-        )
-
-        logger.info(f"Contractor job photo uploaded: job={job_id}, contractor={current_user.id}")
-
-        return {
-            "success": True,
-            "url": url,
-            "job_id": job_id
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Upload error: {str(e)}")
-        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
-
-
-
 # ==================== CONTRACTOR EXPENSE ROUTES ====================
 
 
@@ -2049,6 +1951,1157 @@ async def delete_expense(
     return {"message": "Expense deleted successfully"}
 
 
+@api_router.post("/contractor/expenses/{expense_id}/receipt")
+async def upload_expense_receipt(
+    expense_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Upload receipt photo for an expense"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload receipts")
+
+    # Verify expense belongs to this contractor
+    expense = await db.expenses.find_one({"id": expense_id, "contractor_id": current_user.id})
+    if not expense:
+        raise HTTPException(404, detail="Expense not found")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"receipt_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to storage (reuse contractor job photo path)
+        url = await storage_provider.upload_contractor_job_photo(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            job_id=expense.get('job_id', 'expenses'),
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        # Add receipt URL to expense
+        receipt_photos = expense.get('receipt_photos', [])
+        receipt_photos.append(url)
+
+        await db.expenses.update_one(
+            {"id": expense_id},
+            {"$set": {"receipt_photos": receipt_photos, "updated_at": datetime.utcnow().isoformat()}}
+        )
+
+        logger.info(f"Receipt uploaded for expense {expense_id}")
+        return {"success": True, "url": url}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Receipt upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+# ==================== CONTRACTOR JOB ROUTES (LICENSED) ====================
+
+
+@api_router.get("/contractor/jobs/accepted")
+async def get_accepted_contractor_jobs(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get jobs accepted by this contractor"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access this endpoint")
+
+    jobs = await db.jobs.find({
+        "contractor_id": current_user.id,
+        "status": {"$in": ["accepted", "quoted"]}
+    }).sort("created_at", -1).to_list(100)
+
+    for job in jobs:
+        job.pop('_id', None)
+    return jobs
+
+
+@api_router.get("/contractor/jobs/scheduled")
+async def get_scheduled_contractor_jobs(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get scheduled jobs for this contractor"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access this endpoint")
+
+    jobs = await db.jobs.find({
+        "contractor_id": current_user.id,
+        "status": "scheduled"
+    }).sort("scheduled_date", 1).to_list(100)
+
+    for job in jobs:
+        job.pop('_id', None)
+    return jobs
+
+
+@api_router.get("/contractor/jobs/completed")
+async def get_completed_contractor_jobs(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get completed jobs for this contractor"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access this endpoint")
+
+    query = {
+        "contractor_id": current_user.id,
+        "status": "completed"
+    }
+
+    if start_date and end_date:
+        query["completed_at"] = {"$gte": start_date, "$lte": end_date}
+
+    jobs = await db.jobs.find(query).sort("completed_at", -1).to_list(100)
+
+    for job in jobs:
+        job.pop('_id', None)
+    return jobs
+
+
+@api_router.get("/contractor/jobs/{job_id}")
+async def get_contractor_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get specific job details for contractor"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access this endpoint")
+
+    job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
+    if not job:
+        raise HTTPException(404, detail="Job not found or not assigned to you")
+
+    job.pop('_id', None)
+    return job
+
+
+@api_router.post("/contractor/jobs/{job_id}/accept")
+async def accept_contractor_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Accept/claim a job"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can accept jobs")
+
+    # Find the job
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    # Check if already assigned
+    if job.get('contractor_id'):
+        raise HTTPException(400, detail="Job already assigned to another contractor")
+
+    # Assign job to contractor
+    await db.jobs.update_one(
+        {"id": job_id},
+        {"$set": {
+            "contractor_id": current_user.id,
+            "status": "accepted",
+            "accepted_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }}
+    )
+
+    logger.info(f"Job {job_id} accepted by contractor {current_user.id}")
+
+    # Return updated job
+    updated_job = await db.jobs.find_one({"id": job_id})
+    updated_job.pop('_id', None)
+    return updated_job
+
+
+@api_router.patch("/contractor/jobs/{job_id}/status")
+async def update_contractor_job_status(
+    job_id: str,
+    status_update: dict = Body(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Update job status"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can update job status")
+
+    # Verify job belongs to this contractor
+    job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
+    if not job:
+        raise HTTPException(404, detail="Job not found or not assigned to you")
+
+    new_status = status_update.get('status')
+    valid_statuses = ['accepted', 'scheduled', 'in_progress', 'completed', 'cancelled']
+
+    if new_status not in valid_statuses:
+        raise HTTPException(400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+
+    update_data = {
+        "status": new_status,
+        "updated_at": datetime.utcnow().isoformat()
+    }
+
+    # Add completion timestamp if completing
+    if new_status == 'completed':
+        update_data["completed_at"] = datetime.utcnow().isoformat()
+
+    await db.jobs.update_one(
+        {"id": job_id},
+        {"$set": update_data}
+    )
+
+    logger.info(f"Job {job_id} status updated to {new_status}")
+
+    # Return updated job
+    updated_job = await db.jobs.find_one({"id": job_id})
+    updated_job.pop('_id', None)
+    return updated_job
+
+
+# ==================== CONTRACTOR JOB PHOTOS ====================
+
+
+@api_router.post("/contractor/jobs/{job_id}/photos")
+async def create_contractor_job_photo(
+    job_id: str,
+    file: UploadFile = File(...),
+    category: str = Form('progress'),  # 'before', 'progress', 'after', 'issue'
+    caption: Optional[str] = Form(None),
+    notes: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Upload a photo for a job with metadata"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can upload job photos")
+
+    # Verify job belongs to this contractor
+    job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
+    if not job:
+        raise HTTPException(404, detail="Job not found or not assigned to you")
+
+    try:
+        # Validate image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        filename = f"{category}_{timestamp}_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to storage
+        url = await storage_provider.upload_contractor_job_photo(
+            file_data=file_data,
+            contractor_id=current_user.id,
+            job_id=job_id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        # Save photo metadata
+        photo_doc = {
+            "id": str(uuid.uuid4()),
+            "contractor_id": current_user.id,
+            "job_id": job_id,
+            "url": url,
+            "category": category,
+            "caption": caption,
+            "notes": notes,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+
+        await db.job_photos.insert_one(photo_doc)
+        logger.info(f"Job photo uploaded: job={job_id}, category={category}")
+
+        photo_doc.pop('_id', None)
+        return photo_doc
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Job photo upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+@api_router.get("/contractor/jobs/{job_id}/photos")
+async def get_contractor_job_photos(
+    job_id: str,
+    category: Optional[str] = None,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get photos for a job"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access job photos")
+
+    # Verify job belongs to this contractor
+    job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
+    if not job:
+        raise HTTPException(404, detail="Job not found or not assigned to you")
+
+    query = {"job_id": job_id, "contractor_id": current_user.id}
+    if category:
+        query["category"] = category
+
+    photos = await db.job_photos.find(query).sort("created_at", -1).to_list(100)
+
+    for photo in photos:
+        photo.pop('_id', None)
+    return photos
+
+
+@api_router.delete("/contractor/jobs/{job_id}/photos/{photo_id}")
+async def delete_contractor_job_photo(
+    job_id: str,
+    photo_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Delete a job photo"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can delete job photos")
+
+    result = await db.job_photos.delete_one({
+        "id": photo_id,
+        "job_id": job_id,
+        "contractor_id": current_user.id
+    })
+
+    if result.deleted_count == 0:
+        raise HTTPException(404, detail="Photo not found")
+
+    return {"message": "Photo deleted successfully"}
+
+
+@api_router.put("/contractor/jobs/{job_id}/photos/{photo_id}")
+async def update_contractor_job_photo(
+    job_id: str,
+    photo_id: str,
+    update_data: JobPhotoUpdateRequest,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Update photo caption/notes"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can update job photos")
+
+    # Verify photo exists and belongs to this contractor
+    photo = await db.job_photos.find_one({
+        "id": photo_id,
+        "job_id": job_id,
+        "contractor_id": current_user.id
+    })
+
+    if not photo:
+        raise HTTPException(404, detail="Photo not found")
+
+    update_fields = {"updated_at": datetime.utcnow().isoformat()}
+    if update_data.caption is not None:
+        update_fields["caption"] = update_data.caption
+    if update_data.notes is not None:
+        update_fields["notes"] = update_data.notes
+
+    await db.job_photos.update_one(
+        {"id": photo_id},
+        {"$set": update_fields}
+    )
+
+    updated_photo = await db.job_photos.find_one({"id": photo_id})
+    updated_photo.pop('_id', None)
+    return updated_photo
+
+
+# ==================== CONTRACTOR MILEAGE ROUTES ====================
+
+
+@api_router.get("/contractor/mileage")
+async def get_contractor_mileage_logs(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    job_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get mileage logs for contractor"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access mileage logs")
+
+    query = {"contractor_id": current_user.id}
+
+    if job_id:
+        query["job_id"] = job_id
+
+    if start_date and end_date:
+        query["date"] = {"$gte": start_date, "$lte": end_date}
+
+    logs = await db.mileage_logs.find(query).sort("date", -1).to_list(100)
+
+    for log in logs:
+        log.pop('_id', None)
+    return logs
+
+
+@api_router.post("/contractor/mileage")
+async def create_mileage_log(
+    log_data: MileageCreateRequest,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Create a new mileage log"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can create mileage logs")
+
+    log_doc = {
+        "id": str(uuid.uuid4()),
+        "contractor_id": current_user.id,
+        "job_id": log_data.job_id,
+        "date": log_data.date,
+        "start_location": log_data.start_location.model_dump(),
+        "end_location": log_data.end_location.model_dump(),
+        "miles": log_data.miles,
+        "purpose": log_data.purpose,
+        "notes": log_data.notes,
+        "auto_tracked": log_data.auto_tracked,
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat()
+    }
+
+    await db.mileage_logs.insert_one(log_doc)
+    logger.info(f"Mileage log created: {log_doc['id']} for contractor {current_user.id}")
+
+    log_doc.pop('_id', None)
+    return log_doc
+
+
+@api_router.delete("/contractor/mileage/{mileage_id}")
+async def delete_mileage_log(
+    mileage_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Delete a mileage log"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can delete mileage logs")
+
+    result = await db.mileage_logs.delete_one({
+        "id": mileage_id,
+        "contractor_id": current_user.id
+    })
+
+    if result.deleted_count == 0:
+        raise HTTPException(404, detail="Mileage log not found")
+
+    return {"message": "Mileage log deleted successfully"}
+
+
+# ==================== CONTRACTOR TIME LOG ROUTES ====================
+
+
+@api_router.post("/contractor/jobs/{job_id}/time/start")
+async def start_time_log(
+    job_id: str,
+    request_data: TimeLogStartRequest,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Start time tracking for a job"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can start time logs")
+
+    # Verify job belongs to this contractor
+    job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
+    if not job:
+        raise HTTPException(404, detail="Job not found or not assigned to you")
+
+    # Check for existing active time log
+    active_log = await db.time_logs.find_one({
+        "contractor_id": current_user.id,
+        "job_id": job_id,
+        "end_time": None
+    })
+
+    if active_log:
+        raise HTTPException(400, detail="Time log already active for this job")
+
+    time_log = {
+        "id": str(uuid.uuid4()),
+        "contractor_id": current_user.id,
+        "job_id": job_id,
+        "start_time": datetime.utcnow().isoformat(),
+        "end_time": None,
+        "duration_minutes": None,
+        "notes": request_data.notes,
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat()
+    }
+
+    await db.time_logs.insert_one(time_log)
+    logger.info(f"Time log started: {time_log['id']} for job {job_id}")
+
+    time_log.pop('_id', None)
+    return time_log
+
+
+@api_router.post("/contractor/jobs/{job_id}/time/{time_id}/stop")
+async def stop_time_log(
+    job_id: str,
+    time_id: str,
+    request_data: TimeLogStopRequest,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Stop time tracking for a job"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can stop time logs")
+
+    # Find the active time log
+    time_log = await db.time_logs.find_one({
+        "id": time_id,
+        "contractor_id": current_user.id,
+        "job_id": job_id,
+        "end_time": None
+    })
+
+    if not time_log:
+        raise HTTPException(404, detail="Active time log not found")
+
+    # Calculate duration
+    start_time = datetime.fromisoformat(time_log['start_time'])
+    end_time = datetime.utcnow()
+    duration_minutes = int((end_time - start_time).total_seconds() / 60)
+
+    update_data = {
+        "end_time": end_time.isoformat(),
+        "duration_minutes": duration_minutes,
+        "updated_at": end_time.isoformat()
+    }
+
+    if request_data.notes:
+        update_data["notes"] = request_data.notes
+
+    await db.time_logs.update_one(
+        {"id": time_id},
+        {"$set": update_data}
+    )
+
+    logger.info(f"Time log stopped: {time_id}, duration: {duration_minutes} minutes")
+
+    updated_log = await db.time_logs.find_one({"id": time_id})
+    updated_log.pop('_id', None)
+    return updated_log
+
+
+@api_router.get("/contractor/jobs/{job_id}/time")
+async def get_time_logs(
+    job_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get all time logs for a job"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access time logs")
+
+    # Verify job belongs to this contractor
+    job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
+    if not job:
+        raise HTTPException(404, detail="Job not found or not assigned to you")
+
+    logs = await db.time_logs.find({
+        "contractor_id": current_user.id,
+        "job_id": job_id
+    }).sort("start_time", -1).to_list(100)
+
+    for log in logs:
+        log.pop('_id', None)
+    return logs
+
+
+# ==================== CONTRACTOR REPORTS ROUTES ====================
+
+
+@api_router.get("/contractor/reports/monthly")
+async def get_monthly_report(
+    year: int,
+    month: int,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get monthly report for contractor"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access reports")
+
+    # Query jobs for the month
+    start_date = f"{year}-{month:02d}-01"
+    if month == 12:
+        end_date = f"{year + 1}-01-01"
+    else:
+        end_date = f"{year}-{month + 1:02d}-01"
+
+    jobs = await db.jobs.find({
+        "contractor_id": current_user.id,
+        "created_at": {"$gte": start_date, "$lt": end_date}
+    }).to_list(1000)
+
+    completed_jobs = [j for j in jobs if j.get('status') == 'completed']
+
+    # Calculate totals
+    total_revenue = sum(j.get('contractor_invoice_amount', 0) for j in completed_jobs)
+
+    # Get expenses for the month
+    expenses = await db.expenses.find({
+        "contractor_id": current_user.id,
+        "date": {"$gte": start_date, "$lt": end_date}
+    }).to_list(1000)
+
+    total_expenses = sum(e.get('amount', 0) for e in expenses)
+
+    # Get mileage for the month
+    mileage_logs = await db.mileage_logs.find({
+        "contractor_id": current_user.id,
+        "date": {"$gte": start_date, "$lt": end_date}
+    }).to_list(1000)
+
+    total_mileage = sum(m.get('miles', 0) for m in mileage_logs)
+
+    # Get time logs for the month
+    time_logs = await db.time_logs.find({
+        "contractor_id": current_user.id,
+        "start_time": {"$gte": start_date, "$lt": end_date}
+    }).to_list(1000)
+
+    total_hours = sum(t.get('duration_minutes', 0) for t in time_logs) / 60
+
+    report = {
+        "year": year,
+        "month": month,
+        "contractor_id": current_user.id,
+        "total_jobs": len(jobs),
+        "completed_jobs": len(completed_jobs),
+        "total_revenue": total_revenue,
+        "total_expenses": total_expenses,
+        "total_mileage": total_mileage,
+        "total_hours": total_hours,
+        "net_income": total_revenue - total_expenses
+    }
+
+    return report
+
+
+@api_router.get("/contractor/reports/yearly")
+async def get_yearly_report(
+    year: int,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get yearly report for contractor"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access reports")
+
+    start_date = f"{year}-01-01"
+    end_date = f"{year + 1}-01-01"
+
+    # Get all jobs for the year
+    jobs = await db.jobs.find({
+        "contractor_id": current_user.id,
+        "created_at": {"$gte": start_date, "$lt": end_date}
+    }).to_list(10000)
+
+    completed_jobs = [j for j in jobs if j.get('status') == 'completed']
+    total_revenue = sum(j.get('contractor_invoice_amount', 0) for j in completed_jobs)
+
+    # Get expenses
+    expenses = await db.expenses.find({
+        "contractor_id": current_user.id,
+        "date": {"$gte": start_date, "$lt": end_date}
+    }).to_list(10000)
+
+    total_expenses = sum(e.get('amount', 0) for e in expenses)
+
+    # Get mileage
+    mileage_logs = await db.mileage_logs.find({
+        "contractor_id": current_user.id,
+        "date": {"$gte": start_date, "$lt": end_date}
+    }).to_list(10000)
+
+    total_mileage = sum(m.get('miles', 0) for m in mileage_logs)
+
+    # Get time logs
+    time_logs = await db.time_logs.find({
+        "contractor_id": current_user.id,
+        "start_time": {"$gte": start_date, "$lt": end_date}
+    }).to_list(10000)
+
+    total_hours = sum(t.get('duration_minutes', 0) for t in time_logs) / 60
+
+    # Build monthly breakdown (stub for now)
+    monthly_breakdown = []
+    for month in range(1, 13):
+        monthly_breakdown.append({
+            "year": year,
+            "month": month,
+            "contractor_id": current_user.id,
+            "total_jobs": 0,
+            "completed_jobs": 0,
+            "total_revenue": 0,
+            "total_expenses": 0,
+            "total_mileage": 0,
+            "total_hours": 0,
+            "net_income": 0
+        })
+
+    report = {
+        "year": year,
+        "contractor_id": current_user.id,
+        "total_jobs": len(jobs),
+        "completed_jobs": len(completed_jobs),
+        "total_revenue": total_revenue,
+        "total_expenses": total_expenses,
+        "total_mileage": total_mileage,
+        "total_hours": total_hours,
+        "net_income": total_revenue - total_expenses,
+        "monthly_breakdown": monthly_breakdown
+    }
+
+    return report
+
+
+@api_router.get("/contractor/reports/tax")
+async def get_tax_report(
+    start_date: str,
+    end_date: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get tax report for contractor (for informational purposes only)"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access reports")
+
+    # Get completed jobs
+    jobs = await db.jobs.find({
+        "contractor_id": current_user.id,
+        "completed_at": {"$gte": start_date, "$lte": end_date},
+        "status": "completed"
+    }).to_list(10000)
+
+    total_revenue = sum(j.get('contractor_invoice_amount', 0) for j in jobs)
+
+    # Get expenses
+    expenses = await db.expenses.find({
+        "contractor_id": current_user.id,
+        "date": {"$gte": start_date, "$lte": end_date}
+    }).to_list(10000)
+
+    total_expenses = sum(e.get('amount', 0) for e in expenses)
+
+    # Get mileage
+    mileage_logs = await db.mileage_logs.find({
+        "contractor_id": current_user.id,
+        "date": {"$gte": start_date, "$lte": end_date}
+    }).to_list(10000)
+
+    total_mileage = sum(m.get('miles', 0) for m in mileage_logs)
+
+    # IRS standard mileage rate (2024: $0.67/mile)
+    IRS_MILEAGE_RATE = 0.67
+    mileage_deduction = total_mileage * IRS_MILEAGE_RATE
+
+    total_deductions = total_expenses + mileage_deduction
+
+    # Determine tax year from start_date
+    tax_year = int(start_date.split('-')[0])
+
+    report = {
+        "contractor_id": current_user.id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "total_revenue": total_revenue,
+        "total_expenses": total_expenses,
+        "total_mileage": total_mileage,
+        "mileage_deduction": mileage_deduction,
+        "total_deductions": total_deductions,
+        "net_income": total_revenue - total_deductions,
+        "tax_year": tax_year,
+        "disclaimer": "For informational purposes only. Not official tax documentation. Consult your tax professional."
+    }
+
+    return report
+
+
+@api_router.get("/contractor/reports/tax/pdf")
+async def export_tax_report_pdf(
+    start_date: str,
+    end_date: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Export tax report as PDF (stub - returns JSON for now)"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can access reports")
+
+    # For now, return the same data as the JSON endpoint
+    # In production, this would generate a PDF using a library like reportlab
+    report = await get_tax_report(start_date, end_date, current_user)
+
+    return {
+        "message": "PDF export not yet implemented",
+        "data": report,
+        "note": "Use the JSON endpoint for now"
+    }
+
+
+# ==================== WARRANTY SYSTEM ROUTES ====================
+
+
+@api_router.post("/jobs/{job_id}/warranty/request")
+async def create_warranty_request(
+    job_id: str,
+    request_data: WarrantyRequestCreate,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Create a warranty request for a completed job (customer only)"""
+    if current_user.role != UserRole.CUSTOMER:
+        raise HTTPException(403, detail="Only customers can request warranties")
+
+    # Verify job exists and belongs to this customer
+    job = await db.jobs.find_one({"id": job_id, "customer_id": current_user.id})
+    if not job:
+        raise HTTPException(404, detail="Job not found or not yours")
+
+    # Verify job is completed
+    if job.get("status") != "completed":
+        raise HTTPException(400, detail="Can only request warranty on completed jobs")
+
+    # Check if warranty request already exists for this job
+    existing = await db.warranty_requests.find_one({"job_id": job_id})
+    if existing:
+        raise HTTPException(400, detail="Warranty request already exists for this job")
+
+    warranty_request = {
+        "id": str(uuid.uuid4()),
+        "job_id": job_id,
+        "customer_id": current_user.id,
+        "contractor_id": job.get("contractor_id"),
+        "issue_description": request_data.issue_description,
+        "photo_urls": request_data.photo_urls,
+        "status": WarrantyStatus.PENDING,
+        "requested_at": datetime.utcnow().isoformat(),
+        "decided_at": None,
+        "decision_notes": None,
+        "decided_by": None,
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat()
+    }
+
+    await db.warranty_requests.insert_one(warranty_request)
+    logger.info(f"Warranty request created: {warranty_request['id']} for job {job_id}")
+
+    warranty_request.pop('_id', None)
+    return warranty_request
+
+
+@api_router.post("/jobs/{job_id}/warranty/approve")
+async def approve_warranty_request(
+    job_id: str,
+    decision_data: WarrantyDecision,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Approve a warranty request (contractor or admin only)"""
+    if current_user.role not in [UserRole.TECHNICIAN, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only contractors or admins can approve warranties")
+
+    # Find warranty request
+    warranty = await db.warranty_requests.find_one({"job_id": job_id})
+    if not warranty:
+        raise HTTPException(404, detail="Warranty request not found")
+
+    # If contractor, verify it's their job
+    if current_user.role == UserRole.TECHNICIAN:
+        if warranty.get("contractor_id") != current_user.id:
+            raise HTTPException(403, detail="Not your job")
+
+    # Verify warranty is pending
+    if warranty.get("status") != WarrantyStatus.PENDING:
+        raise HTTPException(400, detail="Warranty already decided")
+
+    # Update warranty request
+    await db.warranty_requests.update_one(
+        {"job_id": job_id},
+        {
+            "$set": {
+                "status": WarrantyStatus.APPROVED,
+                "decided_at": datetime.utcnow().isoformat(),
+                "decision_notes": decision_data.decision_notes,
+                "decided_by": current_user.id,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        }
+    )
+
+    logger.info(f"Warranty approved for job {job_id} by {current_user.id}")
+
+    # Return updated warranty
+    updated_warranty = await db.warranty_requests.find_one({"job_id": job_id})
+    updated_warranty.pop('_id', None)
+    return updated_warranty
+
+
+@api_router.post("/jobs/{job_id}/warranty/deny")
+async def deny_warranty_request(
+    job_id: str,
+    decision_data: WarrantyDecision,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Deny a warranty request (contractor or admin only)"""
+    if current_user.role not in [UserRole.TECHNICIAN, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only contractors or admins can deny warranties")
+
+    # Find warranty request
+    warranty = await db.warranty_requests.find_one({"job_id": job_id})
+    if not warranty:
+        raise HTTPException(404, detail="Warranty request not found")
+
+    # If contractor, verify it's their job
+    if current_user.role == UserRole.TECHNICIAN:
+        if warranty.get("contractor_id") != current_user.id:
+            raise HTTPException(403, detail="Not your job")
+
+    # Verify warranty is pending
+    if warranty.get("status") != WarrantyStatus.PENDING:
+        raise HTTPException(400, detail="Warranty already decided")
+
+    # Update warranty request
+    await db.warranty_requests.update_one(
+        {"job_id": job_id},
+        {
+            "$set": {
+                "status": WarrantyStatus.DENIED,
+                "decided_at": datetime.utcnow().isoformat(),
+                "decision_notes": decision_data.decision_notes,
+                "decided_by": current_user.id,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        }
+    )
+
+    logger.info(f"Warranty denied for job {job_id} by {current_user.id}")
+
+    # Return updated warranty
+    updated_warranty = await db.warranty_requests.find_one({"job_id": job_id})
+    updated_warranty.pop('_id', None)
+    return updated_warranty
+
+
+@api_router.get("/jobs/{job_id}/warranty/status")
+async def get_warranty_status(
+    job_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Get warranty request status for a job"""
+    # Verify user has access to this job
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    # Check if user is customer, contractor, or admin
+    is_customer = current_user.id == job.get("customer_id")
+    is_contractor = current_user.id == job.get("contractor_id")
+    is_admin = current_user.role == UserRole.ADMIN
+
+    if not (is_customer or is_contractor or is_admin):
+        raise HTTPException(403, detail="Not authorized to view this warranty")
+
+    # Get warranty request
+    warranty = await db.warranty_requests.find_one({"job_id": job_id})
+    if not warranty:
+        return {"has_warranty": False, "message": "No warranty request for this job"}
+
+    warranty.pop('_id', None)
+    return {"has_warranty": True, "warranty": warranty}
+
+
+# ==================== CHANGE ORDER SYSTEM ROUTES ====================
+
+
+@api_router.post("/jobs/{job_id}/change-order/create")
+async def create_change_order(
+    job_id: str,
+    change_order_data: ChangeOrderCreate,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Create a change order for a job (contractor only)"""
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can create change orders")
+
+    # Verify job exists and belongs to this contractor
+    job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
+    if not job:
+        raise HTTPException(404, detail="Job not found or not assigned to you")
+
+    # Verify job is not completed or cancelled
+    if job.get("status") in ["completed", "cancelled"]:
+        raise HTTPException(400, detail="Cannot create change orders for completed or cancelled jobs")
+
+    change_order = {
+        "id": str(uuid.uuid4()),
+        "job_id": job_id,
+        "contractor_id": current_user.id,
+        "customer_id": job.get("customer_id"),
+        "description": change_order_data.description,
+        "reason": change_order_data.reason,
+        "additional_cost": change_order_data.additional_cost,
+        "additional_hours": change_order_data.additional_hours,
+        "photo_urls": change_order_data.photo_urls,
+        "status": ChangeOrderStatus.PENDING,
+        "requested_at": datetime.utcnow().isoformat(),
+        "decided_at": None,
+        "decision_notes": None,
+        "decided_by": None,
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat()
+    }
+
+    await db.change_orders.insert_one(change_order)
+    logger.info(f"Change order created: {change_order['id']} for job {job_id}")
+
+    change_order.pop('_id', None)
+    return change_order
+
+
+@api_router.post("/jobs/{job_id}/change-order/{change_order_id}/approve")
+async def approve_change_order(
+    job_id: str,
+    change_order_id: str,
+    decision_data: ChangeOrderDecision,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Approve a change order (customer or admin only)"""
+    if current_user.role not in [UserRole.CUSTOMER, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only customers or admins can approve change orders")
+
+    # Find change order
+    change_order = await db.change_orders.find_one({"id": change_order_id, "job_id": job_id})
+    if not change_order:
+        raise HTTPException(404, detail="Change order not found")
+
+    # If customer, verify it's their job
+    if current_user.role == UserRole.CUSTOMER:
+        if change_order.get("customer_id") != current_user.id:
+            raise HTTPException(403, detail="Not your job")
+
+    # Verify change order is pending
+    if change_order.get("status") != ChangeOrderStatus.PENDING:
+        raise HTTPException(400, detail="Change order already decided")
+
+    # Update change order
+    await db.change_orders.update_one(
+        {"id": change_order_id},
+        {
+            "$set": {
+                "status": ChangeOrderStatus.APPROVED,
+                "decided_at": datetime.utcnow().isoformat(),
+                "decision_notes": decision_data.decision_notes,
+                "decided_by": current_user.id,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        }
+    )
+
+    # Update job total cost if change order is approved
+    job = await db.jobs.find_one({"id": job_id})
+    if job:
+        current_cost = job.get("contractor_invoice_amount", 0)
+        new_cost = current_cost + change_order.get("additional_cost", 0)
+        await db.jobs.update_one(
+            {"id": job_id},
+            {"$set": {"contractor_invoice_amount": new_cost, "updated_at": datetime.utcnow().isoformat()}}
+        )
+
+    logger.info(f"Change order {change_order_id} approved for job {job_id} by {current_user.id}")
+
+    # Return updated change order
+    updated_change_order = await db.change_orders.find_one({"id": change_order_id})
+    updated_change_order.pop('_id', None)
+    return updated_change_order
+
+
+@api_router.post("/jobs/{job_id}/change-order/{change_order_id}/reject")
+async def reject_change_order(
+    job_id: str,
+    change_order_id: str,
+    decision_data: ChangeOrderDecision,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """Reject a change order (customer or admin only)"""
+    if current_user.role not in [UserRole.CUSTOMER, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only customers or admins can reject change orders")
+
+    # Find change order
+    change_order = await db.change_orders.find_one({"id": change_order_id, "job_id": job_id})
+    if not change_order:
+        raise HTTPException(404, detail="Change order not found")
+
+    # If customer, verify it's their job
+    if current_user.role == UserRole.CUSTOMER:
+        if change_order.get("customer_id") != current_user.id:
+            raise HTTPException(403, detail="Not your job")
+
+    # Verify change order is pending
+    if change_order.get("status") != ChangeOrderStatus.PENDING:
+        raise HTTPException(400, detail="Change order already decided")
+
+    # Update change order
+    await db.change_orders.update_one(
+        {"id": change_order_id},
+        {
+            "$set": {
+                "status": ChangeOrderStatus.REJECTED,
+                "decided_at": datetime.utcnow().isoformat(),
+                "decision_notes": decision_data.decision_notes,
+                "decided_by": current_user.id,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        }
+    )
+
+    logger.info(f"Change order {change_order_id} rejected for job {job_id} by {current_user.id}")
+
+    # Return updated change order
+    updated_change_order = await db.change_orders.find_one({"id": change_order_id})
+    updated_change_order.pop('_id', None)
+    return updated_change_order
+
+
+@api_router.get("/jobs/{job_id}/change-orders")
+async def list_change_orders(
+    job_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """List all change orders for a job"""
+    # Verify user has access to this job
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    # Check if user is customer, contractor, or admin
+    is_customer = current_user.id == job.get("customer_id")
+    is_contractor = current_user.id == job.get("contractor_id")
+    is_admin = current_user.role == UserRole.ADMIN
+
+    if not (is_customer or is_contractor or is_admin):
+        raise HTTPException(403, detail="Not authorized to view change orders for this job")
+
+    # Get all change orders for this job
+    change_orders = await db.change_orders.find({"job_id": job_id}).sort("created_at", -1).to_list(1000)
+
+    for co in change_orders:
+        co.pop('_id', None)
+
+    return {"job_id": job_id, "change_orders": change_orders, "count": len(change_orders)}
+
+
 # ==================== ADMIN ROUTES ====================
 
 
@@ -2095,6 +3148,157 @@ async def send_quote(quote_id: str, current_user: User = Depends(require_admin))
         logger.warning(f"Failed to send notification: {e}")
 
     return {"message": "Quote sent successfully"}
+
+
+@api_router.get("/admin/users")
+async def admin_list_users(
+    role: Optional[UserRole] = None,
+    limit: int = 100,
+    offset: int = 0,
+    current_user: User = Depends(require_admin)
+):
+    """List all users with optional role filtering (admin only)"""
+    query = {}
+    if role:
+        query["role"] = role
+
+    users = await db.users.find(query).skip(offset).limit(limit).to_list(limit)
+
+    for user in users:
+        user.pop('_id', None)
+
+    return {
+        "users": users,
+        "count": len(users),
+        "total": await db.users.count_documents(query)
+    }
+
+
+@api_router.get("/admin/jobs/all")
+async def admin_list_all_jobs(
+    status: Optional[JobStatus] = None,
+    limit: int = 100,
+    offset: int = 0,
+    current_user: User = Depends(require_admin)
+):
+    """List all jobs system-wide with optional status filtering (admin only)"""
+    query = {}
+    if status:
+        query["status"] = status
+
+    jobs = await db.jobs.find(query).sort("created_at", -1).skip(offset).limit(limit).to_list(limit)
+
+    for job in jobs:
+        job.pop('_id', None)
+
+    return {
+        "jobs": jobs,
+        "count": len(jobs),
+        "total": await db.jobs.count_documents(query)
+    }
+
+
+@api_router.get("/admin/stats")
+async def admin_get_system_stats(
+    current_user: User = Depends(require_admin)
+):
+    """Get system-wide statistics (admin only)"""
+    # Count users by role
+    total_users = await db.users.count_documents({})
+    customers = await db.users.count_documents({"role": UserRole.CUSTOMER})
+    contractors = await db.users.count_documents({"role": UserRole.TECHNICIAN})
+
+    # Count jobs by status
+    total_jobs = await db.jobs.count_documents({})
+    pending_jobs = await db.jobs.count_documents({"status": "pending"})
+    in_progress_jobs = await db.jobs.count_documents({"status": "in_progress"})
+    completed_jobs = await db.jobs.count_documents({"status": "completed"})
+
+    # Calculate revenue (sum of completed job amounts)
+    completed_job_docs = await db.jobs.find({"status": "completed"}).to_list(10000)
+    total_revenue = sum(job.get("contractor_invoice_amount", 0) for job in completed_job_docs)
+
+    # Count quotes
+    total_quotes = await db.quotes.count_documents({})
+    pending_quotes = await db.quotes.count_documents({"status": QuoteStatus.DRAFT})
+
+    # Count warranty requests
+    total_warranties = await db.warranty_requests.count_documents({})
+    pending_warranties = await db.warranty_requests.count_documents({"status": "pending"})
+
+    # Count change orders
+    total_change_orders = await db.change_orders.count_documents({})
+    pending_change_orders = await db.change_orders.count_documents({"status": "pending"})
+
+    return {
+        "users": {
+            "total": total_users,
+            "customers": customers,
+            "contractors": contractors
+        },
+        "jobs": {
+            "total": total_jobs,
+            "pending": pending_jobs,
+            "in_progress": in_progress_jobs,
+            "completed": completed_jobs
+        },
+        "revenue": {
+            "total": total_revenue,
+            "completed_jobs_count": len(completed_job_docs)
+        },
+        "quotes": {
+            "total": total_quotes,
+            "pending": pending_quotes
+        },
+        "warranties": {
+            "total": total_warranties,
+            "pending": pending_warranties
+        },
+        "change_orders": {
+            "total": total_change_orders,
+            "pending": pending_change_orders
+        }
+    }
+
+
+@api_router.get("/admin/provider-gate/status")
+async def admin_get_provider_gate_status(
+    current_user: User = Depends(require_admin)
+):
+    """Get provider gate configuration status (admin only)"""
+    from utils import get_provider_gate_status
+    return get_provider_gate_status()
+
+
+@api_router.post("/admin/provider-gate/configure")
+async def admin_configure_provider_gate(
+    allowed_provider_types: str,
+    current_user: User = Depends(require_admin)
+):
+    """
+    Update provider gate configuration (admin only)
+
+    Note: This updates an environment variable which requires a server restart to take effect.
+    In production, consider using a config file or database-backed configuration.
+    """
+    valid_values = ["both", "licensed_only", "handyman_only", "contractors_disabled"]
+
+    if allowed_provider_types not in valid_values:
+        raise HTTPException(
+            400,
+            detail=f"Invalid value. Must be one of: {', '.join(valid_values)}"
+        )
+
+    logger.warning(
+        f"Admin {current_user.email} attempted to change ALLOWED_PROVIDER_TYPES to '{allowed_provider_types}'. "
+        "This requires manual environment variable update and server restart."
+    )
+
+    return {
+        "message": "Provider gate configuration noted. Please update ALLOWED_PROVIDER_TYPES environment variable and restart the server.",
+        "requested_value": allowed_provider_types,
+        "note": "This endpoint logs the request but does not modify runtime config. Update .env file manually."
+    }
 
 
 # ==================== PHASE 4: JOB FEED & PROPOSALS ====================
@@ -2158,48 +3362,11 @@ async def get_job_history(
     return [job.model_dump() for job in jobs]
 
 
-@api_router.post("/jobs")
-async def create_job(
-    job_request: JobCreateRequest,
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Create a new job (customer only).
-    Can be created as draft or published.
-    """
-    if current_user.role != UserRole.CUSTOMER:
-        raise HTTPException(status_code=403, detail="Only customers can create jobs")
-
-    # Create job
-    job = Job(
-        customer_id=current_user.id,
-        service_category=job_request.service_category,
-        address=job_request.address,
-        description=job_request.description,
-        photos=job_request.photos,
-        budget_max=job_request.budget_max,
-        urgency=job_request.urgency,
-        preferred_timing=job_request.preferred_timing,
-        contractor_type_preference=job_request.contractor_type_preference,
-        status=job_request.status
-    )
-
-    # Insert to database
-    job_dict = job.model_dump()
-    await db.jobs.insert_one(job_dict)
-
-    return {
-        "job_id": job.id,
-        "status": job.status,
-        "created_at": job.created_at.isoformat()
-    }
-
-
 @api_router.patch("/jobs/{job_id}/status")
 async def update_job_status(
     job_id: str,
     status_update: JobStatusUpdate,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Update job status using state machine.
@@ -2283,7 +3450,7 @@ async def create_proposal(
 @api_router.get("/jobs/{job_id}/proposals")
 async def get_proposals_for_job(
     job_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Get all proposals for a job (customer only).
@@ -2306,7 +3473,7 @@ async def get_proposals_for_job(
 @api_router.post("/proposals/{proposal_id}/accept")
 async def accept_proposal(
     proposal_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Accept a proposal (customer only).
@@ -2731,48 +3898,3 @@ async def seed_default_services():
 @app.get("/")
 def root():
     return RedirectResponse(url="/api/health", status_code=307)
-
-
-@api_router.post("/auth/refresh", response_model=Token)
-async def refresh_token(refresh_token: str = Body(..., embed=True)):
-    """
-    Refresh access token using refresh token
-    """
-    try:
-        # Verify refresh token
-        payload = auth_handler.verify_token(refresh_token, token_type="refresh")
-        user_id = payload.get("user_id")
-        email = payload.get("email")
-        
-        if not user_id or not email:
-            raise HTTPException(401, "Invalid refresh token")
-        
-        # Get user to verify they still exist and are active
-        user = await auth_handler.get_user_by_id(user_id)
-        if not user:
-            raise HTTPException(401, "User not found")
-        
-        # Create new tokens
-        access_token = auth_handler.create_access_token({
-            "user_id": user_id,
-            "email": email,
-            "role": user.role
-        })
-        
-        new_refresh_token = auth_handler.create_refresh_token({
-            "user_id": user_id,
-            "email": email
-        })
-        
-        return Token(
-            access_token=access_token,
-            refresh_token=new_refresh_token
-        )
-        
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(401, "Refresh token expired")
-    except jwt.JWTError:
-        raise HTTPException(401, "Invalid refresh token")
-    except Exception as e:
-        logger.error(f"Token refresh error: {e}")
-        raise HTTPException(500, "Token refresh failed")

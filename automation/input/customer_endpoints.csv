@@ -1,0 +1,39 @@
+Section,Step ID,Endpoint,Method,Expected Status,Auth Required,Request Body,Expected Response,Completed (Y/N),Notes
+AUTH,A1,/api/health,GET,200,No,None,{"status":"healthy"},,
+AUTH,A2,/api/auth/register,POST,200,No,{"email":"customer@example.com" "password":"password123" "phone":"1234567890" "firstName":"Jane" "lastName":"Smith" "role":"customer"},{"access_token":"..." "refresh_token":"..."},,
+AUTH,A3,/api/auth/login,POST,200,No,{"email":"customer@example.com" "password":"password123"},{"access_token":"..." "refresh_token":"..."},,
+AUTH,A4,/api/auth/refresh,POST,200,No,{"refresh_token":"..."},{"access_token":"..." "refresh_token":"..."},,
+AUTH,A5,/api/auth/me,GET,200,Yes,None,User object,,
+
+SERVICES,B1,/api/services,GET,200,No,None,Array of Service objects,,
+SERVICES,B2,/api/services/{service_id},GET,200,No,None,Service object,,
+
+PHOTOS,C1,/api/photos/upload,POST,200,Yes,FormData with photo file,{"photo_url":"https://..."},,
+
+JOBS_CREATE,D1,/api/jobs,POST,200,Yes,{"service_category":"plumbing" "address_id":"..." "description":"..." "photos":[] "budget_max":500},{"job_id":"..." "status":"requested" "estimated_total":450},,
+JOBS_LIST,D2,/api/jobs,GET,200,Yes,None,Array of customer's jobs,,
+JOB_DETAIL,D3,/api/jobs/{job_id},GET,200,Yes,None,Job object with full details,,
+JOB_UPDATE,D4,/api/jobs/{job_id},PATCH,200,Yes,{"description":"Updated description"},Updated job object,,
+JOB_QUOTES,D5,/api/jobs/{job_id}/quotes,GET,200,Yes,None,Array of quote objects for job,,
+
+QUOTES_REQUEST,E1,/api/quotes/request,POST,200,Yes,{"service_category":"plumbing" "address_id":"..." "description":"..." "photos":[] "budget_min":100 "budget_max":500},{"quote_id":"..." "status":"pending"},,
+QUOTES_LIST,E2,/api/quotes,GET,200,Yes,None,Array of customer's quotes,,
+QUOTE_DETAIL,E3,/api/quotes/{quote_id},GET,200,Yes,None,Quote object with full details,,
+QUOTE_RESPOND,E4,/api/quotes/{quote_id}/respond,POST,200,Yes,{"response":"accept" "payment_method":"card"},{"quote_id":"..." "status":"accepted"},,
+QUOTE_CONTACT,E5,/api/quotes/{quote_id}/contact,POST,200,Yes,{"message":"When can you start?"},{"message_sent":true},,
+QUOTE_REPORT,E6,/api/quotes/{quote_id}/report-issue,POST,200,Yes,{"issue":"No response received" "description":"..."},{"report_id":"..." "status":"submitted"},,
+
+PROPOSALS,F1,/api/jobs/{job_id}/proposals,GET,200,Yes,None,Array of proposals for job,,
+PROPOSAL_ACCEPT,F2,/api/proposals/{proposal_id}/accept,POST,200,Yes,None,{"status":"accepted" "job_assigned":true},,
+
+WARRANTY_REQUEST,G1,/api/jobs/{job_id}/warranty/request,POST,200,Yes,{"description":"Issue description" "photos":["url1" "url2"]},{"warranty_id":"..." "status":"pending"},,
+WARRANTY_STATUS,G2,/api/jobs/{job_id}/warranty/status,GET,200,Yes,None,{"warranty_id":"..." "status":"pending/approved/denied" "notes":"..."},,
+
+CHANGE_ORDER_APPROVE,H1,/api/jobs/{job_id}/change-order/{change_order_id}/approve,POST,200,Yes,{"notes":"Approved"},{"status":"approved"},,
+CHANGE_ORDER_REJECT,H2,/api/jobs/{job_id}/change-order/{change_order_id}/reject,POST,200,Yes,{"notes":"Rejection reason"},{"status":"rejected"},,
+CHANGE_ORDER_LIST,H3,/api/jobs/{job_id}/change-orders,GET,200,Yes,None,Array of change orders for job,,
+
+PROFILE,I1,/api/profile/addresses,GET,200,Yes,None,Array of address objects,,
+PROFILE,I2,/api/profile/addresses,POST,200,Yes,{"street":"123 Main St" "city":"Austin" "state":"TX" "zip_code":"78701"},Created address object,,
+
+JOB_STATUS,J1,/api/jobs/{job_id}/status,PATCH,200,Yes,{"status":"confirmed"},Updated job with new status,,
