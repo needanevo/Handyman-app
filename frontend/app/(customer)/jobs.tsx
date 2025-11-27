@@ -251,8 +251,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   headerTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.neutral[900],
   },
   filterTabs: {
@@ -272,7 +271,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.primary.main,
   },
   filterTabText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
     fontWeight: typography.weights.medium,
   },
@@ -299,8 +298,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   jobTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
   },
   jobMeta: {
@@ -321,7 +319,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   contractorName: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
     flex: 1,
   },
@@ -331,7 +329,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   ratingText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
     fontWeight: typography.weights.medium,
   },
@@ -347,12 +345,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dateLabel: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   dateValue: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
   },
   costSection: {
@@ -360,13 +358,12 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   costLabel: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   costAmount: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.primary.main,
   },
   fab: {
