@@ -396,8 +396,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   title: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h2,
     color: colors.neutral[900],
     flex: 1,
     marginRight: spacing.md,
@@ -406,13 +405,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   cardTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
     marginBottom: spacing.md,
   },
   progressLabel: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
     marginTop: spacing.sm,
     textAlign: 'center',
@@ -434,8 +432,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contractorName: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
@@ -445,12 +442,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   contractorRating: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
     fontWeight: typography.weights.medium,
   },
   contractorJobs: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
   },
   paymentCard: {
@@ -463,7 +460,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   paymentLabel: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[700],
   },
   paymentLabelWithIcon: {
@@ -472,16 +469,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   paymentAmount: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
   },
   paymentLabelSmall: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
   },
   paymentAmountSmall: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     fontWeight: typography.weights.medium,
     color: colors.neutral[700],
   },
@@ -494,8 +490,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   sectionTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.neutral[900],
     marginBottom: spacing.md,
   },
@@ -513,13 +508,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   milestoneName: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
   },
   milestoneAmount: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.primary.main,
   },
   milestoneDate: {
@@ -529,11 +522,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   milestoneDateText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
   },
   milestoneNotes: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[700],
     lineHeight: 24,
     marginBottom: spacing.md,
@@ -542,7 +535,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   evidenceTitle: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[700],
     marginBottom: spacing.sm,
@@ -589,12 +582,12 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
   },
   timelineEventText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   timelineDate: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
   },
   supportCard: {
@@ -609,13 +602,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   supportTitle: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   supportDescription: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
     lineHeight: 20,
   },
