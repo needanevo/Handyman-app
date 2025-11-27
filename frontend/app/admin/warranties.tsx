@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.primary.main,
   },
   filterText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
   },
   filterTextActive: {
@@ -221,14 +221,13 @@ const styles = StyleSheet.create({
     paddingTop: 100,
   },
   emptyTitle: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h3,
     color: colors.neutral[700],
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   emptyText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[500],
     textAlign: 'center',
     paddingHorizontal: spacing.xl,
@@ -254,7 +253,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   cardJobId: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[700],
   },
@@ -264,11 +263,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   statusBadgeText: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     fontWeight: typography.weights.bold,
   },
   cardDescription: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
     marginBottom: spacing.md,
     lineHeight: 20,
@@ -279,7 +278,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardDate: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[500],
   },
 });
