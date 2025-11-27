@@ -28,6 +28,7 @@ import { colors, spacing, typography, borderRadius, shadows } from '../../../src
 import { Card } from '../../../src/components/Card';
 import { Badge } from '../../../src/components/Badge';
 import { Button } from '../../../src/components/Button';
+import { LoadingSpinner } from '../../../src/components';
 import { PhotoGallery } from '../../../src/components/contractor/PhotoGallery';
 import { PhotoCapture } from '../../../src/components/contractor/PhotoCapture';
 import { PhotoViewer } from '../../../src/components/contractor/PhotoViewer';
@@ -191,9 +192,7 @@ export default function JobDetail() {
   if (!job) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading job details...</Text>
-        </View>
+        <LoadingSpinner fullScreen text="Loading job details..." color={colors.primary.main} />
       </SafeAreaView>
     );
   }
@@ -465,15 +464,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.secondary,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    ...typography.sizes.base,
-    color: colors.neutral[600],
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -494,8 +484,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
     marginLeft: spacing.sm,
   },
@@ -519,17 +508,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   cardTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
   },
   contactLink: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.primary.main,
     fontWeight: typography.weights.semibold,
   },
   addPhotoLink: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.primary.main,
     fontWeight: typography.weights.semibold,
   },
@@ -537,17 +525,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   jobTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   jobCategory: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
   },
   jobDescription: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[700],
     lineHeight: 24,
     marginBottom: spacing.lg,
@@ -565,11 +552,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   scheduleLabel: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.neutral[600],
   },
   scheduleValue: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[900],
   },
@@ -577,13 +564,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   customerName: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   customerDetail: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
   },
   divider: {
@@ -595,13 +581,13 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   sectionLabel: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[700],
     marginBottom: spacing.xs,
   },
   locationAddress: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[700],
   },
   accessNotes: {
@@ -611,13 +597,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   accessNotesLabel: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     fontWeight: typography.weights.semibold,
     color: colors.warning.dark,
     marginBottom: spacing.xs,
   },
   accessNotesText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
   },
   directionsButton: {
@@ -632,7 +618,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   emptyPhotosText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
     textAlign: 'center',
     marginBottom: spacing.lg,
@@ -647,21 +633,21 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   financialLabel: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[700],
   },
   financialValue: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[900],
   },
   financialLabelBold: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
   },
   financialValueBold: {
-    ...typography.sizes.xl,
+    ...typography.headings.h4,
     fontWeight: typography.weights.bold,
   },
   expenseText: {
@@ -694,13 +680,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   quickActionText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     fontWeight: typography.weights.medium,
     color: colors.neutral[700],
     textAlign: 'center',
   },
   notesText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[700],
     lineHeight: 24,
     marginTop: spacing.sm,
@@ -719,8 +705,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.neutral[200],
   },
   modalTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.neutral[900],
   },
   modalClose: {
