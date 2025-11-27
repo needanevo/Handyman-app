@@ -259,14 +259,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   title: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h2,
     color: colors.neutral[900],
     marginTop: spacing.md,
     marginBottom: spacing.xs,
   },
   subtitle: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
     lineHeight: 22,
   },
@@ -282,20 +281,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statusTitle: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   statusMode: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
   },
   section: {
     marginBottom: spacing.xl,
   },
   sectionTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
     marginBottom: spacing.md,
   },
@@ -315,7 +312,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   indicatorText: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.neutral[600],
     textAlign: 'center',
   },
@@ -346,13 +343,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   optionDescription: {
-    ...typography.sizes.sm,
+    ...typography.body.small,
     color: colors.neutral[600],
     lineHeight: 20,
   },
@@ -368,7 +364,7 @@ const styles = StyleSheet.create({
   },
   warningText: {
     flex: 1,
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[700],
     lineHeight: 22,
   },
