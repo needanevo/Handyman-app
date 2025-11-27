@@ -4,6 +4,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-11-26 23:45] — Phase 6B Task 3: Loading & Empty States (Started)
+
+**Files Modified:**
+- `frontend/src/components/EmptyState.tsx`
+- `frontend/app/(customer)/warranty/status/[jobId].tsx`
+
+**Purpose:**
+Refactored screens to use reusable LoadingSpinner and EmptyState components instead of custom implementations, improving code maintainability and consistency across the app.
+
+**Changes Made:**
+- **EmptyState Component**: Updated to use semantic typography (headings.h4, body.regular)
+- **Warranty Status Screen**:
+  - Replaced custom ActivityIndicator with LoadingSpinner component (fullScreen with custom text)
+  - Replaced custom empty state UI (30 lines) with EmptyState component (6 props)
+  - Applied semantic typography throughout (h2, h5, body.regular)
+  - Removed duplicate custom styling code
+
+**Reusable Components Available:**
+- `LoadingSpinner` - Configurable loading indicator (fullScreen option, custom text/color)
+- `EmptyState` - Consistent empty states (icon, title, description, optional CTA button)
+
+**Impact:**
+- Reduced code duplication by ~30 lines per screen
+- Consistent loading/empty state UX across all screens
+- Easier to maintain and update empty state designs globally
+
+**Next Steps:**
+- Apply LoadingSpinner/EmptyState to remaining Phase 6 screens (change orders, contractor warranty, admin)
+- TASK 5: Apply BrandedHeader across all screens, fix navigation issues
+- TASK 6: UX polish across Phase 5 features
+
+---
+
 ### [2025-11-26 23:30] — Phase 6B Task 2: Typography & Spacing Standardization (Dashboards Complete)
 
 **Files Modified:**
