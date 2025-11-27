@@ -4,6 +4,76 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-11-27 01:15] — Phase 5: Branding Foundation (COMPLETE ✅)
+
+**Files Created:**
+- `frontend/src/constants/brandAssets.ts` (260 lines) - Central registry of all brand assets with real dimensions scanned from disk
+- `frontend/src/constants/brandTokens.ts` (120 lines) - Semantic design tokens from brand palette HTML files
+
+**Files Modified:**
+- `frontend/src/components/BrandedHeader.tsx` - Now imports and uses brandAssets with correct dimensions
+- `frontend/app.json` - Updated to reference official app icons and splash screens
+
+**Asset Inventory (34 files scanned):**
+- **Logos**: 18 files across categories (color/bw/grayscale/variants)
+  - Color: Handyman_logo_color.png (2056×2316), @2x (1514×1706), @4x (2055×2314)
+  - BW: Handyman_logo_bw.png (2792×3142)
+  - Grayscale: Handyman_logo_gray.png (2056×2316)
+  - Transparent: Handyman_MASTERTransparent.png (881×992)
+  - Mark (no text): HMNo_Slogan.png (881×992)
+- **App Icons**: 4 files (icon.png 512×513, adaptive-icon.png 512×513, 1024x1024Color.png 881×992)
+- **Splash Screens**: 2 files (splash-image.png 336×729, app-image.png 336×729)
+- **Web Assets**: 4 files (favicons, headers)
+- **Print Vector**: 1 file (HMNo_Slogan.png 881×992)
+
+**Source of Truth Established:**
+All branding originates from:
+- **Assets**: `frontend/assets/images/logos/` - Logo variants with real dimensions
+- **Colors**: `frontend/src/constants/brandTokens.ts` - Extracted from brand palette HTML files
+  - Palette: a_slow_uncovering.html → Kinder (#E88035), Hello Meows (#FFA96B), Burnt (#FF776B)
+  - Palette: sea.html → Undressed (#2D8691), Seafoam (#B3F2CC), Baby Leaves (#CCE699), Sunset (#FFCC33)
+  - Identity: Navy (#0A1117), Gold (#F0A81F), Paper (#EFE8DE), White, Black, Gray (#6B7280)
+- **Theme**: `frontend/src/constants/theme.ts` - Manually curated semantic mappings (DO NOT auto-generate)
+
+**Dimension Scanning:**
+- Used Windows Imaging Component (WIC/PresentationCore) via PowerShell
+- Extracted real pixel dimensions from 29 PNG/JPG files
+- SVG files documented (5 files) but no dimensions (vector format)
+- All dimensions verified and stored in brandAssets.ts
+
+**NO ASSUMPTIONS RULE:**
+- ✅ Never invent colors, logos, or dimensions
+- ✅ All values originate from real asset files on disk
+- ✅ Theme.ts remains manually curated (not overwritten by automation)
+- ✅ Logo geometry scanned from actual files, not guessed
+
+**Usage in Components:**
+```typescript
+import { brandAssets } from '../constants/brandAssets';
+
+// Correct usage with real dimensions
+<Image
+  source={brandAssets.handymanColorPrimary.src}
+  style={{
+    width: brandAssets.handymanColorPrimary.width * 0.2,  // Scale factor
+    height: brandAssets.handymanColorPrimary.height * 0.2,
+  }}
+  resizeMode="contain"
+/>
+```
+
+**Logo Aspect Ratio:**
+- Primary logos maintain 0.89 ratio (slightly taller than wide)
+- Square variants: 1.0 ratio (handymanBW.jpg 4166×4166, The_real_johnson.png 4166×4166)
+- Splash screens: 0.46 ratio (vertical orientation)
+
+**Next Steps:**
+- Update BrandedHeader.tsx to use brandAssets (currently uses hardcoded path)
+- Update app.json to reference brandAssets for icon/splash configuration
+- Apply brandTokens in components (replace hardcoded brand colors)
+
+---
+
 ### [2025-11-27 00:15] — Phase 6B Task 3: Loading & Empty States (COMPLETE ✅)
 
 **Files Modified (11 total):**
@@ -689,3 +759,59 @@ When deploying or working on another machine, please make sure to:
 2. Configure the MongoDB connection string
 
 3. Set up provider credentials (OpenAI, Linode, SendGrid, Twilio, etc.)
+# Phase Branching Rules (MANDATORY)
+
+1. When a new Phase begins, you MUST:
+   - STOP committing to the previous phase branch
+   - CREATE a new branch from main:
+       git checkout main
+       git pull
+       git checkout -b feature/phase<N>-<name>
+
+2. All work for a Phase MUST happen only inside its phase branch.
+   Example:
+     Phase 6B work goes in: feature/phase6b-ui-polish
+
+3. When a Phase ends:
+   - Update CLAUDE.md with Phase completion summary
+   - STOP all work
+   - WAIT for Manager to approve merge
+
+4. Merging:
+   - You DO NOT decide when to merge
+   - Manager gives explicit instruction:
+       “Claude — merge Phase <N> into main”
+
+5. Absolutely forbidden:
+   - Mixing Phase work across branches
+   - Using an old Phase branch to continue new work
+   - Creating ad-hoc branches without Manager approval
+   - Merging without Manager command
+
+6. Always include Phase + Task label in each commit:
+   feat(PHASE-6B-TASK-3): <summary>
+# Phase 5 Endpoint Testing Protocol
+
+Phase 5 = Entrepreneur-driven backend QA.
+Claude does NOT begin Phase 5.
+
+PHASE 5 STEPS:
+1. Entrepreneur runs all automation scripts in:
+   automation/scripts/
+
+2. Entrepreneur produces a CSV with columns:
+   endpoint | status | notes
+
+3. Entrepreneur runs:
+   python automation/generate_issues.py <file>
+
+4. Claude receives issues and MUST:
+   - Fix ONLY the endpoints in the issue file
+   - Commit each fix separately
+   - Update CLAUDE.md
+   - Request next issue batch
+
+Claude CANNOT:
+- Run scripts
+- Create endpoints unless issue requires it
+- Modify backend outside the scope of issues

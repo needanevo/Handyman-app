@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, Platform } from 'react
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
+import { brandAssets } from '../constants/brandAssets';
 
 interface BrandedHeaderProps {
   title?: string;
@@ -68,7 +69,7 @@ export function BrandedHeader({
         {showLogo && (
           <View style={styles.logoContainer}>
             <Image
-              source={require('../../assets/images/logos/bw/Handyman_logo_bw.png')}
+              source={brandAssets.handymanBWPrimary.src}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -137,8 +138,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: 50,
-    height: 50,
+    width: 50, // Scaled from brandAssets.handymanBWPrimary (2792×3142, ratio 0.89)
+    height: 56, // Maintains aspect ratio: 50 / 0.89 ≈ 56
     tintColor: colors.brand.white,
   },
   rightAction: {
