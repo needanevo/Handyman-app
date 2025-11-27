@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   subtitle: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
     textAlign: 'center',
   },
@@ -249,14 +249,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   roleTitle: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h2,
     color: colors.neutral[900],
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
   roleDescription: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
     textAlign: 'center',
     marginBottom: spacing.xl,
@@ -271,7 +270,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   featureText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[700],
     flex: 1,
   },
@@ -286,8 +285,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   cardButtonText: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.button.large,
     color: colors.primary.main,
   },
   loginContainer: {
@@ -297,11 +295,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   loginText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
   },
   loginLink: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.primary.main,
     fontWeight: typography.weights.semibold,
   },
