@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { Job } from '../../../src/types/contractor';
 import { JobCard } from '../../../src/components/contractor/JobCard';
-import { EmptyState } from '../../../src/components/EmptyState';
+import { LoadingSpinner, EmptyState } from '../../../src/components';
 import { contractorAPI } from '../../../src/services/api';
 
 export default function AvailableJobs() {
@@ -157,6 +157,14 @@ export default function AvailableJobs() {
     setRefreshing(false);
   };
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <LoadingSpinner fullScreen text="Loading available jobs..." color={colors.primary.main} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -199,8 +207,9 @@ export default function AvailableJobs() {
         }
         ListEmptyComponent={
           <EmptyState
+            icon="briefcase-outline"
             title="No Available Jobs"
-            message={
+            description={
               searchQuery
                 ? 'No jobs match your search'
                 : 'Check back later for new job opportunities'
@@ -235,14 +244,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h2,
     color: colors.neutral[900],
     flex: 1,
     textAlign: 'center',
   },
   headerSubtitle: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
     marginTop: spacing.xs,
   },
@@ -264,7 +272,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[900],
     paddingVertical: spacing.md,
   },
