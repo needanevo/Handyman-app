@@ -205,22 +205,20 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   title: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h2,
     color: colors.neutral[900],
     marginTop: spacing.md,
     marginBottom: spacing.xs,
   },
   subtitle: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
   },
   section: {
     marginBottom: spacing.xl,
   },
   sectionTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h5,
     color: colors.neutral[700],
     marginBottom: spacing.md,
     flexDirection: 'row',
@@ -238,12 +236,11 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
   },
   statValue: {
-    ...typography.sizes['3xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h1,
     marginBottom: spacing.xs,
   },
   statLabel: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
   },
   revenueCard: {
@@ -253,13 +250,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   revenueValue: {
-    ...typography.sizes['3xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h1,
     color: '#fff',
     marginBottom: spacing.xs,
   },
   revenueLabel: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: 'rgba(255, 255, 255, 0.9)',
   },
 });
