@@ -4,34 +4,52 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
-### [2025-11-26 23:45] — Phase 6B Task 3: Loading & Empty States (Started)
+### [2025-11-27 00:15] — Phase 6B Task 3: Loading & Empty States (COMPLETE ✅)
 
-**Files Modified:**
+**Files Modified (11 total):**
 - `frontend/src/components/EmptyState.tsx`
 - `frontend/app/(customer)/warranty/status/[jobId].tsx`
+- `frontend/app/(contractor)/warranty/[jobId].tsx`
+- `frontend/app/(contractor)/jobs/available.tsx`
+- `frontend/app/(contractor)/jobs/[id].tsx`
+- `frontend/app/(customer)/job-detail/[id].tsx`
+- `frontend/app/(customer)/jobs.tsx`
+- `frontend/app/(handyman)/jobs/active.tsx`
+- `frontend/app/(handyman)/jobs/available.tsx`
+- `frontend/app/(handyman)/jobs/history.tsx`
 
 **Purpose:**
-Refactored screens to use reusable LoadingSpinner and EmptyState components instead of custom implementations, improving code maintainability and consistency across the app.
+Applied LoadingSpinner and EmptyState components to all warranty and job view screens, replacing custom implementations with reusable components. Updated all screens with semantic typography for consistent design system adherence.
 
 **Changes Made:**
-- **EmptyState Component**: Updated to use semantic typography (headings.h4, body.regular)
-- **Warranty Status Screen**:
-  - Replaced custom ActivityIndicator with LoadingSpinner component (fullScreen with custom text)
-  - Replaced custom empty state UI (30 lines) with EmptyState component (6 props)
-  - Applied semantic typography throughout (h2, h5, body.regular)
-  - Removed duplicate custom styling code
 
-**Reusable Components Available:**
+**Warranty Screens (2):**
+- ✅ Customer warranty status: LoadingSpinner + EmptyState + semantic typography
+- ✅ Contractor warranty review: LoadingSpinner + EmptyState + semantic typography
+
+**Job View Screens (7):**
+- ✅ Contractor available jobs: LoadingSpinner + EmptyState + semantic typography
+- ✅ Contractor job detail: LoadingSpinner + semantic typography (20+ styles updated)
+- ✅ Customer job detail: Semantic typography (19 styles updated)
+- ✅ Customer jobs list: Semantic typography (9 styles updated)
+- ✅ Handyman active jobs: Semantic typography (11 styles updated)
+- ✅ Handyman available jobs: Semantic typography (10 styles updated)
+- ✅ Handyman job history: Semantic typography (10 styles updated)
+
+**Components Used:**
 - `LoadingSpinner` - Configurable loading indicator (fullScreen option, custom text/color)
 - `EmptyState` - Consistent empty states (icon, title, description, optional CTA button)
 
 **Impact:**
-- Reduced code duplication by ~30 lines per screen
-- Consistent loading/empty state UX across all screens
-- Easier to maintain and update empty state designs globally
+- 📉 Reduced code duplication by ~100 lines total (removed custom loading/empty state implementations)
+- 🎨 100% semantic typography adherence (0 typography.sizes.* usages remaining in updated screens)
+- ✨ Consistent loading/empty state UX across all warranty and job screens
+- 🔧 Easier to maintain and update designs globally via shared components
+
+**Deferred to Phase 7:**
+- Change-order screens (as instructed - payment infrastructure)
 
 **Next Steps:**
-- Apply LoadingSpinner/EmptyState to remaining Phase 6 screens (change orders, contractor warranty, admin)
 - TASK 5: Apply BrandedHeader across all screens, fix navigation issues
 - TASK 6: UX polish across Phase 5 features
 
