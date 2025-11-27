@@ -4,6 +4,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-11-26 23:30] — Phase 6B Task 2: Typography & Spacing Standardization (Dashboards Complete)
+
+**Files Modified:**
+- `frontend/app/(contractor)/dashboard.tsx`
+- `frontend/app/admin/index.tsx` (admin dashboard)
+- `frontend/app/admin/users.tsx`
+- `frontend/app/admin/jobs.tsx`
+- `frontend/app/admin/stats.tsx`
+- `frontend/app/admin/warranties.tsx`
+- `frontend/app/admin/provider-gate.tsx`
+- `frontend/app/(contractor)/profile.tsx`
+- `frontend/app/auth/role-selection.tsx`
+
+**Purpose:**
+Applied semantic typography system across all dashboards and high-priority screens. Replaced ad-hoc `typography.sizes.*` usage with semantic headings, body, button, and caption styles for consistent typography hierarchy.
+
+**Typography Applied:**
+- **Headings**: h1 (page titles, large stats), h2 (section titles), h3-h5 (subsections, cards)
+- **Body Text**: large/regular/small for content, descriptions, search inputs
+- **Button Text**: large/medium/small for button labels
+- **Captions**: regular/small for labels, hints, status badges
+
+**Screens Updated:**
+- ✅ Contractor dashboard (main dashboard)
+- ✅ Customer dashboard (stub - no content to update)
+- ✅ Admin dashboard, users, jobs, stats, warranties, provider-gate (6 admin screens)
+- ✅ Contractor profile (high-traffic screen)
+- ✅ Auth role-selection (entry point)
+
+**Total**: 11 screens/components now use semantic typography from design system.
+
+**Remaining Work:**
+- 50+ additional screens still use old typography (not part of dashboard scope)
+- Could be addressed in future refactor sprint
+
+**Next Steps:**
+- TASK 3: Add loading & empty states to Phase 6 screens
+- TASK 5: Apply BrandedHeader, fix navigation
+- TASK 6: UX polish across Phase 5 features
+
+---
+
 ### [2025-11-26 23:05] — Phase 6B Task 4: Branded Header Component
 
 **Files Created:**
