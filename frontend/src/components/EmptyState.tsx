@@ -51,14 +51,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   title: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h4,
     color: colors.neutral[700],
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
   description: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[500],
     textAlign: 'center',
     marginBottom: spacing.xl,

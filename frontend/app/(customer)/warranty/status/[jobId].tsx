@@ -4,14 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../../src/constants/theme';
-import { Button } from '../../../../src/components/Button';
+import { Button, LoadingSpinner, EmptyState } from '../../../../src/components';
 import { api } from '../../../../src/services/api';
 
 interface WarrantyData {
@@ -78,9 +77,7 @@ export default function WarrantyStatusScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary.main} />
-        </View>
+        <LoadingSpinner fullScreen text="Loading warranty status..." color={colors.primary.main} />
       </SafeAreaView>
     );
   }
@@ -99,18 +96,13 @@ export default function WarrantyStatusScreen() {
             />
           </View>
 
-          <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={64} color={colors.neutral[400]} />
-            <Text style={styles.emptyTitle}>No Warranty Request</Text>
-            <Text style={styles.emptyText}>
-              You haven't submitted a warranty request for this job yet.
-            </Text>
-            <Button
-              title="Request Warranty Service"
-              onPress={() => router.push(`/(customer)/warranty/request/${jobId}`)}
-              style={{ marginTop: spacing.xl }}
-            />
-          </View>
+          <EmptyState
+            icon="document-text-outline"
+            title="No Warranty Request"
+            description="You haven't submitted a warranty request for this job yet."
+            actionLabel="Request Warranty Service"
+            onAction={() => router.push(`/(customer)/warranty/request/${jobId}`)}
+          />
         </ScrollView>
       </SafeAreaView>
     );
@@ -203,18 +195,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   header: {
     paddingVertical: spacing.md,
     marginBottom: spacing.lg,
   },
   title: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h2,
     color: colors.neutral[900],
     marginTop: spacing.md,
   },
@@ -229,20 +215,18 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   statusText: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
   },
   section: {
     marginBottom: spacing.xl,
   },
   sectionTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h5,
     color: colors.neutral[700],
     marginBottom: spacing.md,
   },
   sectionText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
     lineHeight: 22,
   },
@@ -261,31 +245,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   detailLabel: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
   },
   detailValue: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[900],
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  emptyTitle: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
-    color: colors.neutral[700],
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  emptyText: {
-    ...typography.sizes.base,
-    color: colors.neutral[500],
-    textAlign: 'center',
-    paddingHorizontal: spacing.xl,
   },
 });
