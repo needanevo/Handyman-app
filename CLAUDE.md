@@ -82,4 +82,40 @@ Claude must:
 - NEVER output commented-out blocks
 - ALWAYS produce functional, working code
 
+## 10. Phase 5 Fix 6: Role-Based UI Isolation Rules
+Completed: 2025-12-02
+
+MANDATORY UI ISOLATION:
+- All UI rendering MUST be role-based, NEVER field-based
+- Customer screens show ONLY customer features
+- Contractor/handyman screens show ONLY business features
+- No mixed-role components allowed
+
+Customer UI (customer role only):
+- Job requests, active jobs, completed jobs
+- Warranties
+- Addresses
+- Profile (name, email, phone only)
+- NO: earnings, payouts, expenses, mileage, growth center, business metrics
+
+Contractor/Handyman UI (technician/handyman roles only):
+- Available jobs, accepted jobs, scheduled jobs
+- Earnings, payouts, expenses
+- Mileage tracking, tax reports
+- Growth Center
+- Business profile (skills, documents, portfolio)
+- NO: customer job requests, warranties, consumer service categories
+
+Role Guards (MANDATORY):
+- Every screen MUST check user.role, NOT field presence
+- Layout guards at (customer)/_layout, (contractor)/_layout, (handyman)/_layout
+- Redirect to correct dashboard if role mismatch
+- No UI should render based on "if field exists"
+
+Routing Rules:
+- login → explicit routing for customer/technician/handyman/admin
+- index → role-based dashboard routing
+- home → customer-only page with role guard
+- All role routing MUST be explicit, no fallback assumptions
+
 --- END OF CORE RULES ---
