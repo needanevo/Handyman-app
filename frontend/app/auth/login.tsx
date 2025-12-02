@@ -26,12 +26,21 @@ export default function LoginScreen() {
     if (isAuthenticated && user) {
       console.log('User authenticated, role:', user.role);
 
-      // Role-based routing
+      // Role-based routing - explicit routing for each role
       if (user.role === 'technician') {
         console.log('Contractor detected, redirecting to contractor dashboard...');
         router.replace('/(contractor)/dashboard');
+      } else if (user.role === 'handyman') {
+        console.log('Handyman detected, redirecting to handyman dashboard...');
+        router.replace('/(handyman)/dashboard');
+      } else if (user.role === 'customer') {
+        console.log('Customer detected, redirecting to customer dashboard...');
+        router.replace('/(customer)/dashboard');
+      } else if (user.role === 'admin') {
+        console.log('Admin detected, redirecting to admin dashboard...');
+        router.replace('/admin');
       } else {
-        console.log('Customer detected, redirecting to home...');
+        console.log('Unknown role, redirecting to home...');
         router.replace('/home');
       }
     }

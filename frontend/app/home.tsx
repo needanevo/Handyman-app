@@ -110,6 +110,20 @@ export default function HomeScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
 
+  // Role guard: Only customers should access this home page
+  React.useEffect(() => {
+    if (user && user.role !== 'customer') {
+      // Redirect to appropriate dashboard
+      if (user.role === 'technician') {
+        router.replace('/(contractor)/dashboard');
+      } else if (user.role === 'handyman') {
+        router.replace('/(handyman)/dashboard');
+      } else if (user.role === 'admin') {
+        router.replace('/admin');
+      }
+    }
+  }, [user, router]);
+
   // Fetch recent quotes
   const { data: quotes, isLoading: quotesLoading } = useQuery({
     queryKey: ['quotes'],
