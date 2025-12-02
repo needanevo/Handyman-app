@@ -5,6 +5,26 @@ Use this file ONLY for historical reference.
 Do not load into every task.
 
 2025-12-02 — Fixes & Phase 5 Execution
+[2025-12-02 12:40] Fix 5.4 — Admin Dashboard Stability
+
+Summary:
+Fixed undefined theme color reference causing runtime crash.
+
+Files Modified:
+frontend/app/admin/index.tsx
+
+Change:
+colors.info.main → colors.secondary.main
+
+Root Cause:
+The 'info' color group does not exist in the theme.
+Available groups: primary, secondary, success, error, warning, neutral, background.
+
+Impact:
+Admin dashboard loads without errors
+Warranties section displays with correct color
+No more "Cannot read property 'main' of undefined" errors
+
 [2025-12-02 12:35] Fix 5.3 — Incorrect Import Path in Contractor Reports
 
 Summary:
