@@ -98,3 +98,66 @@ class AiProvider(ABC):
     @abstractmethod
     async def generate_quote_suggestion(self, service_type: str, description: str, photos_metadata: List[str] = None) -> AiQuoteSuggestion:
         pass
+
+# Materials Pricing Provider Interface
+class MaterialItem(BaseModel):
+    sku: str
+    name: str
+    description: str
+    price: float
+    availability: str  # "in_stock", "out_of_stock", "online_only"
+    store_location: Optional[str] = None
+    url: Optional[str] = None
+
+class MaterialSearchResult(BaseModel):
+    items: List[MaterialItem]
+    total_results: int
+
+class MaterialsPricingProvider(ABC):
+    @abstractmethod
+    async def search_materials(self, query: str, category: Optional[str] = None, zip_code: Optional[str] = None) -> MaterialSearchResult:
+        """Search for materials by keyword"""
+        pass
+
+    @abstractmethod
+    async def get_material_by_sku(self, sku: str) -> Optional[MaterialItem]:
+        """Get detailed info for a specific SKU"""
+        pass
+
+    @abstractmethod
+    async def check_availability(self, sku: str, zip_code: str) -> Dict[str, Any]:
+        """Check stock availability at stores near zip code"""
+        pass
+
+# Accounting Provider Interface
+class Invoice(BaseModel):
+    id: str
+    customer_name: str
+    amount: float
+    status: str  # "draft", "sent", "paid", "overdue"
+    due_date: Optional[str] = None
+    line_items: List[Dict[str, Any]]
+
+class Expense(BaseModel):
+    id: str
+    date: str
+    amount: float
+    category: str
+    description: str
+    receipt_url: Optional[str] = None
+
+class AccountingProvider(ABC):
+    @abstractmethod
+    async def create_invoice(self, customer_name: str, amount: float, line_items: List[Dict[str, Any]]) -> Invoice:
+        """Create a new invoice"""
+        pass
+
+    @abstractmethod
+    async def record_expense(self, date: str, amount: float, category: str, description: str) -> Expense:
+        """Record a business expense"""
+        pass
+
+    @abstractmethod
+    async def get_profit_loss_report(self, start_date: str, end_date: str) -> Dict[str, Any]:
+        """Get profit & loss report for date range"""
+        pass

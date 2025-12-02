@@ -4,32 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registration - Step 2 | The Real Johnson</title>
+    <meta name="description" content="Upload credentials - Step 2 of 4. Provide professional licenses and insurance certificates for your contractor account.">
+
+    <!-- OpenGraph Meta Tags -->
+    <meta property="og:title" content="Registration - Step 2 | The Real Johnson">
+    <meta property="og:description" content="Upload your professional credentials and start building your business.">
+    <meta property="og:type" content="website">
+
+    <link rel="stylesheet" href="../global.css">
     <link rel="stylesheet" href="style.css">
     <script src="../auth.js"></script>
 </head>
 <body>
-    <div class="register-container">
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
+
+    <main id="main-content" class="register-container" role="main">
         <div class="register-card">
             <div class="logo">
-                <a href="/">The Real Johnson</a>
+                <a href="/" aria-label="Return to homepage">The Real Johnson</a>
             </div>
 
-            <div class="progress-bar">
+            <div class="progress-bar" role="progressbar" aria-valuenow="2" aria-valuemin="1" aria-valuemax="4" aria-label="Registration progress: Step 2 of 4">
                 <div class="progress-step completed">1</div>
-                <div class="progress-line completed"></div>
-                <div class="progress-step active">2</div>
-                <div class="progress-line"></div>
+                <div class="progress-line completed" aria-hidden="true"></div>
+                <div class="progress-step active" aria-current="step">2</div>
+                <div class="progress-line" aria-hidden="true"></div>
                 <div class="progress-step">3</div>
-                <div class="progress-line"></div>
+                <div class="progress-line" aria-hidden="true"></div>
                 <div class="progress-step">4</div>
             </div>
 
             <h1>Documents & Credentials</h1>
             <p class="subtitle" id="subtitle"></p>
 
-            <div id="error-message" class="error-message" style="display: none;"></div>
+            <div id="error-message" class="error-message" style="display: none;" role="alert" aria-live="polite"></div>
 
-            <form id="documents-form" class="registration-form">
+            <form id="documents-form" class="registration-form" aria-label="Registration form - Step 2">
                 <!-- License Upload -->
                 <div class="form-group upload-group">
                     <label for="license">
@@ -40,14 +50,16 @@
                         id="license"
                         name="license"
                         accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
+                        aria-label="Upload professional license"
+                        aria-describedby="license-help"
                     >
                     <div class="upload-preview" id="license-preview" style="display: none;">
                         <img id="license-img" alt="License preview">
-                        <button type="button" class="remove-btn" onclick="removeFile('license')">✕</button>
+                        <button type="button" class="remove-btn" onclick="removeFile('license')" aria-label="Remove license file">✕</button>
                     </div>
-                    <div class="upload-status" id="license-status" style="display: none;"></div>
-                    <span class="field-error" id="license-error"></span>
-                    <small>Max 10MB • JPG, PNG, GIF, WebP, or PDF</small>
+                    <div class="upload-status" id="license-status" style="display: none;" role="status" aria-live="polite"></div>
+                    <span class="field-error" id="license-error" role="alert"></span>
+                    <small id="license-help">Max 10MB • JPG, PNG, GIF, WebP, or PDF</small>
                 </div>
 
                 <!-- Insurance Upload -->
@@ -60,14 +72,16 @@
                         id="insurance"
                         name="insurance"
                         accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
+                        aria-label="Upload insurance certificate"
+                        aria-describedby="insurance-help"
                     >
                     <div class="upload-preview" id="insurance-preview" style="display: none;">
                         <img id="insurance-img" alt="Insurance preview">
-                        <button type="button" class="remove-btn" onclick="removeFile('insurance')">✕</button>
+                        <button type="button" class="remove-btn" onclick="removeFile('insurance')" aria-label="Remove insurance file">✕</button>
                     </div>
-                    <div class="upload-status" id="insurance-status" style="display: none;"></div>
-                    <span class="field-error" id="insurance-error"></span>
-                    <small>Max 10MB • JPG, PNG, GIF, WebP, or PDF</small>
+                    <div class="upload-status" id="insurance-status" style="display: none;" role="status" aria-live="polite"></div>
+                    <span class="field-error" id="insurance-error" role="alert"></span>
+                    <small id="insurance-help">Max 10MB • JPG, PNG, GIF, WebP, or PDF</small>
                 </div>
 
                 <!-- Business License Upload -->
@@ -80,14 +94,16 @@
                         id="businessLicense"
                         name="businessLicense"
                         accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
+                        aria-label="Upload business license (optional)"
+                        aria-describedby="business-license-help"
                     >
                     <div class="upload-preview" id="businessLicense-preview" style="display: none;">
                         <img id="businessLicense-img" alt="Business license preview">
-                        <button type="button" class="remove-btn" onclick="removeFile('businessLicense')">✕</button>
+                        <button type="button" class="remove-btn" onclick="removeFile('businessLicense')" aria-label="Remove business license file">✕</button>
                     </div>
-                    <div class="upload-status" id="businessLicense-status" style="display: none;"></div>
-                    <span class="field-error" id="businessLicense-error"></span>
-                    <small>Max 10MB • JPG, PNG, GIF, WebP, or PDF</small>
+                    <div class="upload-status" id="businessLicense-status" style="display: none;" role="status" aria-live="polite"></div>
+                    <span class="field-error" id="businessLicense-error" role="alert"></span>
+                    <small id="business-license-help">Max 10MB • JPG, PNG, GIF, WebP, or PDF</small>
                 </div>
 
                 <div class="info-box">
@@ -96,14 +112,14 @@
                 </div>
 
                 <div class="form-actions">
-                    <a href="step1.html" class="btn btn-secondary">Back</a>
-                    <button type="submit" id="submit-button" class="btn btn-primary">
+                    <a href="step1.html" class="btn btn-secondary" aria-label="Go back to step 1">Back</a>
+                    <button type="submit" id="submit-button" class="btn btn-primary" aria-label="Continue to step 3: Profile">
                         Continue to Profile
                     </button>
                 </div>
             </form>
         </div>
-    </div>
+    </main>
 
     <script>
         // Check authentication

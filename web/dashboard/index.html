@@ -27,6 +27,10 @@
     }
     </script>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="../assets/favicon.png">
+    <link rel="icon" type="image/svg+xml" href="../assets/logo-color.svg">
+
     <link rel="stylesheet" href="../global.css">
     <script src="../auth.js"></script>
 </head>
@@ -35,7 +39,9 @@
 
     <main id="main-content" style="display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: var(--font-family);">
         <div style="text-align: center;" role="status" aria-live="polite">
-            <h1 style="color: var(--primary-color);">The Real Johnson</h1>
+            <a href="/" aria-label="The Real Johnson home page" style="display: inline-block; margin-bottom: 24px;">
+                <img src="../assets/logo-color.svg" alt="The Real Johnson" style="height: 48px; width: auto;">
+            </a>
             <p>Loading your dashboard...</p>
             <div class="spinner" aria-label="Loading"></div>
         </div>

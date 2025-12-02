@@ -6,7 +6,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
@@ -14,8 +14,9 @@ import { StepIndicator } from '../../../src/components/StepIndicator';
 import { PhotoUploader } from '../../../src/components/PhotoUploader';
 import { Card } from '../../../src/components/Card';
 
-export default function JobRequestStep1() {
+export default function JobRequestStep2() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [photos, setPhotos] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -26,16 +27,20 @@ export default function JobRequestStep1() {
     }
 
     router.push({
-      pathname: '/(customer)/job-request/step2-describe',
+      pathname: '/(customer)/job-request/step3-describe',
       params: {
+        ...params,
         photos: JSON.stringify(photos),
       },
     });
   };
 
   const steps = [
+    { label: 'Address', completed: true },
+    { label: 'Service', completed: true },
     { label: 'Photos', completed: false },
-    { label: 'Describe', completed: false },
+    { label: 'Details', completed: false },
+    { label: 'Budget', completed: false },
     { label: 'Review', completed: false },
   ];
 
@@ -49,13 +54,13 @@ export default function JobRequestStep1() {
             onPress={() => router.back()}
             variant="ghost"
             size="small"
-            icon={<Ionicons name="close" size={24} color={colors.neutral[600]} />}
+            icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
             style={styles.backButton}
           />
         </View>
 
         {/* Progress */}
-        <StepIndicator steps={steps} currentStep={0} />
+        <StepIndicator steps={steps} currentStep={2} />
 
         {/* Title */}
         <View style={styles.titleSection}>
@@ -66,6 +71,12 @@ export default function JobRequestStep1() {
           <Text style={styles.subtitle}>
             Take photos of what needs to be fixed. This helps us give you an accurate quote.
           </Text>
+        </View>
+
+        {/* Service Badge */}
+        <View style={styles.serviceBadge}>
+          <Ionicons name="construct" size={18} color={colors.primary.main} />
+          <Text style={styles.serviceBadgeText}>{params.categoryTitle as string}</Text>
         </View>
 
         {/* Photo Uploader */}
@@ -113,6 +124,13 @@ export default function JobRequestStep1() {
             fullWidth
             disabled={photos.length === 0}
           />
+          <Button
+            title="Back"
+            onPress={() => router.back()}
+            variant="outline"
+            size="medium"
+            fullWidth
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -141,7 +159,7 @@ const styles = StyleSheet.create({
   },
   titleSection: {
     alignItems: 'center',
-    marginBottom: spacing['2xl'],
+    marginBottom: spacing.lg,
   },
   iconCircle: {
     width: 72,
@@ -164,6 +182,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: spacing.base,
+  },
+  serviceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: colors.primary.lightest,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  serviceBadgeText: {
+    ...typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
+    color: colors.primary.main,
   },
   uploaderSection: {
     marginBottom: spacing.xl,

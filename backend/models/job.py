@@ -97,6 +97,23 @@ class JobStatusUpdate(BaseModel):
     scheduled_end: Optional[datetime] = None
 
 
+class JobUpdate(BaseModel):
+    """Request to update job fields (all fields optional)"""
+    status: Optional[JobStatus] = None
+    description: Optional[str] = None
+    photos: Optional[List[str]] = None
+    budget_max: Optional[float] = None
+    urgency: Optional[str] = None
+    preferred_timing: Optional[str] = None
+    contractor_type_preference: Optional[ContractorTypePreference] = None
+    address: Optional[JobAddress] = None
+    scheduled_start: Optional[datetime] = None
+    scheduled_end: Optional[datetime] = None
+    assigned_contractor_id: Optional[str] = None
+    accepted_proposal_id: Optional[str] = None
+    payout_id: Optional[str] = None
+
+
 class JobCreateResponse(BaseModel):
     """Response after creating a job"""
     job_id: str

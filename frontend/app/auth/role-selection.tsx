@@ -46,7 +46,7 @@ export default function RoleSelectionScreen() {
         {/* Logo & Title */}
         <View style={styles.titleSection}>
           <Image
-            source={require('../../../assets/images/logos/color/Handyman_logo_color.png')}
+            source={require('../../assets/images/logos/color/Handyman_logo_color.png')}
             style={styles.logo}
             resizeMode="contain"
           />

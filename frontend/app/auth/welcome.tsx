@@ -24,7 +24,7 @@ export default function WelcomeScreen() {
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Image
-              source={require('../../../assets/images/logos/color/Handyman_logo_color.png')}
+              source={require('../../assets/images/logos/color/Handyman_logo_color.png')}
               style={styles.logoImage}
               resizeMode="contain"
             />
