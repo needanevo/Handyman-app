@@ -4,6 +4,74 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-12-02 10:00] — Fix #2: Backend Role-Based Field Filtering (P0 Hotfix Applied ✅)
+
+**Implemented role-based field filtering in /auth/me endpoint to prevent backend data pollution.**
+
+**File Modified**: `backend/server.py` (lines 245-281)
+
+**Problem Solved**:
+- ❌ Before: Backend returned ALL fields (including contractor fields) for ALL users
+- ✅ After: Backend filters response based on user role
+- ✅ Customers receive ONLY customer-appropriate fields
+- ✅ Handyman/technician users receive all contractor fields
+
+**Implementation**:
+1. Removed `response_model=User` to allow dynamic field filtering
+2. Convert User object to dict via `model_dump()`
+3. Define list of 21 contractor-specific fields to filter
+4. For CUSTOMER role: Remove all contractor fields from response
+5. For HANDYMAN/TECHNICIAN roles: Include all fields (no filtering)
+6. Return filtered dict
+
+**Filtered Contractor Fields (21 total)**:
+- Business: `business_name`, `hourly_rate`, `available_hours`
+- Skills: `skills`, `years_experience`, `service_areas`
+- Documents: `documents`, `portfolio_photos`
+- LLC: `has_llc`, `llc_formation_date`
+- License: `is_licensed`, `license_number`, `license_state`, `license_expiry`
+- Insurance: `is_insured`, `insurance_policy_number`, `insurance_expiry`
+- Status: `upgrade_to_technician_date`, `registration_completed_date`, `registration_status`
+
+**Code Changes**:
+```python
+# BEFORE (lines 245-250): Returned entire User object
+@api_router.get("/auth/me", response_model=User)
+async def get_current_user_info(current_user: User = ...):
+    return current_user  # ❌ All fields for all roles
+
+# AFTER (lines 245-281): Role-based filtering
+@api_router.get("/auth/me")
+async def get_current_user_info(current_user: User = ...):
+    user_dict = current_user.model_dump()
+
+    if current_user.role == UserRole.CUSTOMER:
+        for field in contractor_fields:
+            user_dict.pop(field, None)  # ✅ Remove contractor fields
+
+    return user_dict  # ✅ Clean, role-safe response
+```
+
+**Testing Criteria Met**:
+- ✅ Customers NEVER receive handyman fields from backend
+- ✅ Handymen receive all necessary contractor fields
+- ✅ /auth/me returns clean, role-safe objects
+- ✅ AuthContext no longer receives polluted fields
+- ✅ Frontend Fix #1 now has clean backend data
+
+**Impact**:
+- 🛡️ **Backend Defense Layer**: Prevents field pollution at source
+- 🔒 **Data Privacy**: Customers don't receive irrelevant contractor data
+- 📉 **Reduced Payload**: Smaller JSON responses for customers
+- 🔗 **Complements Fix #1**: Frontend + Backend now both filter by role
+- ✅ **Double Protection**: Even if frontend logic fails, backend is safe
+
+**Related P0 Bug**: Role Collision Diagnostic Issue #2 (Backend field filtering)
+
+**Status**: Fix #2 Complete ✅ | Remaining: Route guards, redirect logic
+
+---
+
 ### [2025-12-02 09:45] — Fix #1: Role-Safe User Normalization (P0 Hotfix Applied ✅)
 
 **Implemented role-based field filtering in AuthContext to prevent field bleeding.**

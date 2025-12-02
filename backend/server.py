@@ -242,12 +242,43 @@ async def get_current_user_dependency(
     return user
 
 
-@api_router.get("/auth/me", response_model=User)
+@api_router.get("/auth/me")
 async def get_current_user_info(
     current_user: User = Depends(get_current_user_dependency),
 ):
-    """Get current user information"""
-    return current_user
+    """
+    Get current user information with role-based field filtering.
+
+    Returns only fields appropriate for the user's role:
+    - Customers: Basic profile fields only (no contractor data)
+    - Handyman/Technician: Includes business, skills, documents, portfolio
+    """
+    user_dict = current_user.model_dump()
+
+    # Define contractor/handyman-specific fields to filter
+    contractor_fields = [
+        'business_name', 'hourly_rate', 'skills', 'available_hours',
+        'years_experience', 'service_areas', 'documents', 'portfolio_photos',
+        'has_llc', 'llc_formation_date', 'is_licensed', 'license_number',
+        'license_state', 'license_expiry', 'is_insured', 'insurance_policy_number',
+        'insurance_expiry', 'upgrade_to_technician_date', 'registration_completed_date',
+        'registration_status'
+    ]
+
+    # Filter fields based on role
+    if current_user.role == UserRole.CUSTOMER:
+        # Remove ALL contractor/handyman fields for customers
+        for field in contractor_fields:
+            user_dict.pop(field, None)
+
+        # Also remove customer_notes and tags (internal use only)
+        user_dict.pop('customer_notes', None)
+        user_dict.pop('tags', None)
+
+    # For handyman/technician roles, include all fields (no filtering needed)
+    # For admin, include all fields as well
+
+    return user_dict
 
 
 @api_router.post("/auth/refresh", response_model=Token)
