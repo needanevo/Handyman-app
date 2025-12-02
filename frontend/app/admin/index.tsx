@@ -46,7 +46,7 @@ const adminSections: AdminSection[] = [
     description: 'Review warranty requests',
     icon: 'shield-checkmark',
     route: '/admin/warranties',
-    color: colors.info.main,
+    color: colors.secondary.main,
   },
   {
     title: 'Provider Gate',
