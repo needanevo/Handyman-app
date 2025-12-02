@@ -239,14 +239,45 @@ export function getAssetsByCategory(category: BrandAsset['category']) {
 }
 
 /**
+ * BrandLogos - Organized logo structure for easy access
+ * USE THIS for all UI components (Stage 2: Product branding after splash)
+ */
+export const BrandLogos = {
+  color: {
+    default: brandAssets.handymanColorPrimary.src,
+    x2: brandAssets.handymanColor2x.src,
+    x4: brandAssets.handymanColor4x.src,
+  },
+  bw: {
+    default: brandAssets.handymanBWPrimary.src,
+    square: brandAssets.handymanBWSquare.src,
+    final: brandAssets.handymanFinalBW.src,
+  },
+  grayscale: {
+    default: brandAssets.handymanGrayPrimary.src,
+    final: brandAssets.handymanGrayFinal.src,
+  },
+  variants: {
+    transparent: brandAssets.handymanTransparent.src,
+    mark: brandAssets.handymanMark.src,
+    markPrint: brandAssets.handymanMarkPrint.src,
+    theRealJohnson: brandAssets.theRealJohnson.src,
+  },
+} as const;
+
+/**
  * Recommended usage in components:
  *
- * import { brandAssets } from '../constants/brandAssets';
+ * // NEW: Simplified logo usage
+ * import { BrandLogos } from '../brandAssets';
+ * <Image source={BrandLogos.color.default} style={styles.logo} resizeMode="contain" />
  *
+ * // ADVANCED: With dimensions
+ * import { brandAssets } from '../brandAssets';
  * <Image
  *   source={brandAssets.handymanColorPrimary.src}
  *   style={{
- *     width: brandAssets.handymanColorPrimary.width * 0.2,  // Scale as needed
+ *     width: brandAssets.handymanColorPrimary.width * 0.2,
  *     height: brandAssets.handymanColorPrimary.height * 0.2,
  *   }}
  *   resizeMode="contain"
