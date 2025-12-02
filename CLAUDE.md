@@ -4,6 +4,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-12-02 08:20] — Brand Architecture Update — Dual-Stage Splash System (COMPLETE ✅)
+
+**Implemented Two-Stage Branding:**
+
+**Stage 1: Lighthouse Federal Holdings Global Splash (Universal)**
+- Appears first on all apps (holding company identity)
+- Mobile: `frontend/assets/images/splash-image.png` with black background (#000000)
+- Web: `web/global-splash.html` with 1-second auto-redirect to product landing
+- Applied via `app.json` splash screen configuration
+- **Universal across all future apps under Lighthouse Federal Holdings**
+
+**Stage 2: Handyman Product Branding (After Load)**
+- All UI elements use Handyman brand assets after app loads
+- App icon remains Handyman (home screen identity)
+- NavBar, headers, logos, cards all display Handyman branding
+- Web pages maintain Handyman brand identity in UI
+
+**Files Created:**
+- `web/global-splash.html` - Lighthouse splash page for web version
+- `web/assets/splash-lighthouse.png` - Lighthouse splash image for web
+
+**Files Modified:**
+- `frontend/app.json` - Updated splash backgroundColor to #000000 (black)
+- `frontend/src/brandAssets.ts` - Added `BrandLogos` export for simplified UI logo usage
+
+**Brand Separation:**
+- **Holding Company**: Lighthouse Federal Holdings (splash only)
+- **Product Identity**: The Real Johnson Handyman Services (all UI)
+- App icons: Product-specific (Handyman)
+- Splash screens: Universal (Lighthouse)
+
+**Usage in Components:**
+```typescript
+// Simplified logo usage (Stage 2: Product branding)
+import { BrandLogos } from '../brandAssets';
+<Image source={BrandLogos.color.default} style={styles.logo} resizeMode="contain" />
+```
+
+**Architecture Benefits:**
+- Clear separation between holding company and product brands
+- Consistent splash experience across all apps
+- Product-specific branding in UI maintains identity
+- Scalable for future apps under Lighthouse Federal Holdings
+
+**Commits:**
+1. `[2025-12-02 08:15]` Updated app.json to use global splash
+2. `[2025-12-02 08:16]` Verified app icons remain product-specific (Handyman)
+3. `[2025-12-02 08:19]` Updated brandAssets to export BrandLogos structure
+4. `[2025-12-02 08:20]` Created global splash page for web version
+
+---
+
 ### [2025-12-02 07:58] — Phase 6 Branding Fix — Asset Path Corrections (COMPLETE ✅)
 
 **Issue:**
