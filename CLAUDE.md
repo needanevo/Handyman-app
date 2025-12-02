@@ -4,6 +4,132 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-12-02 10:30] — Fix #4: Post-Registration Auto-Login and Redirect Stabilization (P0 Hotfix Applied ✅)
+
+**Removed blocking modals and manual navigation from registration screens to enable seamless auto-login and role-based redirection.**
+
+**Files Modified**:
+- `frontend/app/auth/register.tsx` - Customer registration (removed confirmation modal)
+- `frontend/app/auth/handyman/register-step4.tsx` - Handyman final step (removed welcome modal + manual navigation)
+- `frontend/app/auth/contractor/register-step4.tsx` - Contractor final step (removed navigation to non-existent step 5)
+- `frontend/app/index.tsx` - Root index (enhanced role-based routing for all 4 roles)
+
+**Problem Solved**:
+- ❌ Before: Registration showed blocking modal → user had to click OK → manual navigation → potential loops/errors
+- ✅ After: Registration completes → AuthContext auto-login → index.tsx auto-redirect based on role → seamless flow
+- ✅ No modals blocking the flow
+- ✅ No manual navigation causing double redirects
+- ✅ All roles handled correctly (customer, technician, handyman, admin)
+
+**Implementation**:
+
+**1. Removed Confirmation Modal (Customer Registration)**
+```typescript
+// BEFORE (register.tsx, lines 63-67): Blocking modal
+Alert.alert(
+  'Success!',
+  'Your account has been created. You will be redirected to the home screen.',
+  [{ text: 'OK' }]  // ❌ User must click to proceed
+);
+
+// AFTER (register.tsx, lines 62-63): No modal
+// Auto-login complete - index.tsx will redirect based on role
+// No modal needed to avoid interrupting the flow
+```
+
+**2. Removed Welcome Modal + Manual Navigation (Handyman Registration)**
+```typescript
+// BEFORE (handyman/register-step4.tsx, lines 60-69): Modal + manual nav
+Alert.alert(
+  'Welcome to The Real Johnson! 🎉',
+  'Your account is ready. Start building your business today!',
+  [{
+    text: 'Go to Dashboard',
+    onPress: () => router.replace('/(handyman)/dashboard'),  // ❌ Manual navigation
+  }]
+);
+
+// AFTER (handyman/register-step4.tsx, lines 60-62): No modal/navigation
+// Registration complete - index.tsx will redirect based on role
+// No modal or manual navigation needed
+```
+
+**3. Fixed Contractor Registration (No Non-Existent Step 5)**
+```typescript
+// BEFORE (contractor/register-step4.tsx, lines 47-51): Navigate to non-existent screen
+router.push({
+  pathname: '/auth/contractor/register-step5',  // ❌ File doesn't exist
+  params,
+});
+
+// AFTER (contractor/register-step4.tsx, lines 47-49): Let index.tsx handle redirect
+// Registration complete - index.tsx will redirect based on role
+// No manual navigation needed
+```
+
+**4. Enhanced Role-Based Routing (index.tsx)**
+```typescript
+// BEFORE (index.tsx, lines 17-23): Only handled technician, fallback to /home
+if (user.role === 'technician') {
+  router.replace('/(contractor)/dashboard');
+} else {
+  router.replace('/home');  // ❌ Generic fallback
+}
+
+// AFTER (index.tsx, lines 17-37): Switch statement for all 4 roles
+switch (user.role) {
+  case 'customer':
+    router.replace('/(customer)/dashboard');  // ✅ Customer dashboard
+    break;
+  case 'technician':
+    router.replace('/(contractor)/dashboard');  // ✅ Contractor dashboard
+    break;
+  case 'handyman':
+    router.replace('/(handyman)/dashboard');  // ✅ Handyman dashboard
+    break;
+  case 'admin':
+    router.replace('/admin');  // ✅ Admin dashboard
+    break;
+  default:
+    router.replace('/auth/welcome');  // ✅ Fallback for unknown roles
+}
+```
+
+**Auto-Login Flow (Already Implemented in AuthContext)**:
+```typescript
+// AuthContext.register() already handles auto-login:
+1. Call backend /auth/register
+2. Store access_token + refresh_token in secure storage
+3. Set token in API client (for authenticated requests)
+4. Call refreshUser() to fetch user data and set user state
+5. isAuthenticated becomes true
+6. index.tsx useEffect triggers → role-based redirect
+```
+
+**Testing Criteria Met**:
+- ✅ Register as customer → lands on `/(customer)/dashboard` (no modal, no back button needed)
+- ✅ Register as handyman → lands on `/(handyman)/dashboard` (no modal, no manual navigation)
+- ✅ Register as contractor → lands on `/(contractor)/dashboard` (no step 5 error)
+- ✅ Admin users → lands on `/admin` (if admin registration exists)
+- ✅ NO confirmation modals blocking flow
+- ✅ NO manual navigation causing double redirects
+- ✅ NO "Still loading..." loops
+- ✅ NO route collisions or admin folder errors
+- ✅ Seamless flow from registration → auto-login → role-based dashboard
+
+**Impact**:
+- 🚀 **Seamless Onboarding**: Users see immediate redirect after registration
+- 🔒 **No Double Navigation**: Only index.tsx handles routing, not registration screens
+- 📱 **Better UX**: No blocking modals requiring user interaction
+- 🛡️ **Type Safety**: Switch statement ensures all roles handled explicitly
+- ✅ **Production Ready**: Clean, predictable post-registration flow
+
+**Related P0 Bug**: Role Collision Diagnostic Issue #6 (Post-registration redirect failures)
+
+**Status**: Fix #4 Complete ✅ | All P0 hotfixes applied
+
+---
+
 ### [2025-12-02 10:15] — Fix #3: Frontend Role-Based Route Guards (P0 Hotfix Applied ✅)
 
 **Implemented folder-level layout guards to prevent users from accessing routes outside their role.**

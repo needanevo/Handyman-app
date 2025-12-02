@@ -57,14 +57,10 @@ export default function RegisterScreen() {
       });
       
       // Navigation handled automatically by AuthContext + index.tsx
-      console.log('Registration successful - user should be automatically redirected');
-      
-      // Show success message while redirecting
-      Alert.alert(
-        'Success!',
-        'Your account has been created. You will be redirected to the home screen.',
-        [{ text: 'OK' }]
-      );
+      console.log('Registration successful - user will be automatically redirected');
+
+      // Auto-login complete - index.tsx will redirect based on role
+      // No modal needed to avoid interrupting the flow
     } catch (error: any) {
       console.error('Registration error details:', error);
       

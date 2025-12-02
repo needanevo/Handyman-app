@@ -44,11 +44,9 @@ export default function ContractorRegisterStep4() {
       // Refresh user context to get updated portfolio
       await refreshUser();
 
-      // Navigate to confirmation screen
-      router.push({
-        pathname: '/auth/contractor/register-step5',
-        params,
-      });
+      // Registration complete - index.tsx will redirect based on role
+      // No manual navigation needed
+      console.log('Contractor registration complete - auto-redirect to dashboard');
     } catch (error: any) {
       console.error('Failed to save portfolio:', error);
       Alert.alert(

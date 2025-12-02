@@ -9,17 +9,31 @@ export default function Index() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('Index useEffect - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
+    console.log('Index useEffect - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated, 'role:', user?.role);
 
     if (!isLoading) {
       if (isAuthenticated && user) {
-        // Role-based routing
-        if (user.role === 'technician') {
-          console.log('User is authenticated contractor - navigating to contractor dashboard');
-          router.replace('/(contractor)/dashboard');
-        } else {
-          console.log('User is authenticated customer - navigating to home');
-          router.replace('/home');
+        // Role-based routing - redirect to appropriate dashboard
+        switch (user.role) {
+          case 'customer':
+            console.log('User is authenticated customer - navigating to customer dashboard');
+            router.replace('/(customer)/dashboard');
+            break;
+          case 'technician':
+            console.log('User is authenticated contractor/technician - navigating to contractor dashboard');
+            router.replace('/(contractor)/dashboard');
+            break;
+          case 'handyman':
+            console.log('User is authenticated handyman - navigating to handyman dashboard');
+            router.replace('/(handyman)/dashboard');
+            break;
+          case 'admin':
+            console.log('User is authenticated admin - navigating to admin dashboard');
+            router.replace('/admin');
+            break;
+          default:
+            console.log('Unknown role - navigating to welcome');
+            router.replace('/auth/welcome');
         }
       } else {
         console.log('User is not authenticated - navigating to welcome');

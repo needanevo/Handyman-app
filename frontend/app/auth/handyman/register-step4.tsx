@@ -57,19 +57,14 @@ export default function HandymanRegisterStep4() {
         },
       });
 
-      Alert.alert(
-        'Welcome to The Real Johnson! 🎉',
-        'Your account is ready. Start building your business today!',
-        [
-          {
-            text: 'Go to Dashboard',
-            onPress: () => router.replace('/(handyman)/dashboard'),
-          },
-        ]
-      );
+      // Registration complete - index.tsx will redirect based on role
+      // No modal or manual navigation needed
+      console.log('Handyman registration complete - auto-redirect to dashboard');
+
     } catch (error) {
       console.error('Banking setup error:', error);
       Alert.alert('Error', 'Failed to save banking information. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
