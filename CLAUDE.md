@@ -4,6 +4,77 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-12-02 10:15] — Fix #3: Frontend Role-Based Route Guards (P0 Hotfix Applied ✅)
+
+**Implemented folder-level layout guards to prevent users from accessing routes outside their role.**
+
+**Files Created**:
+- `frontend/app/(customer)/_layout.tsx` - Customer route guard
+- `frontend/app/(contractor)/_layout.tsx` - Contractor route guard
+- `frontend/app/(handyman)/_layout.tsx` - Handyman route guard
+- `frontend/app/admin/_layout.tsx` - Admin route guard
+
+**Problem Solved**:
+- ❌ Before: Any user could navigate to any route (customer could access contractor dashboard, etc.)
+- ✅ After: Role-based layout guards enforce route access control
+- ✅ Customers CANNOT access contractor/handyman/admin routes
+- ✅ Contractors/handymen CANNOT access customer routes
+- ✅ Admins have their own protected routes
+
+**Implementation**:
+1. Created `_layout.tsx` files for each role-based folder
+2. Each layout uses `useAuth()` to check user role and loading state
+3. Shows `LoadingSpinner` while auth is loading
+4. Checks role match and redirects if mismatch:
+   - Customers → `/(customer)/dashboard`
+   - Contractors/handymen → `/(contractor)/dashboard`
+   - Admins → `/admin`
+   - Unauthenticated → `/auth/welcome`
+5. Only renders `<Slot />` (child routes) if role matches
+
+**Route Protection Logic**:
+- **Customer routes** `(customer)/*`: Only accessible by `role === 'customer'`
+- **Contractor routes** `(contractor)/*`: Only accessible by `role === 'technician'` or `role === 'handyman'`
+- **Handyman routes** `(handyman)/*`: Only accessible by `role === 'technician'` or `role === 'handyman'`
+- **Admin routes** `admin/*`: Only accessible by `role === 'admin'`
+
+**Guard Behavior**:
+```typescript
+// Customer Layout Guard
+if (user?.role === 'technician' || user?.role === 'handyman') {
+  router.replace('/(contractor)/dashboard');  // Redirect contractors away
+  return;
+}
+
+// Contractor Layout Guard
+if (user?.role === 'customer') {
+  router.replace('/(customer)/dashboard');  // Redirect customers away
+  return;
+}
+```
+
+**Testing Criteria Met**:
+- ✅ Customers CANNOT access contractor/handyman routes (blocked + redirected)
+- ✅ Contractors CANNOT access customer routes (blocked + redirected)
+- ✅ Direct URL navigation blocked by layout guards
+- ✅ Browser refresh cannot bypass guards (auth check on every mount)
+- ✅ Loading state shown during role validation
+- ✅ NO silent fallbacks - always redirect on mismatch
+- ✅ Each role lands on their correct dashboard after login
+
+**Impact**:
+- 🛡️ **Navigation Security**: Impossible to access wrong role's routes
+- 🔒 **URL Protection**: Direct navigation blocked at layout level
+- 📱 **UX Clarity**: Users always land in correct role context
+- 🔗 **Complements Fix #1 & #2**: Route layer + data layer + backend layer all role-safe
+- ✅ **Production Ready**: No customer can stumble into contractor UI
+
+**Related P0 Bug**: Role Collision Diagnostic Issues #3 (Routing confusion) and #5 (No role guards)
+
+**Status**: Fix #3 Complete ✅ | Remaining: Post-address redirect logic
+
+---
+
 ### [2025-12-02 10:00] — Fix #2: Backend Role-Based Field Filtering (P0 Hotfix Applied ✅)
 
 **Implemented role-based field filtering in /auth/me endpoint to prevent backend data pollution.**
