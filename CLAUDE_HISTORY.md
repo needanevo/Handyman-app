@@ -5,6 +5,40 @@ Use this file ONLY for historical reference.
 Do not load into every task.
 
 2025-12-02 — Fixes & Phase 5 Execution
+[2025-12-02 12:45] Fix 5.5 — Registration Pipeline Stability
+
+Summary:
+Hardened auth endpoints to prevent 500 errors and MongoDB crashes.
+
+Files Modified:
+backend/auth/auth_handler.py
+backend/server.py
+
+Changes:
+
+1. auth_handler.py:
+   - Added defensive model creation in get_user_by_email()
+   - Added defensive model creation in get_user_by_id()
+   - Use model_validate() to safely create User objects
+   - Filter unknown fields if validation fails
+
+2. server.py:
+   - Improved /auth/register error handling
+   - Changed duplicate email status from 409 to 400
+   - Added MongoDB duplicate key error detection
+   - Returns clean 400 instead of 500 on duplicate email
+
+Root Cause:
+Database documents may contain fields not in User model.
+Creating User(**db_doc) fails when unknown fields exist.
+MongoDB duplicate key errors were returning 500 instead of 400.
+
+Impact:
+Login no longer returns 500 on model conversion errors
+Registration no longer crashes on duplicate emails
+Unknown database fields are safely filtered
+All auth errors return appropriate HTTP status codes
+
 [2025-12-02 12:40] Fix 5.4 — Admin Dashboard Stability
 
 Summary:
