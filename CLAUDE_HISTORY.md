@@ -5,6 +5,22 @@ Use this file ONLY for historical reference.
 Do not load into every task.
 
 2025-12-02 — Fixes & Phase 5 Execution
+[2025-12-02 12:35] Fix 5.3 — Incorrect Import Path in Contractor Reports
+
+Summary:
+Fixed typo in import statement for React Query.
+
+Files Modified:
+frontend/app/(contractor)/reports/index.tsx
+
+Change:
+@tantml:react-query → @tanstack/react-query
+
+Impact:
+Tax reports screen now compiles correctly
+React Query hooks work properly
+No more import resolution errors
+
 [2025-12-02 10:50] Fix 5.2 — Contractor Routing Stability & Missing Routes
 
 Summary:
