@@ -150,9 +150,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Fetching user data...');
       const userData = await authAPI.getCurrentUser();
       console.log('Raw user data from API:', userData);
-      
+
       // Transform backend data (snake_case) to frontend format (camelCase)
-      const transformedUser: User = {
+      // ROLE-SAFE: Only include fields appropriate for the user's role
+      const baseUser = {
         id: userData.id,
         email: userData.email,
         firstName: userData.first_name,
@@ -164,13 +165,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           street: addr.street,
           city: addr.city,
           state: addr.state,
-          zipCode: addr.zip_code,  // Transform snake_case to camelCase
+          zipCode: addr.zip_code,
           latitude: addr.latitude,
           longitude: addr.longitude,
-          isDefault: addr.is_default,  // Transform snake_case to camelCase
+          isDefault: addr.is_default,
         })) || [],
         isActive: userData.is_active,
-        // Contractor-specific fields
+      };
+
+      // Only include contractor/handyman fields if role is technician or handyman
+      // This prevents field bleeding into customer accounts
+      const transformedUser: User = (userData.role === 'technician' || userData.role === 'handyman') ? {
+        ...baseUser,
+        // Contractor/Handyman-specific fields (only for technician/handyman roles)
         businessName: userData.business_name,
         skills: userData.skills,
         yearsExperience: userData.years_experience,
@@ -182,12 +189,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } : undefined,
         portfolioPhotos: userData.portfolio_photos,
         profilePhoto: userData.profile_photo,
+      } : {
+        ...baseUser,
+        // Customer-only: No contractor fields included
       };
 
-      console.log('Transformed user data:', transformedUser);
+      console.log('Transformed user data (role-safe):', transformedUser);
       setUser(transformedUser);
       console.log('User set in context - isAuthenticated should now be true');
-      
+
     } catch (error: any) {
       // Silently handle 401 errors (expected when auth fails)
       if (error.response?.status !== 401) {

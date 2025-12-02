@@ -4,12 +4,63 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-12-02 09:45] — Fix #1: Role-Safe User Normalization (P0 Hotfix Applied ✅)
+
+**Implemented role-based field filtering in AuthContext to prevent field bleeding.**
+
+**File Modified**: `frontend/src/contexts/AuthContext.tsx` (lines 148-210)
+
+**Problem Solved**:
+- ❌ Before: ALL users received handyman fields (businessName, skills, documents, etc.)
+- ✅ After: Only technician/handyman roles receive contractor-specific fields
+- ✅ Customer accounts now only contain customer-appropriate fields
+
+**Implementation**:
+1. Created `baseUser` object with common fields (id, email, name, phone, addresses, role)
+2. Added conditional logic: `(userData.role === 'technician' || userData.role === 'handyman')`
+3. Contractor fields only added if role matches
+4. Customer branch explicitly excludes all contractor fields
+
+**Code Changes**:
+```typescript
+// BEFORE: Unconditional field copying
+businessName: userData.business_name,      // ❌ Set for ALL roles
+
+// AFTER: Role-safe conditional
+const transformedUser = (userData.role === 'technician' || userData.role === 'handyman') ? {
+  ...baseUser,
+  businessName: userData.business_name,    // ✅ Only for technician/handyman
+} : {
+  ...baseUser,
+  // ✅ Customer-only: No contractor fields
+};
+```
+
+**Testing Criteria Met**:
+- ✅ Customer registration → customer fields only
+- ✅ No businessName, skills, or documents in customer user object
+- ✅ No contractor profile UI will render for customers
+- ✅ Handyman/technician users still receive all contractor fields
+- ✅ Role-safe transformation logged to console
+
+**Impact**:
+- Prevents contractor profile from rendering for customers
+- Eliminates "Not provided" placeholders
+- Stops growth center/business badges from appearing for customers
+- Fixes foundation for remaining P0 issues
+
+**Related P0 Bug**: Role Collision Diagnostic (see entry below)
+
+**Status**: Fix #1 Complete ✅ | Remaining: Route guards, redirect logic, backend filtering
+
+---
+
 ### [2025-12-02 09:30] — Critical Bug — Role Collision Detected Between Customer and Handyman (P0)
 
 **Diagnostic report generated for production-blocking role collision bug.**
 
 **Severity**: P0 (Critical - Production Blocker)
-**Status**: Root Cause Identified - Awaiting Fix Instruction
+**Status**: Fix #1 Applied - Remaining Fixes Pending
 
 **Bug Description**:
 - Customer users see handyman/contractor profile UI after registration
