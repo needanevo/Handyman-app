@@ -158,9 +158,10 @@ logger = logging.getLogger(__name__)
 @api_router.post("/auth/register", response_model=Token)
 async def register_user(user_data: UserCreate):
     try:
+        # Check if email already exists BEFORE attempting creation
         if await auth_handler.get_user_by_email(user_data.email):
-            raise HTTPException(409, detail="Looks like you already have an account. Try logging in, or use Forgot Password.")
-        
+            raise HTTPException(400, detail="Email already registered. Please try logging in or use Forgot Password.")
+
         # Generate user_id FIRST before creating the User object
         user_id = str(uuid.uuid4())
 
@@ -176,24 +177,27 @@ async def register_user(user_data: UserCreate):
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
-        
+
         user_doc = user.model_dump()
         user_doc["created_at"] = user_doc["created_at"].isoformat()
         user_doc["updated_at"] = user_doc["updated_at"].isoformat()
-        
+
         await db.users.insert_one(user_doc)
         await auth_handler.create_user_password(user_id, user_data.password)
-        
+
         return Token(
             access_token=auth_handler.create_access_token({"user_id": user_id, "email": user.email, "role": user.role}),
             refresh_token=auth_handler.create_refresh_token({"user_id": user_id, "email": user.email})
         )
-    except HTTPException: 
+    except HTTPException:
         raise
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(500, detail=f"Failed to create user: {e}")
+        # Check if it's a MongoDB duplicate key error
+        if "duplicate key error" in str(e).lower() or "E11000" in str(e):
+            raise HTTPException(400, detail="Email already registered. Please try logging in.")
+        raise HTTPException(500, detail=f"Failed to create user: {str(e)}")
 
 
 

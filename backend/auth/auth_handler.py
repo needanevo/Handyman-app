@@ -100,14 +100,28 @@ class AuthHandler:
         """Get user by email from database"""
         user_data = await self.db.users.find_one({"email": email})
         if user_data:
-            return User(**user_data)
+            try:
+                # Use model_validate to safely create User, ignoring unknown fields
+                return User.model_validate(user_data)
+            except Exception as e:
+                # If validation fails, filter out unknown fields and retry
+                valid_fields = User.model_fields.keys()
+                filtered_data = {k: v for k, v in user_data.items() if k in valid_fields}
+                return User(**filtered_data)
         return None
     
     async def get_user_by_id(self, user_id: str) -> Optional[User]:
         """Get user by ID from database"""
         user_data = await self.db.users.find_one({"id": user_id})
         if user_data:
-            return User(**user_data)
+            try:
+                # Use model_validate to safely create User, ignoring unknown fields
+                return User.model_validate(user_data)
+            except Exception as e:
+                # If validation fails, filter out unknown fields and retry
+                valid_fields = User.model_fields.keys()
+                filtered_data = {k: v for k, v in user_data.items() if k in valid_fields}
+                return User(**filtered_data)
         return None
     
     async def authenticate_user(self, email: str, password: str) -> Optional[User]:
