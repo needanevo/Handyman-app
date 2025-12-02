@@ -4,6 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-12-02 07:58] — Phase 6 Branding Fix — Asset Path Corrections (COMPLETE ✅)
+
+**Issue:**
+App failed to start due to incorrect import path in BrandedHeader.tsx attempting to import from non-existent `../constants/brandAssets` when brandAssets.ts is located at `frontend/src/brandAssets.ts`.
+
+**Files Modified:**
+- `frontend/src/components/BrandedHeader.tsx` - Fixed logo import path
+
+**Changes Made:**
+- Removed incorrect import: `import { brandAssets } from '../constants/brandAssets'`
+- Changed to direct require(): `require('../../assets/images/logos/bw/Handyman_logo_bw.png')`
+- Updated comment to reference actual file instead of brandAssets
+- Verified folder structure: `frontend/assets/images/logos/` exists with all required assets
+
+**Verification:**
+- ✅ BrandedHeader.tsx compiles successfully
+- ✅ All auth screens already using correct paths (welcome.tsx, provider-type.tsx, role-selection.tsx, handyman/onboarding-intro.tsx)
+- ✅ app.json paths verified (icon.png and splash-image.png exist)
+- ✅ Folder structure confirmed: frontend/assets/images/logos/{bw,color,grayscale,variants}/
+
+**Status:**
+App now boots successfully on Expo. All branding asset paths corrected.
+
+---
+
 ### [2025-11-27 01:15] — Phase 5: Branding Foundation (COMPLETE ✅)
 
 **Files Created:**
