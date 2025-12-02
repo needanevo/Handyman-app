@@ -16,6 +16,8 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -275,7 +277,16 @@ function AddMileageModal({ visible, onClose }: { visible: boolean; onClose: () =
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.modalContent}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={0}
+        >
+          <ScrollView
+            style={styles.modalContent}
+            contentContainerStyle={styles.modalContentContainer}
+            keyboardShouldPersistTaps="handled"
+          >
           {/* Date */}
           <Text style={styles.label}>Date</Text>
           <TextInput
@@ -330,7 +341,8 @@ function AddMileageModal({ visible, onClose }: { visible: boolean; onClose: () =
               Detailed trip purposes help support tax deductions
             </Text>
           </View>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
@@ -566,6 +578,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
   },
+  keyboardView: {
+    flex: 1,
+  },
   modalClose: {
     fontSize: 28,
     color: colors.neutral[600],
@@ -586,6 +601,9 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: spacing.base,
+  },
+  modalContentContainer: {
+    paddingBottom: spacing['4xl'],
   },
   label: {
     ...typography.sizes.sm,

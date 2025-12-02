@@ -17,6 +17,8 @@ import {
   ScrollView,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -388,11 +390,16 @@ function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; 
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          style={styles.modalContent}
-          contentContainerStyle={styles.modalContentContainer}
-          keyboardShouldPersistTaps="handled"
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={0}
         >
+          <ScrollView
+            style={styles.modalContent}
+            contentContainerStyle={styles.modalContentContainer}
+            keyboardShouldPersistTaps="handled"
+          >
           {/* Category Selection */}
           <Text style={styles.label}>Category</Text>
           <ScrollView
@@ -472,7 +479,8 @@ function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; 
             variant="outline"
             size="medium"
           />
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
         {/* Photo Capture Modal */}
         {showPhotoCapture && (
@@ -713,12 +721,15 @@ const styles = StyleSheet.create({
   modalSaveDisabled: {
     color: colors.neutral[400],
   },
+  keyboardView: {
+    flex: 1,
+  },
   modalContent: {
     flex: 1,
     padding: spacing.base,
   },
   modalContentContainer: {
-    paddingBottom: 350, // Extra space for keyboard so notes field is visible
+    paddingBottom: spacing['4xl'], // Extra space at bottom for better scrolling
   },
   label: {
     ...typography.sizes.sm,

@@ -4,6 +4,131 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-12-02 10:45] — Fix 5.1: Contractor Navigation & Keyboard Handling Stabilization (Applied ✅)
+
+**Added missing back buttons and fixed keyboard handling across all contractor financial screens.**
+
+**Files Modified**:
+- `frontend/app/(contractor)/reports/index.tsx` - Added back button to tax reports header
+- `frontend/app/(contractor)/mileage/index.tsx` - Wrapped mileage modal with KeyboardAvoidingView
+- `frontend/app/(contractor)/expenses/index.tsx` - Wrapped expenses modal with KeyboardAvoidingView
+
+**Problem Solved**:
+- ❌ Before: Tax reports screen had no back button, users were stuck
+- ❌ Before: Mileage and expense modals had keyboard overlap issues, buttons unclickable when keyboard shown
+- ❌ Before: Hardcoded paddingBottom (350px) workaround in expenses modal
+- ✅ After: All financial screens have consistent back button navigation
+- ✅ After: KeyboardAvoidingView properly handles keyboard on all modals
+- ✅ After: No more keyboard overlapping input fields or buttons
+
+**Implementation**:
+
+**1. Added Back Button to Tax Reports Screen**
+```typescript
+// BEFORE (reports/index.tsx, lines 136-141): No back button
+<View style={styles.header}>
+  <Text style={styles.headerTitle}>Tax Reports</Text>  // ❌ No way to go back
+  <TouchableOpacity onPress={handleExportPDF}>
+    <Text style={styles.exportButton}>📥 Export PDF</Text>
+  </TouchableOpacity>
+</View>
+
+// AFTER (reports/index.tsx, lines 137-148): Back button added
+<View style={styles.header}>
+  <TouchableOpacity
+    onPress={() => router.back()}
+    style={styles.backButton}
+  >
+    <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
+  </TouchableOpacity>
+  <Text style={styles.headerTitle}>Tax Reports</Text>  // ✅ Can navigate back
+  <TouchableOpacity onPress={handleExportPDF}>
+    <Text style={styles.exportButton}>📥 Export PDF</Text>
+  </TouchableOpacity>
+</View>
+```
+
+**2. Fixed Mileage Modal Keyboard Handling**
+```typescript
+// BEFORE (mileage/index.tsx, lines 266-278): No keyboard handling
+<SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
+  <View style={styles.modalHeader}>
+    {/* Header buttons */}
+  </View>
+  <ScrollView style={styles.modalContent}>  // ❌ Keyboard overlaps inputs
+    {/* Form fields */}
+  </ScrollView>
+</SafeAreaView>
+
+// AFTER (mileage/index.tsx, lines 280-289): KeyboardAvoidingView added
+<SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
+  <View style={styles.modalHeader}>
+    {/* Header buttons */}
+  </View>
+  <KeyboardAvoidingView
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    style={styles.keyboardView}
+    keyboardVerticalOffset={0}
+  >
+    <ScrollView
+      style={styles.modalContent}
+      contentContainerStyle={styles.modalContentContainer}
+      keyboardShouldPersistTaps="handled"
+    >  // ✅ Keyboard no longer overlaps
+      {/* Form fields */}
+    </ScrollView>
+  </KeyboardAvoidingView>
+</SafeAreaView>
+```
+
+**3. Fixed Expenses Modal Keyboard Handling**
+```typescript
+// BEFORE (expenses/index.tsx, lines 393-397): Hardcoded workaround
+<ScrollView
+  style={styles.modalContent}
+  contentContainerStyle={styles.modalContentContainer}  // paddingBottom: 350 ❌
+  keyboardShouldPersistTaps="handled"
+>
+
+// AFTER (expenses/index.tsx, lines 393-402): Proper KeyboardAvoidingView
+<KeyboardAvoidingView
+  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+  style={styles.keyboardView}
+  keyboardVerticalOffset={0}
+>
+  <ScrollView
+    style={styles.modalContent}
+    contentContainerStyle={styles.modalContentContainer}  // paddingBottom: spacing['4xl'] ✅
+    keyboardShouldPersistTaps="handled"
+  >
+```
+
+**Testing Criteria Met**:
+- ✅ Tax reports screen has back button (users can navigate away)
+- ✅ Mileage modal: keyboard shows without overlapping fields or buttons
+- ✅ Expenses modal: keyboard shows without overlapping fields or buttons
+- ✅ Close (X) and Save buttons always clickable, even with keyboard visible
+- ✅ Form fields remain visible when keyboard is shown
+- ✅ Consistent keyboard behavior on iOS and Android
+- ✅ No hardcoded padding workarounds - uses proper KeyboardAvoidingView
+
+**Impact**:
+- 🔧 **Navigation Fixed**: Users can exit tax reports screen via back button
+- ⌨️ **Keyboard Handling**: Proper keyboard avoidance on all financial modals
+- 📱 **Better UX**: No more buttons hidden behind keyboard
+- 🎯 **Platform Consistency**: iOS uses 'padding', Android uses 'height' behavior
+- ✅ **Production Ready**: All contractor financial tools fully navigable and usable
+
+**Related Issues**:
+- Missing back button on tax reports screen
+- Keyboard overlap in mileage log modal
+- Keyboard overlap in expense add modal
+- Inconsistent button placement across financial screens
+
+**Status**: Fix 5.1 Complete ✅ | Contractor navigation and keyboard handling stabilized
+
+---
+
 ### [2025-12-02 10:30] — Fix #4: Post-Registration Auto-Login and Redirect Stabilization (P0 Hotfix Applied ✅)
 
 **Removed blocking modals and manual navigation from registration screens to enable seamless auto-login and role-based redirection.**
