@@ -4,6 +4,75 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🎉 RECENT UPDATES
 
+### [2025-12-02 09:30] — Critical Bug — Role Collision Detected Between Customer and Handyman (P0)
+
+**Diagnostic report generated for production-blocking role collision bug.**
+
+**Severity**: P0 (Critical - Production Blocker)
+**Status**: Root Cause Identified - Awaiting Fix Instruction
+
+**Bug Description**:
+- Customer users see handyman/contractor profile UI after registration
+- Profile screen displays: business name, skills, documents, portfolio, growth center
+- Post-registration redirect fails
+- Handyman fields bleeding into customer role
+
+**Root Causes Identified**:
+
+1. **AuthContext Unconditional Field Loading** (`frontend/src/contexts/AuthContext.tsx:173-184`)
+   - ❌ ALWAYS copies handyman fields regardless of user role
+   - ❌ No role-based filtering when transforming backend data
+   - Fields copied: businessName, skills, yearsExperience, serviceAreas, documents, portfolioPhotos
+
+2. **Backend Returns All Fields** (`backend/server.py:245-250`)
+   - ❌ `/auth/me` endpoint returns entire User object without role filtering
+   - ❌ MongoDB document includes null/empty handyman fields for customers
+   - ❌ No role-specific response models
+
+3. **Profile Routing Confusion**
+   - ⚠️ Root `/profile` route (customer profile)
+   - ⚠️ `/(contractor)/profile` route (contractor profile)
+   - ⚠️ No role guards to prevent wrong profile access
+   - ⚠️ Components render based on field presence, not role
+
+4. **Registration Accepts Contractor Fields for All Roles** (`backend/server.py:175`)
+   - ⚠️ `businessName` field set for any role if provided
+   - ❌ No validation preventing customers from setting contractor fields
+
+5. **Missing Post-Address Redirect** (`frontend/app/profile.tsx:61-97`)
+   - ❌ No redirect after first address added (onboarding completion)
+   - User stuck on profile screen
+
+6. **No Role-Based Route Guards**
+   - ❌ Customers can navigate to `/(contractor)/profile` without checks
+   - ❌ Contractor profile renders for customers with "Not provided" placeholders
+
+7. **Shared User Model** (`backend/models/user.py:40-60`)
+   - ⚠️ Single User model with optional handyman fields for all roles
+   - No CustomerUser vs ContractorUser separation
+
+**Affected Files**:
+- `frontend/src/contexts/AuthContext.tsx` - Field bleeding
+- `frontend/app/profile.tsx` - Missing redirect
+- `frontend/app/(contractor)/profile.tsx` - No role guard
+- `frontend/app/(handyman)/dashboard.tsx` - No role guard
+- `backend/server.py` - No field filtering, accepts all fields
+- `backend/models/user.py` - Shared model architecture
+
+**Diagnostic Report**: `ROLE_COLLISION_DIAGNOSTIC_P0.md`
+
+**Recommended Fixes**:
+1. Filter handyman fields in AuthContext based on role
+2. Filter backend `/auth/me` response by role
+3. Add role guards to contractor/handyman routes
+4. Add redirect after first address completion
+5. Validate registration fields by role
+6. Consider separate User models per role
+
+**Status**: Awaiting fix instruction from Manager
+
+---
+
 ### [2025-12-02 09:00] — Phase 5: Customer Flow Test Execution C21–C27 (COMPLETE ✅)
 
 **Executed customer flow steps C21–C27; logged results.**
