@@ -5,6 +5,58 @@ Use this file ONLY for historical reference.
 Do not load into every task.
 
 2025-12-02 — Fixes & Phase 5 Execution
+[2025-12-02 12:00] Fix 5.8 — Registration & Login Pipeline Stabilization
+
+Summary:
+Hardened all authentication endpoints to eliminate 500 errors and improve security.
+
+Files Modified:
+backend/server.py
+
+Changes:
+
+1. /auth/login endpoint (lines 205-228):
+   - Wrapped entire login flow in try/except
+   - Catches any DB/model errors and returns 401 instead of 500
+   - Logs errors for debugging without exposing internals
+   - Prevents password record errors from crashing login
+   - All authentication failures now return clean 401 responses
+
+2. get_current_user_dependency (lines 231-263):
+   - Added try/except wrapper around token verification
+   - Catches Pydantic validation errors from DB drift
+   - Returns 401 for all auth failures (never 500)
+   - Logs errors without exposing internal details
+   - Handles legacy DB fields gracefully
+
+3. /auth/me endpoint (lines 266-310):
+   - Wrapped user info retrieval in try/except
+   - Prevents model_dump() errors from legacy DB fields
+   - Returns 500 with clean message on failure (not DB details)
+   - Logs detailed errors for debugging
+   - Ensures endpoint never crashes on field mismatches
+
+4. /auth/register (already hardened in Fix 5.5):
+   - Already checks if email exists before creation
+   - Already catches MongoDB duplicate key errors
+   - Already returns 400 for duplicate emails
+   - No changes needed
+
+Root Cause:
+Authentication endpoints were not wrapped in error handlers.
+DB field drift caused Pydantic validation errors → 500.
+Missing password records caused unhandled exceptions → 500.
+model_dump() could fail on unexpected DB fields → 500.
+
+Impact:
+Login never returns 500 on missing password records
+Login never returns 500 on Pydantic validation errors
+/auth/me never crashes on DB field drift
+All auth errors properly logged for debugging
+No internal error details exposed to clients
+Registration flow remains stable with 400 for duplicates
+QA can now test login/registration without backend crashes
+
 [2025-12-02 11:45] Fix 5.7 — Handyman Job Query Sync + Dashboard Counter Parity
 
 Summary:
