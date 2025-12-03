@@ -775,4 +775,29 @@ API keys secured
 
 Dev branch ready for push
 
+[2025-12-02 12:00] Fix 5.14 — Global Job Lifecycle Synchronization
+
+Summary:
+Unified job status interpretation, display, filtering, and transitions across all roles (contractor, handyman, customer).
+
+Changes:
+- Contractor: Removed uppercase status conversion ('PENDING' → 'pending'), now uses backend truth directly
+- Handyman: Eliminated frontend "active" grouping (accepted + scheduled), active screen now shows only scheduled jobs
+- Customer: Fixed active filter to exclude both 'completed' and 'cancelled' jobs
+- All dashboards: Counters derive from same arrays as their respective list screens
+- Job detail screens: Standardized to lowercase backend statuses ('in_progress', 'scheduled', etc.)
+- Removed frontend-invented statuses: 'IN_PROGRESS', 'in_progress_50', 'materials_ordered', 'Scheduled', 'Awaiting Confirmation'
+
+Files Modified:
+- frontend/app/(contractor)/jobs/available.tsx
+- frontend/app/(contractor)/jobs/[id].tsx
+- frontend/app/(handyman)/dashboard.tsx
+- frontend/app/(handyman)/jobs/active.tsx
+- frontend/app/(customer)/dashboard.tsx
+- frontend/app/(customer)/jobs.tsx
+- frontend/app/(customer)/job-detail/[id].tsx
+
+Impact:
+All screens now respect exact backend job statuses. No frontend filtering or grouping logic. Status synchronization ensured across dashboards and lists.
+
 END OF HISTORY (APPEND-ONLY)
