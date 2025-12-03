@@ -5,6 +5,103 @@ Use this file ONLY for historical reference.
 Do not load into every task.
 
 2025-12-02 — Fixes & Phase 5 Execution
+[2025-12-02 12:00] Fix 5.13 — Change Orders Promoted to First-Class UI
+
+Summary:
+Made Change Orders visible and accessible across all roles (contractor, handyman, customer) by adding dedicated sections to dashboards and job detail screens.
+
+Files Modified:
+frontend/app/(contractor)/dashboard.tsx
+frontend/app/(contractor)/jobs/[id].tsx
+frontend/app/(handyman)/dashboard.tsx
+frontend/app/(customer)/dashboard.tsx
+frontend/app/(customer)/job-detail/[id].tsx
+
+Changes:
+
+1. Contractor Dashboard:
+   - Added "Change Orders" section between job cards and financials
+   - Card displays icon (📝), title, description
+   - "View Change Orders" button links to /(contractor)/change-order/list/[jobId]
+   - Shows Alert if no scheduled jobs available
+   - Added Alert import for user guidance
+   - Added styles: changeOrderCard, changeOrderIcon, changeOrderTitle, changeOrderSubtitle, changeOrderButton, changeOrderButtonText
+
+2. Handyman Dashboard:
+   - Added "Change Orders" panel (Panel 2.5) between Jobs and Wallet
+   - Consistent styling with other handyman panels
+   - Links to /(handyman)/change-order/list/[jobId]
+   - Shows Alert for job-specific guidance
+   - Added Alert import
+   - Added style: panelDescription
+
+3. Contractor Job Detail:
+   - Added "Change Orders" card before Quick Actions section
+   - Section header with "View All" link to change-order/list
+   - Subtitle explains purpose: "Document scope changes and additional work for this job"
+   - "Create Change Order" button links to /(contractor)/change-order/create/[jobId]
+   - Uses existing Button component (variant="outline", size="medium")
+   - Added styles: cardSubtitle, viewAllLink
+
+4. Customer Job Detail:
+   - Added "Change Orders" section between Timeline and Support sections
+   - Section header with "View All" link (navigates to job-detail/[id]/change-orders)
+   - Empty state with:
+     * Document icon (48px, neutral color)
+     * Title: "No Change Orders"
+     * Explanation: "Change orders will appear here when your contractor requests scope changes or additional work."
+   - Uses existing Card component (variant="outlined", padding="base")
+   - Added styles: sectionHeader, viewAllText, changeOrderEmptyState, changeOrderEmptyTitle, changeOrderEmptyText
+
+5. Customer Dashboard:
+   - Added "Change Orders" section between job cards and warranties
+   - Card shows empty state:
+     * Document icon (48px)
+     * Title: "No Pending Requests"
+     * Text: "Change orders from your contractors will appear here for your review and approval"
+   - Centered content with icon and explanatory text
+   - Added styles: changeOrderCard, changeOrderContent, changeOrderTitle, changeOrderText
+
+Existing Routes Used (No New Routes Created):
+- /(contractor)/change-order/list/[jobId] - List change orders for a job
+- /(contractor)/change-order/create/[jobId] - Create new change order
+- /(customer)/change-order/[changeOrderId] - View/approve/reject change order
+
+Existing API Endpoints Used:
+- GET /jobs/{jobId}/change-orders - Fetch change orders for a job
+- POST /jobs/{jobId}/change-order/{changeOrderId}/approve - Approve a change order
+- POST /jobs/{jobId}/change-order/{changeOrderId}/reject - Reject a change order
+
+Design Decisions:
+- NO aggregate change order endpoints created (per Manager constraint)
+- Dashboard tiles link to job-specific change order screens
+- Contractor/handyman navigate to first scheduled job's COs (with Alert fallback if none exist)
+- Customer sees informational empty state (no dynamic counts without aggregate API)
+- All empty states explain what change orders are and when they'll appear
+- Consistent styling across roles (navy + gold branding maintained)
+
+Root Cause:
+Change Orders existed as hidden functionality - screens were built but not surfaced in navigation.
+Users had no visibility into:
+- Where to create change orders
+- How to view pending change orders
+- When change orders required action
+- What change orders are for
+
+Impact:
+✅ Change Orders visible on all dashboards (contractor, handyman, customer)
+✅ Change Orders accessible from job detail screens
+✅ Contractors can create COs directly from job detail
+✅ Customers see pending COs on dashboard (when implemented)
+✅ All navigation links to existing change order screens
+✅ Empty states educate users on change order purpose
+✅ No backend modifications required
+✅ No new routes invented
+✅ Consistent branding and UI patterns
+✅ Clear user guidance with Alert modals when needed
+✅ Change Orders elevated from hidden feature to first-class workflow
+✅ Revenue separation possible in future (UI ready, backend needed)
+
 [2025-12-02 11:45] Fix 5.12 — Customer Job List API Integration
 
 Summary:
