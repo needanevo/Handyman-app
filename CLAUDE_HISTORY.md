@@ -5,6 +5,70 @@ Use this file ONLY for historical reference.
 Do not load into every task.
 
 2025-12-02 — Fixes & Phase 5 Execution
+[2025-12-02 11:45] Fix 5.12 — Customer Job List API Integration
+
+Summary:
+Replaced ALL mock data in customer job screens with real backend API calls using unified query keys.
+
+Files Modified:
+frontend/app/(customer)/jobs.tsx
+frontend/app/(customer)/dashboard.tsx
+
+Changes:
+
+1. jobs.tsx (Customer job list screen):
+   - Removed entire mockJobs array (32 lines of mock data deleted)
+   - Added React Query imports: useQuery, RefreshControl
+   - Added jobsAPI import from services/api
+   - Added useQuery hook with unified query key: 'customer-jobs'
+   - Fetches jobs via jobsAPI.getJobs() with 2-minute staleTime
+   - Derived job counts from real data:
+     * jobs.length (all jobs)
+     * activeJobs.length (jobs where status !== 'completed')
+     * completedJobs.length (jobs where status === 'completed')
+   - Added loading state: if (isLoading) return <LoadingSpinner fullScreen />
+   - Added pull-to-refresh with RefreshControl
+   - Filter tabs now display real counts instead of mock data
+   - All job card rendering uses real API data
+
+2. dashboard.tsx (Customer dashboard):
+   - Removed hardcoded counters: activeJobsCount = 0, completedJobsCount = 0
+   - Added React Query import: useQuery
+   - Added jobsAPI import from services/api
+   - Added useQuery hook with SAME query key: 'customer-jobs'
+   - Ensures cache consistency between dashboard and job list
+   - Derived counters from real job data:
+     * activeJobsCount = jobs.filter(job => job.status !== 'completed').length
+     * completedJobsCount = jobs.filter(job => job.status === 'completed').length
+   - warrantiesCount remains 0 (TODO: implement warranty API)
+
+Query Key Strategy:
+- Both screens use 'customer-jobs' as the unified query key
+- React Query automatically caches and syncs data across screens
+- Dashboard and job list always show identical counts
+- Single source of truth for customer job data
+- Eliminates stale data and sync issues
+
+Root Cause:
+Customer job screens were using hardcoded mock data while contractor/handyman screens had full API integration.
+This created:
+- Misleading UI (always showed 0 jobs regardless of backend state)
+- No real-time updates when jobs created
+- Dashboard and list screens couldn't sync
+- Testing blocked by fake data
+
+Impact:
+✅ Customer job list displays real jobs from backend
+✅ Dashboard job counters derive from actual job data
+✅ Unified cache ensures consistency across screens
+✅ Loading states handle async data fetch
+✅ Pull-to-refresh enables manual data sync
+✅ Empty states work correctly (no jobs vs loading)
+✅ Tab counts (All/Active/Completed) accurate
+✅ No mock data remains in customer job flow
+✅ Matches contractor/handyman API integration pattern
+✅ React Query provides automatic caching and refetch logic
+
 [2025-12-02 13:30] Fix 5.11 — Registration Auto-Redirect Stability
 
 Summary:
