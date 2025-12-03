@@ -5,9 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { Button } from '../../src/components/Button';
@@ -15,46 +17,29 @@ import { Card } from '../../src/components/Card';
 import { Badge } from '../../src/components/Badge';
 import { ProgressBar } from '../../src/components/ProgressBar';
 import { EmptyState } from '../../src/components/EmptyState';
-
-// Mock data
-const mockJobs = [
-  {
-    id: '1',
-    title: 'Fix hole in bedroom wall',
-    category: 'drywall',
-    status: 'in_progress_50',
-    progress: 50,
-    contractor: { name: 'Mike Johnson', rating: 4.8 },
-    totalCost: 300,
-    createdAt: '2025-11-02',
-  },
-  {
-    id: '2',
-    title: 'Install ceiling fan',
-    category: 'electrical',
-    status: 'pending_contractor',
-    progress: 10,
-    totalCost: 250,
-    createdAt: '2025-11-05',
-  },
-  {
-    id: '3',
-    title: 'Fix leaky faucet',
-    category: 'plumbing',
-    status: 'completed',
-    progress: 100,
-    contractor: { name: 'Sarah Williams', rating: 4.9 },
-    totalCost: 180,
-    createdAt: '2025-10-28',
-    completedAt: '2025-10-30',
-  },
-];
+import { LoadingSpinner } from '../../src/components/LoadingSpinner';
+import { jobsAPI } from '../../src/services/api';
 
 type FilterType = 'all' | 'active' | 'completed';
 
 export default function JobsListScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterType>('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Fetch real jobs using unified query key
+  const { data: allJobs, isLoading, refetch } = useQuery({
+    queryKey: ['customer-jobs'],
+    queryFn: async () => {
+      const response = await jobsAPI.getJobs();
+      return response || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const jobs = allJobs || [];
+  const activeJobs = jobs.filter((job: any) => job.status !== 'completed' && job.status !== 'cancelled');
+  const completedJobs = jobs.filter((job: any) => job.status === 'completed');
 
   const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'neutral' => {
     if (status === 'completed') return 'success';
@@ -64,19 +49,31 @@ export default function JobsListScreen() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      pending_contractor: 'Finding Contractor',
-      materials_ordered: 'Materials Ordered',
-      in_progress_50: '50% Complete',
+      pending: 'Pending',
+      accepted: 'Accepted',
+      scheduled: 'Scheduled',
+      in_progress: 'In Progress',
       completed: 'Completed',
+      cancelled: 'Cancelled',
     };
     return labels[status] || status;
   };
 
-  const filteredJobs = mockJobs.filter((job) => {
-    if (filter === 'active') return job.status !== 'completed';
+  const filteredJobs = jobs.filter((job: any) => {
+    if (filter === 'active') return job.status !== 'completed' && job.status !== 'cancelled';
     if (filter === 'completed') return job.status === 'completed';
     return true;
   });
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner fullScreen />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -105,7 +102,7 @@ export default function JobsListScreen() {
                 filter === 'all' && styles.filterTabTextActive,
               ]}
             >
-              All ({mockJobs.length})
+              All ({jobs.length})
             </Text>
           </TouchableOpacity>
 
@@ -119,7 +116,7 @@ export default function JobsListScreen() {
                 filter === 'active' && styles.filterTabTextActive,
               ]}
             >
-              Active ({mockJobs.filter((j) => j.status !== 'completed').length})
+              Active ({activeJobs.length})
             </Text>
           </TouchableOpacity>
 
@@ -133,13 +130,18 @@ export default function JobsListScreen() {
                 filter === 'completed' && styles.filterTabTextActive,
               ]}
             >
-              Completed ({mockJobs.filter((j) => j.status === 'completed').length})
+              Completed ({completedJobs.length})
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
         {filteredJobs.length === 0 ? (
           <EmptyState
             icon="document-text-outline"

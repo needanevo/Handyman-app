@@ -5,30 +5,37 @@ import { useAuth } from '../src/contexts/AuthContext';
 import { LoadingSpinner } from '../src/components/LoadingSpinner';
 
 export default function Index() {
-  const { isLoading, isAuthenticated, user } = useAuth();
+  const { isHydrated, isAuthenticated, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    console.log('Index useEffect - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
+    console.log('Index useEffect - isHydrated:', isHydrated, 'isAuthenticated:', isAuthenticated);
 
-    if (!isLoading) {
-      if (isAuthenticated && user) {
-        // Role-based routing
-        if (user.role === 'technician') {
-          console.log('User is authenticated contractor - navigating to contractor dashboard');
-          router.replace('/(contractor)/dashboard');
-        } else {
-          console.log('User is authenticated customer - navigating to home');
-          router.replace('/home');
-        }
+    if (!isHydrated) {
+      console.log('Still hydrating...');
+      return;
+    }
+
+    if (isAuthenticated && user) {
+      // Role-based routing
+      if (user.role === 'technician') {
+        console.log('User is authenticated contractor - navigating to contractor dashboard');
+        router.replace('/(contractor)/dashboard');
+      } else if (user.role === 'customer') {
+        console.log('User is authenticated customer - navigating to customer dashboard');
+        router.replace('/(customer)/dashboard');
+      } else if (user.role === 'admin') {
+        console.log('User is admin - navigating to admin dashboard');
+        router.replace('/admin');
       } else {
-        console.log('User is not authenticated - navigating to welcome');
-        router.replace('/auth/welcome');
+        console.log('User is authenticated - navigating to home');
+        router.replace('/home');
       }
     } else {
-      console.log('Still loading...');
+      console.log('User is not authenticated - navigating to welcome');
+      router.replace('/auth/welcome');
     }
-  }, [isLoading, isAuthenticated, user, router]);
+  }, [isHydrated, isAuthenticated, user, router]);
 
   return (
     <View style={styles.container}>

@@ -30,9 +30,9 @@ export default function AvailableJobs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch real available jobs from API
+  // Fetch real available jobs from API using unified query key
   const { data: jobs, refetch, isLoading, error } = useQuery<Job[]>({
-    queryKey: ['contractor', 'jobs', 'available'],
+    queryKey: ['contractor-available-jobs'],
     queryFn: async () => {
       const response = await contractorAPI.getAvailableJobs();
       // Backend returns { jobs: [], count, max_distance_miles, contractor_location }
@@ -44,7 +44,7 @@ export default function AvailableJobs() {
         customerId: job.customer_id,
         contractorId: job.contractor_id,
         quoteId: job.quote_id,
-        status: job.status?.toUpperCase() || 'PENDING',
+        status: job.status || 'pending',
         title: job.description?.substring(0, 50) || 'Untitled Job',
         description: job.description || '',
         category: job.service_category || 'Other',

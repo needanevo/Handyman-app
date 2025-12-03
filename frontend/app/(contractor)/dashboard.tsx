@@ -32,20 +32,64 @@ export default function ContractorDashboard() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch real dashboard stats from API
-  const { data: stats, refetch, isLoading, error } = useQuery<DashboardStats>({
-    queryKey: ['contractor', 'stats'],
+  // Fetch real jobs using unified query keys (matches job list screens)
+  const { data: availableJobs = [], refetch: refetchAvailable } = useQuery({
+    queryKey: ['contractor-available-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getDashboardStats();
-      return response as DashboardStats;
+      const response = await contractorAPI.getAvailableJobs();
+      return response.jobs || [];
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 2,
+    staleTime: 2 * 60 * 1000,
   });
+
+  const { data: acceptedJobs = [], refetch: refetchAccepted } = useQuery({
+    queryKey: ['contractor-accepted-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getAcceptedJobs();
+      return response.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: scheduledJobs = [], refetch: refetchScheduled } = useQuery({
+    queryKey: ['contractor-scheduled-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getScheduledJobs();
+      return response.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: completedJobs = [], refetch: refetchCompleted } = useQuery({
+    queryKey: ['contractor-completed-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getCompletedJobs();
+      return response.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Derive stats from actual job arrays
+  const stats = {
+    availableJobsCount: availableJobs.length,
+    acceptedJobsCount: acceptedJobs.length,
+    scheduledJobsCount: scheduledJobs.length,
+    completedJobsCount: completedJobs.length,
+    totalEarnings: 0, // TODO: calculate from completed jobs
+    pendingPayouts: 0, // TODO: calculate from payout data
+  };
+
+  const isLoading = false; // All queries load independently
+  const error = null;
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([
+      refetchAvailable(),
+      refetchAccepted(),
+      refetchScheduled(),
+      refetchCompleted(),
+    ]);
     setRefreshing(false);
   };
 
