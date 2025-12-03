@@ -72,7 +72,7 @@ export default function AdminWarrantiesScreen() {
             onPress={() => router.back()}
             variant="ghost"
             size="small"
-            icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
+            icon={<Ionicons name="arrow-back" size={24} color={colors.brand.navy} />}
           />
           <Text style={styles.title}>Warranty Requests</Text>
         </View>
@@ -116,7 +116,7 @@ export default function AdminWarrantiesScreen() {
         {/* List */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary.main} />
+            <ActivityIndicator size="large" color={colors.brand.navy} />
           </View>
         ) : filteredWarranties.length === 0 ? (
           <View style={styles.emptyState}>
@@ -199,14 +199,14 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   filterTabActive: {
-    borderBottomColor: colors.primary.main,
+    borderBottomColor: colors.brand.navy,
   },
   filterText: {
     ...typography.body.regular,
     color: colors.neutral[600],
   },
   filterTextActive: {
-    color: colors.primary.main,
+    color: colors.brand.navy,
     fontWeight: typography.weights.semibold,
   },
   loadingContainer: {

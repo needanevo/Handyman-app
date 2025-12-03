@@ -45,7 +45,7 @@ const gateOptions: GateOption[] = [
     title: 'Licensed Only',
     description: 'Only allow licensed contractors (TECHNICIAN role)',
     icon: 'shield-checkmark',
-    color: colors.primary.main,
+    color: colors.brand.navy,
   },
   {
     mode: 'handyman_only',
@@ -114,7 +114,7 @@ export default function AdminProviderGateScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary.main} />
+          <ActivityIndicator size="large" color={colors.brand.navy} />
         </View>
       </SafeAreaView>
     );
@@ -132,7 +132,7 @@ export default function AdminProviderGateScreen() {
             onPress={() => router.back()}
             variant="ghost"
             size="small"
-            icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
+            icon={<Ionicons name="arrow-back" size={24} color={colors.brand.navy} />}
           />
           <Text style={styles.title}>Provider Gate Control</Text>
           <Text style={styles.subtitle}>

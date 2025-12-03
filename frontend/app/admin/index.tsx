@@ -25,14 +25,14 @@ const adminSections: AdminSection[] = [
     description: 'View platform metrics and analytics',
     icon: 'stats-chart',
     route: '/admin/stats',
-    color: colors.primary.main,
+    color: colors.brand.navy,
   },
   {
     title: 'Users',
     description: 'Manage customers and contractors',
     icon: 'people',
     route: '/admin/users',
-    color: colors.success.main,
+    color: colors.brand.gold,
   },
   {
     title: 'Jobs',
@@ -46,7 +46,7 @@ const adminSections: AdminSection[] = [
     description: 'Review warranty requests',
     icon: 'shield-checkmark',
     route: '/admin/warranties',
-    color: colors.secondary.main,
+    color: colors.brand.navy,
   },
   {
     title: 'Provider Gate',
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     ...typography.headings.h3,
-    color: colors.primary.main,
+    color: colors.brand.navy,
     marginBottom: spacing.xs,
   },
   statLabel: {

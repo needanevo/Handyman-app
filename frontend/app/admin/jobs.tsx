@@ -85,9 +85,9 @@ export default function AdminJobsScreen() {
       case 'completed':
         return colors.success.main;
       case 'in_progress':
-        return colors.info.main;
+        return colors.brand.navy;
       case 'accepted':
-        return colors.primary.main;
+        return colors.brand.gold;
       case 'cancelled':
         return colors.error.main;
       default:
@@ -114,7 +114,7 @@ export default function AdminJobsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary.main} />
+          <ActivityIndicator size="large" color={colors.brand.navy} />
         </View>
       </SafeAreaView>
     );
@@ -130,7 +130,7 @@ export default function AdminJobsScreen() {
             onPress={() => router.back()}
             variant="ghost"
             size="small"
-            icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
+            icon={<Ionicons name="arrow-back" size={24} color={colors.brand.navy} />}
           />
           <Text style={styles.title}>Job Management</Text>
           <Text style={styles.subtitle}>
@@ -215,7 +215,7 @@ export default function AdminJobsScreen() {
                 {/* Job Header */}
                 <View style={styles.jobHeader}>
                   <View style={styles.categoryContainer}>
-                    <Ionicons name="hammer" size={20} color={colors.primary.main} />
+                    <Ionicons name="hammer" size={20} color={colors.brand.navy} />
                     <Text style={styles.category}>{job.service_category}</Text>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(job.status)}20` }]}>
@@ -343,8 +343,8 @@ const styles = StyleSheet.create({
     borderColor: colors.neutral[200],
   },
   filterChipActive: {
-    backgroundColor: colors.primary.main,
-    borderColor: colors.primary.main,
+    backgroundColor: colors.brand.navy,
+    borderColor: colors.brand.navy,
   },
   filterChipText: {
     ...typography.caption.regular,
