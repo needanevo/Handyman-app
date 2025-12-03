@@ -148,4 +148,34 @@ VERIFIED STATUS:
 All applied fixes now exist in REAL CODE and match CLAUDE_HISTORY.md documentation.
 Codebase is synchronized and reconverged.
 
+## 12. FIX 5.2 COMPLETION
+Completed: 2025-12-03 15:30
+
+Created 4 missing contractor screens to complete navigation workflow:
+
+FILES CREATED:
+✅ frontend/app/(contractor)/jobs/accepted.tsx
+✅ frontend/app/(contractor)/jobs/scheduled.tsx
+✅ frontend/app/(contractor)/jobs/completed.tsx
+✅ frontend/app/(contractor)/expenses/[id].tsx
+
+IMPLEMENTATION DETAILS:
+- All screens use unified query keys matching Fix 5.6 dashboard
+- Query keys: contractor-accepted-jobs, contractor-scheduled-jobs, contractor-completed-jobs
+- Consistent patterns from available.tsx and Fix 5.12 customer screens
+- React Query loading + empty states + pull-to-refresh
+- Search and filter capabilities on all job lists
+- Expense detail links to associated job
+- No new backend endpoints invented
+
+COMMIT:
+- [7b51f1f] Fix 5.2 — Contractor Routing Stability & Missing Routes
+
+IMPACT:
+✅ All contractor navigation links functional
+✅ Dashboard job counters sync with list screens via unified cache
+✅ No more Expo Router missing route errors
+✅ Complete contractor workflow: Available → Accept → Schedule → Complete
+✅ Expense tracking workflow complete with detail view
+
 --- END OF CORE RULES ---
