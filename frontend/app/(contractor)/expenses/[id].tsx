@@ -47,7 +47,7 @@ export default function ExpenseDetail() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.brand.navy} />
+            <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Expense Detail</Text>
           <View style={styles.headerRight} />
@@ -84,7 +84,7 @@ export default function ExpenseDetail() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.brand.navy} />
+          <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Expense Detail</Text>
         <View style={styles.headerRight} />
@@ -110,7 +110,7 @@ export default function ExpenseDetail() {
 
           <View style={styles.detailRow}>
             <View style={styles.detailIcon}>
-              <Ionicons name="receipt-outline" size={20} color={colors.brand.navy} />
+              <Ionicons name="receipt-outline" size={20} color={colors.primary.main} />
             </View>
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Description</Text>
@@ -122,7 +122,7 @@ export default function ExpenseDetail() {
 
           <View style={styles.detailRow}>
             <View style={styles.detailIcon}>
-              <Ionicons name="calendar-outline" size={20} color={colors.brand.navy} />
+              <Ionicons name="calendar-outline" size={20} color={colors.primary.main} />
             </View>
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Date</Text>
@@ -135,7 +135,7 @@ export default function ExpenseDetail() {
           {expense.vendor && (
             <View style={styles.detailRow}>
               <View style={styles.detailIcon}>
-                <Ionicons name="business-outline" size={20} color={colors.brand.navy} />
+                <Ionicons name="business-outline" size={20} color={colors.primary.main} />
               </View>
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Vendor</Text>
@@ -147,7 +147,7 @@ export default function ExpenseDetail() {
           {expense.job_id && (
             <View style={styles.detailRow}>
               <View style={styles.detailIcon}>
-                <Ionicons name="hammer-outline" size={20} color={colors.brand.navy} />
+                <Ionicons name="hammer-outline" size={20} color={colors.primary.main} />
               </View>
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Associated Job</Text>
@@ -188,7 +188,7 @@ export default function ExpenseDetail() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.default,
+    backgroundColor: colors.background.secondary,
   },
   header: {
     flexDirection: 'row',
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.background.paper,
+    backgroundColor: colors.background.primary,
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
   },
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h3,
-    color: colors.brand.navy,
+    color: colors.primary.main,
   },
   headerRight: {
     width: 40,
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   },
   amountValue: {
     ...typography.h1,
-    color: colors.brand.navy,
+    color: colors.primary.main,
     marginBottom: spacing.sm,
   },
   categoryBadge: {
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.h4,
-    color: colors.brand.navy,
+    color: colors.primary.main,
     marginBottom: spacing.md,
   },
   detailRow: {
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   },
   jobLink: {
     ...typography.body,
-    color: colors.brand.navy,
+    color: colors.primary.main,
     fontWeight: '600',
   },
   receiptCard: {
@@ -309,11 +309,11 @@ const styles = StyleSheet.create({
   retryButton: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.brand.navy,
+    backgroundColor: colors.primary.main,
     borderRadius: borderRadius.sm,
   },
   retryText: {
     ...typography.button,
-    color: colors.background.paper,
+    color: colors.background.primary,
   },
 });

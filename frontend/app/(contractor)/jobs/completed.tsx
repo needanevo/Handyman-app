@@ -97,7 +97,7 @@ export default function CompletedJobs() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.brand.navy} />
+          <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Completed Jobs</Text>
         <View style={styles.headerRight} />
@@ -161,7 +161,7 @@ export default function CompletedJobs() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.default,
+    backgroundColor: colors.background.secondary,
   },
   header: {
     flexDirection: 'row',
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.background.paper,
+    backgroundColor: colors.background.primary,
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
   },
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h3,
-    color: colors.brand.navy,
+    color: colors.primary.main,
   },
   headerRight: {
     width: 40,
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background.paper,
+    backgroundColor: colors.background.primary,
     marginHorizontal: spacing.md,
     marginVertical: spacing.sm,
     paddingHorizontal: spacing.md,
@@ -220,11 +220,11 @@ const styles = StyleSheet.create({
   retryButton: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.brand.navy,
+    backgroundColor: colors.primary.main,
     borderRadius: borderRadius.sm,
   },
   retryText: {
     ...typography.button,
-    color: colors.background.paper,
+    color: colors.background.primary,
   },
 });
