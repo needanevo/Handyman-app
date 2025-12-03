@@ -5,6 +5,50 @@ Use this file ONLY for historical reference.
 Do not load into every task.
 
 2025-12-02 — Fixes & Phase 5 Execution
+[2025-12-02 11:30] Fix 5.6 — Unified Job Count Sync + Slot Cache Boundary Repair
+
+Summary:
+Eliminated cache desynchronization between contractor dashboard and job list screens.
+
+Files Modified:
+frontend/app/(contractor)/dashboard.tsx
+frontend/app/(contractor)/jobs/available.tsx
+frontend/app/(contractor)/jobs/accepted.tsx
+frontend/app/(contractor)/jobs/scheduled.tsx
+frontend/app/(contractor)/jobs/completed.tsx
+
+Changes:
+
+1. dashboard.tsx:
+   - Replaced mock stats query with 4 real job queries
+   - Unified query keys with job list screens
+   - Derived stats from actual job array lengths
+   - Updated handleRefresh to refetch all job queries in parallel
+
+2. Job list screens (available/accepted/scheduled/completed):
+   - Updated query keys to match dashboard
+   - Added contractorAPI imports where missing
+   - Ensured all screens share the same cache boundary
+
+Query Key Unification:
+'contractor-available-jobs' → dashboard + available screen
+'contractor-accepted-jobs' → dashboard + accepted screen
+'contractor-scheduled-jobs' → dashboard + scheduled screen
+'contractor-completed-jobs' → dashboard + completed screen
+
+Root Cause:
+Dashboard used queryKey: ['contractor', 'stats'] with mock data.
+Job list screens used different keys with real API data.
+This created separate cache boundaries preventing synchronization.
+Slot navigator exacerbated issue by loading dashboard before QueryClient stabilized.
+
+Impact:
+Dashboard counters now show real-time job counts
+Job lists and dashboard share unified cache
+No more stale data on dashboard refresh
+Both dashboards (contractor/handyman) now use accurate data
+Cache synchronization works across all Slot boundaries
+
 [2025-12-02 12:45] Fix 5.5 — Registration Pipeline Stability
 
 Summary:
