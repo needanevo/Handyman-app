@@ -168,14 +168,22 @@ IMPLEMENTATION DETAILS:
 - Expense detail links to associated job
 - No new backend endpoints invented
 
-COMMIT:
+COMMITS:
 - [7b51f1f] Fix 5.2 — Contractor Routing Stability & Missing Routes
+- [cf481d1] HOTFIX — Fix 5.2 Theme Color References
+
+HOTFIX DETAILS:
+Root cause: Used non-existent theme colors (brand.navy, background.default, background.paper)
+Fixed: All instances replaced with correct theme colors (primary.main, background.secondary, background.primary)
+All 4 screens now load without TypeErrors
 
 IMPACT:
 ✅ All contractor navigation links functional
 ✅ Dashboard job counters sync with list screens via unified cache
 ✅ No more Expo Router missing route errors
+✅ No more theme color crashes
 ✅ Complete contractor workflow: Available → Accept → Schedule → Complete
 ✅ Expense tracking workflow complete with detail view
+✅ Theme consistency maintained across all contractor routes
 
 --- END OF CORE RULES ---
