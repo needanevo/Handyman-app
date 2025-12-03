@@ -17,10 +17,12 @@ import {
   ScrollView,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { Expense, ExpenseCategory } from '../../../src/types/contractor';
@@ -82,11 +84,27 @@ export default function ExpensesScreen() {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
       year: 'numeric',
     });
+  };
+
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const dateStr = date.toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+    });
+    const timeStr = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `${dateStr}, ${timeStr}`;
   };
 
   const getCategoryIcon = (category: ExpenseCategory) => {
@@ -197,16 +215,29 @@ export default function ExpensesScreen() {
                 <Text style={styles.categoryIcon}>{getCategoryIcon(item.category)}</Text>
                 <View style={styles.expenseInfo}>
                   <Text style={styles.expenseDescription}>{item.description}</Text>
-                  <Text style={styles.expenseDate}>{formatDate(item.date)}</Text>
+                  <Text style={styles.expenseDate}>
+                    {formatDate(item.date)}
+                  </Text>
+                  {item.createdAt && (
+                    <Text style={styles.expenseTimestamp}>
+                      Added: {formatDateTime(item.createdAt)}
+                    </Text>
+                  )}
                 </View>
               </View>
-              <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>
+              <View style={styles.expenseAmountContainer}>
+                <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>
+              </View>
             </View>
 
-{item.vendor && (
+            {(item.vendor || (item.receiptPhotos && item.receiptPhotos.length > 0)) && (
               <View style={styles.expenseFooter}>
-                <Text style={styles.vendorLabel}>Vendor:</Text>
-                <Text style={styles.vendorValue}>{item.vendor}</Text>
+                {item.vendor && (
+                  <View style={styles.vendorContainer}>
+                    <Text style={styles.vendorLabel}>Vendor:</Text>
+                    <Text style={styles.vendorValue}>{item.vendor}</Text>
+                  </View>
+                )}
                 {item.receiptPhotos && item.receiptPhotos.length > 0 && (
                   <TouchableOpacity
                     style={styles.receiptButton}
@@ -216,7 +247,10 @@ export default function ExpensesScreen() {
                       setShowReceiptViewer(true);
                     }}
                   >
-                    <Text style={styles.receiptButtonText}>See Receipt Photo</Text>
+                    <Ionicons name="image" size={16} color={colors.background.primary} style={styles.receiptIcon} />
+                    <Text style={styles.receiptButtonText}>
+                      {item.receiptPhotos.length} {item.receiptPhotos.length === 1 ? 'Photo' : 'Photos'}
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -312,7 +346,6 @@ function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; 
   const [notes, setNotes] = useState('');
   const [receiptPhotos, setReceiptPhotos] = useState<string[]>([]);
   const [showPhotoCapture, setShowPhotoCapture] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   const CATEGORIES: { value: ExpenseCategory; label: string; icon: string }[] = [
     { value: 'MATERIALS', label: 'Materials', icon: '🔨' },
@@ -324,28 +357,67 @@ function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; 
     { value: 'OTHER', label: 'Other', icon: '💰' },
   ];
 
-  const handleSave = async () => {
-    if (!description || !amount) {
-      Alert.alert('Missing Information', 'Please enter description and amount');
-      return;
-    }
+  // Use mutation for optimistic updates
+  const addExpenseMutation = useMutation({
+    mutationFn: (newExpense: {
+      jobId: string;
+      category: string;
+      description: string;
+      amount: number;
+      date: string;
+      vendor?: string;
+      notes?: string;
+    }) => contractorAPI.addExpense(newExpense),
+    onMutate: async (newExpense) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries(['contractor', 'expenses']);
 
-    try {
-      setIsSaving(true);
+      // Snapshot previous value
+      const previousExpenses = queryClient.getQueryData<Expense[]>(['contractor', 'expenses']);
 
-      // Save expense to backend
-      await contractorAPI.addExpense({
-        jobId: '', // TODO: Add job selection
-        category,
-        description,
-        amount: parseFloat(amount),
-        date: new Date().toISOString(),
-        vendor: vendor || undefined,
-        notes: notes || undefined,
-      });
+      // Optimistically update with temporary expense
+      const now = new Date().toISOString();
+      const optimisticExpense: Expense = {
+        id: `temp-${Date.now()}`,
+        jobId: newExpense.jobId,
+        category: newExpense.category as ExpenseCategory,
+        description: newExpense.description,
+        amount: newExpense.amount,
+        date: newExpense.date,
+        vendor: newExpense.vendor,
+        notes: newExpense.notes,
+        receiptPhotos: [],
+        createdAt: now,
+        updatedAt: now,
+      };
 
-      // Invalidate and refetch expenses
-      await queryClient.invalidateQueries(['contractor', 'expenses']);
+      queryClient.setQueryData<Expense[]>(
+        ['contractor', 'expenses'],
+        (old) => [optimisticExpense, ...(old || [])]
+      );
+
+      return { previousExpenses };
+    },
+    onError: (error: any, newExpense, context: any) => {
+      // Rollback on error
+      if (context?.previousExpenses) {
+        queryClient.setQueryData(['contractor', 'expenses'], context.previousExpenses);
+      }
+      console.error('Save expense error:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to save expense. Please try again.'
+      );
+    },
+    onSuccess: (data) => {
+      // Replace temporary expense with real one from server
+      queryClient.setQueryData<Expense[]>(
+        ['contractor', 'expenses'],
+        (old) => {
+          const filtered = (old || []).filter((exp) => !exp.id.startsWith('temp-'));
+          return [data, ...filtered];
+        }
+      );
 
       // Close modal and reset form
       onClose();
@@ -355,17 +427,28 @@ function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; 
       setNotes('');
       setReceiptPhotos([]);
       setCategory('MATERIALS');
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries(['contractor', 'expenses']);
+    },
+  });
 
-      Alert.alert('Success', 'Expense saved successfully');
-    } catch (error: any) {
-      console.error('Save expense error:', error);
-      Alert.alert(
-        'Error',
-        error.response?.data?.detail || 'Failed to save expense. Please try again.'
-      );
-    } finally {
-      setIsSaving(false);
+  const handleSave = async () => {
+    if (!description || !amount) {
+      Alert.alert('Missing Information', 'Please enter description and amount');
+      return;
     }
+
+    addExpenseMutation.mutate({
+      jobId: '', // TODO: Add job selection
+      category,
+      description,
+      amount: parseFloat(amount),
+      date: new Date().toISOString(),
+      vendor: vendor || undefined,
+      notes: notes || undefined,
+    });
   };
 
   const handlePhotoCapture = (photo: any) => {
@@ -377,22 +460,27 @@ function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; 
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.modalContainer} edges={['bottom']}>
         <View style={[styles.modalHeader, { paddingTop: insets.top + spacing.md }]}>
-          <TouchableOpacity onPress={onClose} disabled={isSaving}>
+          <TouchableOpacity onPress={onClose} disabled={addExpenseMutation.isPending}>
             <Text style={styles.modalClose}>✕</Text>
           </TouchableOpacity>
           <Text style={styles.modalTitle}>Add Expense</Text>
-          <TouchableOpacity onPress={handleSave} disabled={isSaving}>
-            <Text style={[styles.modalSave, isSaving && styles.modalSaveDisabled]}>
-              {isSaving ? 'Saving...' : 'Save'}
+          <TouchableOpacity onPress={handleSave} disabled={addExpenseMutation.isPending}>
+            <Text style={[styles.modalSave, addExpenseMutation.isPending && styles.modalSaveDisabled]}>
+              {addExpenseMutation.isPending ? 'Saving...' : 'Save'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          style={styles.modalContent}
-          contentContainerStyle={styles.modalContentContainer}
-          keyboardShouldPersistTaps="handled"
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={0}
         >
+          <ScrollView
+            style={styles.modalContent}
+            contentContainerStyle={styles.modalContentContainer}
+            keyboardShouldPersistTaps="handled"
+          >
           {/* Category Selection */}
           <Text style={styles.label}>Category</Text>
           <ScrollView
@@ -472,7 +560,8 @@ function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; 
             variant="outline"
             size="medium"
           />
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
         {/* Photo Capture Modal */}
         {showPhotoCapture && (
@@ -623,6 +712,17 @@ const styles = StyleSheet.create({
   expenseDate: {
     ...typography.sizes.sm,
     color: colors.neutral[600],
+    marginBottom: spacing.xs / 2,
+  },
+  expenseTimestamp: {
+    ...typography.sizes.xs,
+    color: colors.neutral[500],
+    fontStyle: 'italic',
+  },
+  expenseAmountContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginLeft: spacing.md,
   },
   expenseAmount: {
     ...typography.sizes.lg,
@@ -632,11 +732,18 @@ const styles = StyleSheet.create({
   expenseFooter: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.neutral[200],
-    gap: spacing.sm,
+    gap: spacing.md,
+  },
+  vendorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing.xs,
   },
   vendorLabel: {
     ...typography.sizes.xs,
@@ -649,11 +756,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   receiptButton: {
-    backgroundColor: '#FF8C42', // Orange color
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary.main,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    marginLeft: 'auto',
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+  },
+  receiptIcon: {
+    marginRight: spacing.xs / 2,
   },
   receiptButtonText: {
     ...typography.sizes.xs,
@@ -713,12 +825,15 @@ const styles = StyleSheet.create({
   modalSaveDisabled: {
     color: colors.neutral[400],
   },
+  keyboardView: {
+    flex: 1,
+  },
   modalContent: {
     flex: 1,
     padding: spacing.base,
   },
   modalContentContainer: {
-    paddingBottom: 350, // Extra space for keyboard so notes field is visible
+    paddingBottom: spacing['4xl'], // Extra space at bottom for better scrolling
   },
   label: {
     ...typography.sizes.sm,

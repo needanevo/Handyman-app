@@ -27,8 +27,12 @@ export default function JobsListScreen() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch real jobs using unified query key
-  const { data: allJobs, isLoading, refetch } = useQuery({
+  // Fetch all customer jobs using unified query key
+  const {
+    data: allJobs,
+    isLoading,
+    refetch
+  } = useQuery({
     queryKey: ['customer-jobs'],
     queryFn: async () => {
       const response = await jobsAPI.getJobs();
@@ -37,9 +41,11 @@ export default function JobsListScreen() {
     staleTime: 2 * 60 * 1000,
   });
 
-  const jobs = allJobs || [];
-  const activeJobs = jobs.filter((job: any) => job.status !== 'completed' && job.status !== 'cancelled');
-  const completedJobs = jobs.filter((job: any) => job.status === 'completed');
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  };
 
   const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'neutral' => {
     if (status === 'completed') return 'success';
@@ -49,30 +55,33 @@ export default function JobsListScreen() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      pending: 'Pending',
-      accepted: 'Accepted',
-      scheduled: 'Scheduled',
-      in_progress: 'In Progress',
+      pending_contractor: 'Finding Contractor',
+      materials_ordered: 'Materials Ordered',
+      in_progress_50: '50% Complete',
       completed: 'Completed',
-      cancelled: 'Cancelled',
     };
     return labels[status] || status;
   };
 
-  const filteredJobs = jobs.filter((job: any) => {
-    if (filter === 'active') return job.status !== 'completed' && job.status !== 'cancelled';
-    if (filter === 'completed') return job.status === 'completed';
-    return true;
-  });
+  // Filter jobs based on selected tab
+  const jobs = allJobs || [];
+  const activeJobs = jobs.filter((job: any) =>
+    job.status !== 'completed' && job.status !== 'cancelled'
+  );
+  const completedJobs = jobs.filter((job: any) => job.status === 'completed');
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
-  };
+  const filteredJobs =
+    filter === 'active' ? activeJobs :
+    filter === 'completed' ? completedJobs :
+    jobs;
 
+  // Show loading spinner while fetching
   if (isLoading) {
-    return <LoadingSpinner fullScreen />;
+    return (
+      <SafeAreaView style={styles.container}>
+        <LoadingSpinner fullScreen />
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -253,8 +262,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   headerTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.neutral[900],
   },
   filterTabs: {
@@ -274,7 +282,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.primary.main,
   },
   filterTabText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
     fontWeight: typography.weights.medium,
   },
@@ -301,8 +309,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   jobTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
   },
   jobMeta: {
@@ -323,7 +330,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   contractorName: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
     flex: 1,
   },
@@ -333,7 +340,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   ratingText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
     fontWeight: typography.weights.medium,
   },
@@ -349,12 +356,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dateLabel: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   dateValue: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
   },
   costSection: {
@@ -362,13 +369,12 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   costLabel: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   costAmount: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.primary.main,
   },
   fab: {

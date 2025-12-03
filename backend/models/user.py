@@ -6,7 +6,8 @@ import uuid
 
 class UserRole(str, Enum):
     CUSTOMER = "customer"
-    TECHNICIAN = "technician"
+    HANDYMAN = "handyman"  # Unlicensed, starting business
+    TECHNICIAN = "technician"  # Licensed contractor
     ADMIN = "admin"
 
 class Address(BaseModel):
@@ -36,8 +37,8 @@ class User(BaseModel):
     customer_notes: Optional[str] = None
     tags: List[str] = []  # VIP, repeat, warranty, etc.
     
-    # Technician specific fields
-    business_name: Optional[str] = None  # Business/company name for contractors
+    # Technician/Handyman specific fields (shared by both)
+    business_name: Optional[str] = None  # Business/company name
     hourly_rate: Optional[float] = None
     skills: List[str] = []  # drywall, painting, electrical, etc.
     available_hours: Optional[dict] = None  # weekly schedule
@@ -46,6 +47,22 @@ class User(BaseModel):
     documents: Optional[dict] = None  # license, insurance, etc.
     portfolio_photos: List[str] = []  # Portfolio photo URLs
     profile_photo: Optional[str] = None  # Profile picture/logo URL
+
+    # Business growth tracking
+    has_llc: bool = False  # Whether they've formed an LLC
+    llc_formation_date: Optional[datetime] = None
+    is_licensed: bool = False  # Whether they have trade license
+    license_number: Optional[str] = None
+    license_state: Optional[str] = None
+    license_expiry: Optional[datetime] = None
+    is_insured: bool = False  # Whether they have liability insurance
+    insurance_policy_number: Optional[str] = None
+    insurance_expiry: Optional[datetime] = None
+
+    # Growth milestone tracking
+    upgrade_to_technician_date: Optional[datetime] = None  # When handyman became licensed
+    registration_completed_date: Optional[datetime] = None
+    registration_status: Optional[str] = "ACTIVE"  # ACTIVE, PENDING, SUSPENDED
     
 class UserCreate(BaseModel):
     email: EmailStr

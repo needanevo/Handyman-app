@@ -119,8 +119,7 @@ export const jobsAPI = {
     description: string;
     photos: string[];
     preferred_dates: string[];
-    budget_min: number;
-    budget_max: number;
+    maxBudget: number;
     urgency: string;
     source: string;
     status: string;
@@ -286,7 +285,7 @@ export const contractorAPI = {
     }));
   },
 
-  addExpense: (expense: {
+  addExpense: async (expense: {
     jobId: string;
     category: string;
     description: string;
@@ -294,7 +293,23 @@ export const contractorAPI = {
     date: string;
     vendor?: string;
     notes?: string;
-  }) => apiClient.post<any>('/contractor/expenses', expense),
+  }) => {
+    const response = await apiClient.post<any>('/contractor/expenses', expense);
+    // Transform snake_case to camelCase
+    return {
+      id: response.id,
+      jobId: response.job_id,
+      category: response.category,
+      description: response.description,
+      amount: response.amount,
+      receiptPhotos: response.receipt_photos || [],
+      date: response.date,
+      vendor: response.vendor,
+      notes: response.notes,
+      createdAt: response.created_at,
+      updatedAt: response.updated_at,
+    };
+  },
 
   uploadReceiptPhoto: async (expenseId: string, photo: { uri: string; type: string; name: string }) => {
     const formData = new FormData();

@@ -61,7 +61,7 @@ export default function CustomerDashboard() {
           </View>
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={() => router.push('/(customer)/profile')}
+            onPress={() => router.push('/profile')}
           >
             <Ionicons name="person-circle" size={40} color={colors.primary.main} />
           </TouchableOpacity>
@@ -77,7 +77,7 @@ export default function CustomerDashboard() {
                 You'll need an address to request services
               </Text>
             </View>
-            <TouchableOpacity onPress={() => router.push('/(customer)/profile')}>
+            <TouchableOpacity onPress={() => router.push('/profile')}>
               <Ionicons name="chevron-forward" size={24} color={colors.primary.main} />
             </TouchableOpacity>
           </View>
@@ -87,7 +87,7 @@ export default function CustomerDashboard() {
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.primaryActionCard}
-            onPress={() => router.push('/(customer)/job-request/step0-address')}
+            onPress={() => router.push('/(customer)/job-request')}
             activeOpacity={0.7}
           >
             <View style={styles.primaryActionIcon}>
@@ -159,7 +159,7 @@ export default function CustomerDashboard() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Warranties</Text>
-            <TouchableOpacity onPress={() => router.push('/(customer)/warranties')}>
+            <TouchableOpacity onPress={() => router.push('/(customer)/warranty')}>
               <Text style={styles.sectionLink}>View All</Text>
             </TouchableOpacity>
           </View>
@@ -191,7 +191,7 @@ export default function CustomerDashboard() {
           <View style={styles.quickLinksGrid}>
             <TouchableOpacity
               style={styles.quickLinkCard}
-              onPress={() => router.push('/(customer)/profile')}
+              onPress={() => router.push('/profile')}
             >
               <Ionicons name="person-outline" size={32} color={colors.primary.main} />
               <Text style={styles.quickLinkText}>Profile</Text>
@@ -199,7 +199,7 @@ export default function CustomerDashboard() {
 
             <TouchableOpacity
               style={styles.quickLinkCard}
-              onPress={() => router.push('/(customer)/all-jobs')}
+              onPress={() => router.push('/(customer)/jobs')}
             >
               <Ionicons name="list-outline" size={32} color={colors.primary.main} />
               <Text style={styles.quickLinkText}>All Jobs</Text>
@@ -207,7 +207,7 @@ export default function CustomerDashboard() {
 
             <TouchableOpacity
               style={styles.quickLinkCard}
-              onPress={() => router.push('/(customer)/warranties')}
+              onPress={() => router.push('/(customer)/warranty')}
             >
               <Ionicons name="shield-checkmark-outline" size={32} color={colors.primary.main} />
               <Text style={styles.quickLinkText}>Warranties</Text>
@@ -215,7 +215,7 @@ export default function CustomerDashboard() {
 
             <TouchableOpacity
               style={styles.quickLinkCard}
-              onPress={() => router.push('/(customer)/settings')}
+              onPress={() => router.push('/profile')}
             >
               <Ionicons name="settings-outline" size={32} color={colors.primary.main} />
               <Text style={styles.quickLinkText}>Settings</Text>

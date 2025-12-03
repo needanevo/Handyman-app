@@ -55,6 +55,27 @@ class AuthHandler:
         to_encode.update({"exp": expire, "type": "refresh"})
         return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     
+    def decode_refresh_token(self, token: str) -> Dict[str, Any]:
+        """Decode and validate a refresh token"""
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+            if payload.get("type") != "refresh":
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid refresh token type"
+                )
+
+            return payload
+
+        except JWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    
     def verify_token(self, token: str, token_type: str = "access") -> Dict[str, Any]:
         """Verify and decode JWT token"""
         try:
@@ -80,12 +101,13 @@ class AuthHandler:
         user_data = await self.db.users.find_one({"email": email})
         if user_data:
             try:
+                # Use model_validate to safely create User, ignoring unknown fields
                 return User.model_validate(user_data)
-            except Exception:
-                # Filter unknown fields and retry
-                known_fields = User.model_fields.keys()
-                filtered_data = {k: v for k, v in user_data.items() if k in known_fields}
-                return User.model_validate(filtered_data)
+            except Exception as e:
+                # If validation fails, filter out unknown fields and retry
+                valid_fields = User.model_fields.keys()
+                filtered_data = {k: v for k, v in user_data.items() if k in valid_fields}
+                return User(**filtered_data)
         return None
     
     async def get_user_by_id(self, user_id: str) -> Optional[User]:
@@ -93,12 +115,13 @@ class AuthHandler:
         user_data = await self.db.users.find_one({"id": user_id})
         if user_data:
             try:
+                # Use model_validate to safely create User, ignoring unknown fields
                 return User.model_validate(user_data)
-            except Exception:
-                # Filter unknown fields and retry
-                known_fields = User.model_fields.keys()
-                filtered_data = {k: v for k, v in user_data.items() if k in known_fields}
-                return User.model_validate(filtered_data)
+            except Exception as e:
+                # If validation fails, filter out unknown fields and retry
+                valid_fields = User.model_fields.keys()
+                filtered_data = {k: v for k, v in user_data.items() if k in valid_fields}
+                return User(**filtered_data)
         return None
     
     async def authenticate_user(self, email: str, password: str) -> Optional[User]:

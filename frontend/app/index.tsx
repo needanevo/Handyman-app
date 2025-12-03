@@ -9,30 +9,40 @@ export default function Index() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('Index useEffect - isHydrated:', isHydrated, 'isAuthenticated:', isAuthenticated);
-
+    // CRITICAL: Wait for hydration to complete before attempting navigation
+    // This prevents race conditions where isLoading=false but user state isn't set yet
     if (!isHydrated) {
-      console.log('Still hydrating...');
+      console.log('Waiting for auth hydration...');
       return;
     }
 
+    console.log('Auth hydrated - isAuthenticated:', isAuthenticated, 'role:', user?.role);
+
     if (isAuthenticated && user) {
-      // Role-based routing
-      if (user.role === 'technician') {
-        console.log('User is authenticated contractor - navigating to contractor dashboard');
-        router.replace('/(contractor)/dashboard');
-      } else if (user.role === 'customer') {
-        console.log('User is authenticated customer - navigating to customer dashboard');
-        router.replace('/(customer)/dashboard');
-      } else if (user.role === 'admin') {
-        console.log('User is admin - navigating to admin dashboard');
-        router.replace('/admin');
-      } else {
-        console.log('User is authenticated - navigating to home');
-        router.replace('/home');
+      // Role-based routing - redirect to appropriate dashboard
+      switch (user.role) {
+        case 'customer':
+          console.log('Navigating to customer dashboard');
+          router.replace('/(customer)/dashboard');
+          break;
+        case 'technician':
+          console.log('Navigating to contractor dashboard');
+          router.replace('/(contractor)/dashboard');
+          break;
+        case 'handyman':
+          console.log('Navigating to handyman dashboard');
+          router.replace('/(handyman)/dashboard');
+          break;
+        case 'admin':
+          console.log('Navigating to admin dashboard');
+          router.replace('/admin');
+          break;
+        default:
+          console.log('Unknown role - navigating to welcome');
+          router.replace('/auth/welcome');
       }
     } else {
-      console.log('User is not authenticated - navigating to welcome');
+      console.log('Not authenticated - navigating to welcome');
       router.replace('/auth/welcome');
     }
   }, [isHydrated, isAuthenticated, user, router]);

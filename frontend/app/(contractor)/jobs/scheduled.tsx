@@ -1,18 +1,15 @@
 /**
  * Scheduled Jobs Screen
  *
- * Shows jobs that contractor has scheduled with confirmed dates.
- * Clean list view with search and filtering capabilities.
+ * View all jobs that have been scheduled with specific dates/times.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
-  RefreshControl,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,73 +17,28 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
-import { Job } from '../../../src/types/contractor';
-import { JobCard } from '../../../src/components/contractor/JobCard';
-import { EmptyState } from '../../../src/components/EmptyState';
+import { Card } from '../../../src/components/Card';
+import { Badge } from '../../../src/components/Badge';
 import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
+import { EmptyState } from '../../../src/components/EmptyState';
 import { contractorAPI } from '../../../src/services/api';
 
-export default function ScheduledJobs() {
+export default function ScheduledJobsScreen() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch scheduled jobs using unified query key (matches dashboard)
-  const { data: jobs, refetch, isLoading, error } = useQuery<Job[]>({
+  // Fetch scheduled jobs
+  // Using unified query key for cache synchronization with dashboard
+  const { data: jobs, isLoading } = useQuery({
     queryKey: ['contractor-scheduled-jobs'],
     queryFn: async () => {
       const response = await contractorAPI.getScheduledJobs();
-      const jobsData = response.jobs || [];
-
-      return jobsData.map((job: any) => ({
-        id: job.id,
-        customerId: job.customer_id,
-        contractorId: job.contractor_id,
-        quoteId: job.quote_id,
-        status: job.status || 'scheduled',
-        title: job.description?.substring(0, 50) || 'Untitled Job',
-        description: job.description || '',
-        category: job.service_category || 'Other',
-        location: job.customer_address || {},
-        quotedAmount: job.agreed_amount || 0,
-        estimatedDuration: job.estimated_hours || 0,
-        distance: job.distance_miles,
-        scheduledDate: job.scheduled_date,
-        photos: [],
-        customerPhotos: [],
-        expenses: [],
-        timeLogs: [],
-        totalExpenses: 0,
-        totalLaborHours: 0,
-        depositPaid: false,
-        createdAt: job.created_at,
-        updatedAt: job.updated_at,
-      })) as Job[];
+      return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
-    retry: 2,
   });
-
-  const jobsList = jobs || [];
-
-  const filteredJobs = jobsList.filter((job) => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      job.title?.toLowerCase().includes(searchLower) ||
-      job.description?.toLowerCase().includes(searchLower) ||
-      job.category?.toLowerCase().includes(searchLower) ||
-      job.location?.city?.toLowerCase().includes(searchLower)
-    );
-  });
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
-  };
 
   if (isLoading) {
-    return <LoadingSpinner fullScreen />;
+    return <LoadingSpinner fullScreen text="Loading scheduled jobs..." />;
   }
 
   return (
@@ -97,61 +49,46 @@ export default function ScheduledJobs() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
+          <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scheduled Jobs</Text>
-        <View style={styles.headerRight} />
+        <View style={{ width: 40 }} />
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons
-          name="search"
-          size={20}
-          color={colors.neutral[400]}
-          style={styles.searchIcon}
+      {jobs && jobs.length > 0 ? (
+        <FlatList
+          data={jobs}
+          keyExtractor={(item: any) => item.id}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item }: any) => (
+            <Card
+              style={styles.jobCard}
+              onPress={() => router.push(`/(contractor)/jobs/${item.id}`)}
+            >
+              <View style={styles.jobHeader}>
+                <View style={styles.jobInfo}>
+                  <Text style={styles.jobTitle}>{item.title || 'Job Details'}</Text>
+                  <Text style={styles.jobLocation}>{item.location || 'Location TBD'}</Text>
+                  {item.scheduledDate && (
+                    <Text style={styles.scheduledDate}>
+                      📅 {new Date(item.scheduledDate).toLocaleDateString()}
+                    </Text>
+                  )}
+                </View>
+                <Badge variant="primary" label="Scheduled" />
+              </View>
+            </Card>
+          )}
         />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search jobs..."
-          placeholderTextColor={colors.neutral[400]}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {/* Jobs List */}
-      {error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Failed to load scheduled jobs</Text>
-          <TouchableOpacity onPress={handleRefresh} style={styles.retryButton}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : filteredJobs.length === 0 ? (
+      ) : (
         <EmptyState
           icon="calendar-outline"
           title="No Scheduled Jobs"
-          message={
-            searchQuery
-              ? "No jobs match your search"
-              : "Jobs with confirmed dates will appear here. Start work when scheduled."
-          }
-        />
-      ) : (
-        <FlatList
-          data={filteredJobs}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <JobCard
-              job={item}
-              onPress={() => router.push(`/(contractor)/jobs/${item.id}`)}
-            />
-          )}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-          }
+          description="Jobs with confirmed dates will appear here"
+          action={{
+            label: 'View Accepted Jobs',
+            onPress: () => router.push('/(contractor)/jobs/accepted'),
+          }}
         />
       )}
     </SafeAreaView>
@@ -165,66 +102,54 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.lg,
     backgroundColor: colors.background.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    ...shadows.sm,
   },
   backButton: {
-    padding: spacing.xs,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    ...typography.h3,
-    color: colors.primary.main,
-  },
-  headerRight: {
-    width: 40,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.primary,
-    marginHorizontal: spacing.md,
-    marginVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.neutral[300],
-  },
-  searchIcon: {
-    marginRight: spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    ...typography.body,
-    paddingVertical: spacing.sm,
+    ...typography.sizes['2xl'],
+    fontWeight: typography.weights.bold,
     color: colors.neutral[900],
   },
   listContent: {
-    padding: spacing.md,
+    padding: spacing.base,
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
-  },
-  errorText: {
-    ...typography.body,
-    color: colors.error.main,
+  jobCard: {
+    padding: spacing.base,
     marginBottom: spacing.md,
   },
-  retryButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.primary.main,
-    borderRadius: borderRadius.sm,
+  jobHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
-  retryText: {
-    ...typography.button,
-    color: colors.background.primary,
+  jobInfo: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  jobTitle: {
+    ...typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
+    marginBottom: spacing.xs,
+  },
+  jobLocation: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    marginBottom: spacing.xs,
+  },
+  scheduledDate: {
+    ...typography.sizes.sm,
+    color: colors.primary.main,
+    fontWeight: typography.weights.medium,
   },
 });

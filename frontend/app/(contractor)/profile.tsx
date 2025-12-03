@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     ...shadows.md,
   },
   photoHint: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
   },
   section: {
@@ -530,8 +530,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
   },
   sectionTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
     marginBottom: spacing.md,
   },
@@ -552,21 +551,19 @@ const styles = StyleSheet.create({
     marginRight: spacing.base,
   },
   avatarText: {
-    ...typography.sizes['3xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h1,
     color: colors.background.primary,
   },
   profileInfo: {
     flex: 1,
   },
   profileName: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h2,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   profileRole: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
     marginBottom: spacing.sm,
   },
@@ -586,7 +583,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.xs,
   },
   statusText: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     fontWeight: typography.weights.semibold,
     color: colors.success.dark,
   },
@@ -602,12 +599,12 @@ const styles = StyleSheet.create({
     marginLeft: spacing.md,
   },
   infoLabel: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   infoValue: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[900],
     fontWeight: typography.weights.medium,
   },

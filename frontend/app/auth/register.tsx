@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,18 +26,48 @@ interface RegisterForm {
 }
 
 export default function RegisterScreen() {
-  const { register } = useAuth();
+  const { register, isHydrated, isAuthenticated, user } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+
   const {
     control,
     handleSubmit,
     formState: { errors },
     watch,
   } = useForm<RegisterForm>();
-  
+
   const password = watch('password');
+
+  // Fix 5.11: Explicit redirect after registration hydration
+  useEffect(() => {
+    if (!registrationSuccess) return;
+    if (!isHydrated) {
+      console.log('Registration successful - waiting for hydration...');
+      return;
+    }
+    if (!isAuthenticated || !user || !user.role) {
+      console.log('Registration successful - waiting for user auth...');
+      return;
+    }
+
+    console.log('Registration hydrated - redirecting to dashboard for role:', user.role);
+
+    // Explicit role-based redirect
+    if (user.role === 'customer') {
+      router.replace('/(customer)/dashboard');
+    } else if (user.role === 'technician') {
+      router.replace('/(contractor)/dashboard');
+    } else if (user.role === 'handyman') {
+      router.replace('/(handyman)/dashboard');
+    } else if (user.role === 'admin') {
+      router.replace('/admin');
+    } else {
+      // Unknown role - go to welcome
+      router.replace('/auth/welcome');
+    }
+  }, [registrationSuccess, isHydrated, isAuthenticated, user, router]);
 
   const onSubmit = async (data: RegisterForm) => {
     if (data.password !== data.confirmPassword) {
@@ -55,16 +85,10 @@ export default function RegisterScreen() {
         password: data.password,
         role: 'customer',
       });
-      
-      // Navigation handled automatically by AuthContext + index.tsx
-      console.log('Registration successful - user should be automatically redirected');
-      
-      // Show success message while redirecting
-      Alert.alert(
-        'Success!',
-        'Your account has been created. You will be redirected to the home screen.',
-        [{ text: 'OK' }]
-      );
+
+      // Fix 5.11: Signal registration success, useEffect will handle redirect
+      console.log('Registration API call successful - waiting for hydration');
+      setRegistrationSuccess(true);
     } catch (error: any) {
       console.error('Registration error details:', error);
       

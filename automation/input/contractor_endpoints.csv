@@ -1,0 +1,61 @@
+Section,Step ID,Endpoint,Method,Expected Status,Auth Required,Request Body,Expected Response,Completed (Y/N),Notes
+AUTH,A1,/api/health,GET,200,No,None,{"status":"healthy"},
+AUTH,A2,/api/auth/register,POST,200,No,{"email":"test@example.com" "password":"password123" "phone":"1234567890" "firstName":"John" "lastName":"Doe" "role":"technician"},{"access_token":"..." "refresh_token":"..."},,
+AUTH,A3,/api/auth/login,POST,200,No,{"email":"test@example.com" "password":"password123"},{"access_token":"..." "refresh_token":"..."},,
+AUTH,A4,/api/auth/refresh,POST,200,No,{"refresh_token":"..."},{"access_token":"..." "refresh_token":"..."},,
+AUTH,A5,/api/auth/me,GET,200,Yes,None,User object,,
+
+SERVICES,B1,/api/services,GET,200,No,None,Array of Service objects,,
+SERVICES,B2,/api/services/{service_id},GET,200,No,None,Service object,,
+
+DASHBOARD,C1,/api/contractor/dashboard/stats,GET,200,Yes,None,{"total_jobs":N "active_jobs":N "completed_jobs":N "revenue":N},,
+
+JOBS_AVAILABLE,D1,/api/contractor/jobs/available,GET,200,Yes,None,Array of available jobs,,
+JOBS_ACCEPTED,D2,/api/contractor/jobs/accepted,GET,200,Yes,None,Array of accepted jobs,,
+JOBS_SCHEDULED,D3,/api/contractor/jobs/scheduled,GET,200,Yes,None,Array of scheduled jobs,,
+JOBS_COMPLETED,D4,/api/contractor/jobs/completed,GET,200,Yes,None,Array of completed jobs,,
+
+JOB_DETAIL,E1,/api/contractor/jobs/{job_id},GET,200,Yes,None,Job object with full details,,
+JOB_ACCEPT,E2,/api/contractor/jobs/{job_id}/accept,POST,200,Yes,None,Updated job object,,
+JOB_STATUS,E3,/api/contractor/jobs/{job_id}/status,PATCH,200,Yes,{"status":"in_progress"},Updated job object,,
+
+JOB_PHOTOS,F1,/api/contractor/jobs/{job_id}/photos,GET,200,Yes,None,Array of photo objects,,
+JOB_PHOTOS,F2,/api/contractor/jobs/{job_id}/photos,POST,200,Yes,FormData with photo file,{"photo_id":"..." "url":"..."},,
+JOB_PHOTOS,F3,/api/contractor/jobs/{job_id}/photos/{photo_id},DELETE,200,Yes,None,Success message,,
+JOB_PHOTOS,F4,/api/contractor/jobs/{job_id}/photos/{photo_id},PUT,200,Yes,{"caption":"..." "category":"..."},Updated photo object,,
+
+EXPENSES,G1,/api/contractor/expenses,GET,200,Yes,None,Array of expense objects,,
+EXPENSES,G2,/api/contractor/expenses,POST,200,Yes,{"amount":100 "category":"materials" "description":"..." "job_id":"..."},Created expense object,,
+EXPENSES,G3,/api/contractor/expenses/{expense_id},DELETE,200,Yes,None,Success message,,
+EXPENSES,G4,/api/contractor/expenses/{expense_id}/receipt,POST,200,Yes,FormData with receipt photo,{"receipt_url":"..."},,
+
+MILEAGE,H1,/api/contractor/mileage,GET,200,Yes,None,Array of mileage log objects,,
+MILEAGE,H2,/api/contractor/mileage,POST,200,Yes,{"miles":10.5 "purpose":"job_site" "job_id":"..."},Created mileage log,,
+MILEAGE,H3,/api/contractor/mileage/{mileage_id},DELETE,200,Yes,None,Success message,,
+
+TIME_LOGS,I1,/api/contractor/jobs/{job_id}/time,GET,200,Yes,None,Array of time log objects,,
+TIME_LOGS,I2,/api/contractor/jobs/{job_id}/time/start,POST,200,Yes,{"notes":"..."},{"time_id":"..." "started_at":"..."},,
+TIME_LOGS,I3,/api/contractor/jobs/{job_id}/time/{time_id}/stop,POST,200,Yes,{"notes":"..."},Updated time log with duration,,
+
+REPORTS,J1,/api/contractor/reports/monthly,GET,200,Yes,None,Monthly report data,,
+REPORTS,J2,/api/contractor/reports/yearly,GET,200,Yes,None,Yearly report data,,
+REPORTS,J3,/api/contractor/reports/tax,GET,200,Yes,None,Tax report data,,
+REPORTS,J4,/api/contractor/reports/tax/pdf,GET,200,Yes,None,PDF file download,,
+
+PROFILE,K1,/api/profile/addresses,GET,200,Yes,None,Array of address objects,,
+PROFILE,K2,/api/profile/addresses,POST,200,Yes,{"street":"..." "city":"..." "state":"..." "zip_code":"..."},Created address object,,
+PROFILE,K3,/api/contractors/documents,PATCH,200,Yes,{"license":"..." "insurance":"..."},Updated documents,,
+PROFILE,K4,/api/contractors/portfolio,PATCH,200,Yes,{"photos":["url1" "url2"]},Updated portfolio,,
+PROFILE,K5,/api/contractors/profile,PATCH,200,Yes,{"hourly_rate":75 "skills":["plumbing" "electrical"]},Updated profile,,
+
+PHOTOS,L1,/api/contractor/photos/document,POST,200,Yes,FormData with document photo,{"document_url":"..."},,
+PHOTOS,L2,/api/contractor/photos/portfolio,POST,200,Yes,FormData with portfolio photo,{"photo_url":"..."},,
+PHOTOS,L3,/api/contractor/profile-photo/upload,POST,200,Yes,FormData with profile photo,{"profile_photo_url":"..."},,
+PHOTOS,L4,/api/contractor/photos/job/{job_id},POST,200,Yes,FormData with job photo,{"photo_url":"..."},,
+
+WARRANTY,M1,/api/jobs/{job_id}/warranty/approve,POST,200,Yes,{"notes":"Warranty approved"},{"status":"approved"},,
+WARRANTY,M2,/api/jobs/{job_id}/warranty/deny,POST,200,Yes,{"notes":"Warranty denied reason"},{"status":"denied"},,
+
+PROPOSALS,N1,/api/jobs/{job_id}/proposals,POST,200,Yes,{"quoted_price":500 "estimated_hours":8 "materials_cost":200},Created proposal object,,
+PROPOSALS,N2,/api/jobs/{job_id}/proposals,GET,200,Yes,None,Array of proposals for job,,
+PROPOSALS,N3,/api/proposals/{proposal_id}/withdraw,POST,200,Yes,None,{"status":"withdrawn"},,

@@ -1,8 +1,7 @@
 /**
  * Expense Detail Screen
  *
- * Shows detailed information about a specific expense entry.
- * Allows viewing receipt, category, amount, and associated job.
+ * View full details of a specific expense with receipt photos.
  */
 
 import React from 'react';
@@ -20,48 +19,38 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { Card } from '../../../src/components/Card';
-import { Badge } from '../../../src/components/Badge';
+import { Button } from '../../../src/components/Button';
 import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
+import { EmptyState } from '../../../src/components/EmptyState';
 import { contractorAPI } from '../../../src/services/api';
 
-export default function ExpenseDetail() {
+export default function ExpenseDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  // Fetch expense detail
-  const { data: expense, isLoading, error } = useQuery({
-    queryKey: ['contractor-expense', id],
+  // Fetch expense details
+  const { data: expense, isLoading } = useQuery({
+    queryKey: ['contractor', 'expense', id],
     queryFn: async () => {
-      const response = await contractorAPI.getExpenseById(id);
-      return response;
+      if (!id) throw new Error('No expense ID provided');
+      // TODO: Implement actual API call
+      // return await contractorAPI.getExpenseById(id);
+
+      // Mock data for now
+      return {
+        id,
+        category: 'MATERIALS' as const,
+        description: 'Plumbing supplies for kitchen renovation',
+        amount: 245.50,
+        date: '2025-11-15',
+        vendor: 'Home Depot',
+        notes: 'Purchased pipes, fittings, and sealant for job #1234',
+        receiptPhotos: [],
+        jobId: 'j1',
+      };
     },
-    staleTime: 5 * 60 * 1000,
+    enabled: !!id,
   });
-
-  if (isLoading) {
-    return <LoadingSpinner fullScreen />;
-  }
-
-  if (error || !expense) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Expense Detail</Text>
-          <View style={styles.headerRight} />
-        </View>
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={colors.error.main} />
-          <Text style={styles.errorText}>Failed to load expense details</Text>
-          <TouchableOpacity onPress={() => router.back()} style={styles.retryButton}>
-            <Text style={styles.retryText}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -71,115 +60,145 @@ export default function ExpenseDetail() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'long',
       day: 'numeric',
       year: 'numeric',
     });
   };
 
+  const getCategoryIcon = (category: string) => {
+    const icons: Record<string, string> = {
+      MATERIALS: '🔨',
+      TOOLS: '🛠️',
+      EQUIPMENT: '📦',
+      SUBCONTRACTOR: '👷',
+      FUEL: '⛽',
+      PERMITS: '📋',
+      OTHER: '💰',
+    };
+    return icons[category] || '💰';
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner fullScreen text="Loading expense details..." />;
+  }
+
+  if (!expense) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <EmptyState
+          icon="receipt-outline"
+          title="Expense Not Found"
+          description="This expense could not be loaded"
+          action={{
+            label: 'Go Back',
+            onPress: () => router.back(),
+          }}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Expense Detail</Text>
-        <View style={styles.headerRight} />
+        <Text style={styles.headerTitle}>Expense Details</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {/* Expense Amount Card */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Amount Card */}
         <Card style={styles.amountCard}>
-          <Text style={styles.amountLabel}>Total Amount</Text>
-          <Text style={styles.amountValue}>
-            {formatCurrency(expense.amount || 0)}
-          </Text>
-          <Badge
-            variant="neutral"
-            label={expense.category || 'Uncategorized'}
-            style={styles.categoryBadge}
-          />
+          <Text style={styles.categoryIcon}>{getCategoryIcon(expense.category)}</Text>
+          <Text style={styles.amount}>{formatCurrency(expense.amount)}</Text>
+          <Text style={styles.category}>{expense.category}</Text>
         </Card>
 
         {/* Details Card */}
-        <Card style={styles.detailCard}>
-          <Text style={styles.sectionTitle}>Expense Details</Text>
-
+        <Card style={styles.detailsCard}>
           <View style={styles.detailRow}>
-            <View style={styles.detailIcon}>
-              <Ionicons name="receipt-outline" size={20} color={colors.primary.main} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Description</Text>
-              <Text style={styles.detailValue}>
-                {expense.description || 'No description'}
-              </Text>
-            </View>
+            <Text style={styles.detailLabel}>Date</Text>
+            <Text style={styles.detailValue}>{formatDate(expense.date)}</Text>
           </View>
 
+          <View style={styles.divider} />
+
           <View style={styles.detailRow}>
-            <View style={styles.detailIcon}>
-              <Ionicons name="calendar-outline" size={20} color={colors.primary.main} />
-            </View>
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Date</Text>
-              <Text style={styles.detailValue}>
-                {expense.date ? formatDate(expense.date) : 'N/A'}
-              </Text>
-            </View>
+            <Text style={styles.detailLabel}>Description</Text>
+            <Text style={styles.detailValue}>{expense.description}</Text>
           </View>
 
           {expense.vendor && (
-            <View style={styles.detailRow}>
-              <View style={styles.detailIcon}>
-                <Ionicons name="business-outline" size={20} color={colors.primary.main} />
-              </View>
-              <View style={styles.detailContent}>
+            <>
+              <View style={styles.divider} />
+              <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Vendor</Text>
                 <Text style={styles.detailValue}>{expense.vendor}</Text>
               </View>
-            </View>
+            </>
           )}
 
-          {expense.job_id && (
-            <View style={styles.detailRow}>
-              <View style={styles.detailIcon}>
-                <Ionicons name="hammer-outline" size={20} color={colors.primary.main} />
+          {expense.notes && (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Notes</Text>
+                <Text style={styles.detailValue}>{expense.notes}</Text>
               </View>
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Associated Job</Text>
-                <TouchableOpacity
-                  onPress={() => router.push(`/(contractor)/jobs/${expense.job_id}`)}
-                >
-                  <Text style={styles.jobLink}>View Job Details →</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            </>
           )}
         </Card>
 
-        {/* Receipt Photo */}
-        {expense.receipt_photo && (
-          <Card style={styles.receiptCard}>
-            <Text style={styles.sectionTitle}>Receipt Photo</Text>
-            <Image
-              source={{ uri: expense.receipt_photo }}
-              style={styles.receiptImage}
-              resizeMode="contain"
-            />
+        {/* Receipt Photos */}
+        {expense.receiptPhotos && expense.receiptPhotos.length > 0 && (
+          <Card style={styles.photosCard}>
+            <Text style={styles.sectionTitle}>Receipt Photos</Text>
+            <View style={styles.photoGrid}>
+              {expense.receiptPhotos.map((photo, index) => (
+                <TouchableOpacity key={index} style={styles.photoContainer}>
+                  <Image source={{ uri: photo }} style={styles.photoImage} />
+                </TouchableOpacity>
+              ))}
+            </View>
           </Card>
         )}
 
-        {/* Notes */}
-        {expense.notes && (
-          <Card style={styles.notesCard}>
-            <Text style={styles.sectionTitle}>Notes</Text>
-            <Text style={styles.notesText}>{expense.notes}</Text>
-          </Card>
-        )}
+        {/* Actions */}
+        <View style={styles.actions}>
+          <Button
+            title="Edit Expense"
+            onPress={() => {
+              // TODO: Navigate to edit screen
+              console.log('Edit expense', id);
+            }}
+            variant="outline"
+            size="large"
+            fullWidth
+          />
+          <Button
+            title="Delete Expense"
+            onPress={() => {
+              // TODO: Implement delete
+              console.log('Delete expense', id);
+            }}
+            variant="outline"
+            size="large"
+            fullWidth
+            icon={<Ionicons name="trash-outline" size={20} color={colors.error.main} />}
+            style={styles.deleteButton}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -192,128 +211,102 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.lg,
     backgroundColor: colors.background.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    ...shadows.sm,
   },
   backButton: {
-    padding: spacing.xs,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    ...typography.h3,
-    color: colors.primary.main,
-  },
-  headerRight: {
-    width: 40,
+    ...typography.sizes['2xl'],
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
   },
   scrollView: {
     flex: 1,
   },
-  content: {
-    padding: spacing.md,
+  scrollContent: {
+    padding: spacing.base,
+    paddingBottom: spacing['4xl'],
   },
   amountCard: {
     alignItems: 'center',
-    padding: spacing.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.base,
+  },
+  categoryIcon: {
+    fontSize: 64,
     marginBottom: spacing.md,
   },
-  amountLabel: {
-    ...typography.caption,
-    color: colors.neutral[600],
+  amount: {
+    ...typography.sizes['4xl'],
+    fontWeight: typography.weights.bold,
+    color: colors.error.main,
     marginBottom: spacing.xs,
   },
-  amountValue: {
-    ...typography.h1,
-    color: colors.primary.main,
-    marginBottom: spacing.sm,
+  category: {
+    ...typography.sizes.base,
+    color: colors.neutral[600],
+    textTransform: 'capitalize',
   },
-  categoryBadge: {
-    marginTop: spacing.xs,
-  },
-  detailCard: {
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
-    ...typography.h4,
-    color: colors.primary.main,
-    marginBottom: spacing.md,
+  detailsCard: {
+    padding: spacing.lg,
+    marginBottom: spacing.base,
   },
   detailRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.md,
-  },
-  detailIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral[100],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  detailContent: {
-    flex: 1,
+    paddingVertical: spacing.sm,
   },
   detailLabel: {
-    ...typography.caption,
+    ...typography.sizes.sm,
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   detailValue: {
-    ...typography.body,
+    ...typography.sizes.base,
+    fontWeight: typography.weights.medium,
     color: colors.neutral[900],
   },
-  jobLink: {
-    ...typography.body,
-    color: colors.primary.main,
-    fontWeight: '600',
+  divider: {
+    height: 1,
+    backgroundColor: colors.neutral[200],
+    marginVertical: spacing.md,
   },
-  receiptCard: {
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  receiptImage: {
-    width: '100%',
-    height: 300,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.neutral[100],
-  },
-  notesCard: {
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  notesText: {
-    ...typography.body,
-    color: colors.neutral[700],
-    lineHeight: 24,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  photosCard: {
     padding: spacing.lg,
+    marginBottom: spacing.base,
   },
-  errorText: {
-    ...typography.body,
-    color: colors.error.main,
-    marginTop: spacing.md,
+  sectionTitle: {
+    ...typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
     marginBottom: spacing.md,
-    textAlign: 'center',
   },
-  retryButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.primary.main,
-    borderRadius: borderRadius.sm,
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
   },
-  retryText: {
-    ...typography.button,
-    color: colors.background.primary,
+  photoContainer: {
+    width: '48%',
+    aspectRatio: 1,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  actions: {
+    gap: spacing.md,
+  },
+  deleteButton: {
+    borderColor: colors.error.main,
   },
 });

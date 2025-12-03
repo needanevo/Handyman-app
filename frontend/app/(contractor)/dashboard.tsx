@@ -13,12 +13,12 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Image,
+  Modal,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Card } from '../../src/components/Card';
@@ -31,9 +31,29 @@ export default function ContractorDashboard() {
   const router = useRouter();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+    // Hidden Growth Center unlock logic
+  const jobsCompleted = user?.stats?.completedJobs || 0;
+  const avgRating = user?.stats?.averageRating || 0;
+  const paymentsReceived = user?.stats?.paymentsReceived || 0;
 
-  // Fetch real jobs using unified query keys (matches job list screens)
-  const { data: availableJobs = [], refetch: refetchAvailable } = useQuery({
+  // Unlock conditions
+  const unlock1 = jobsCompleted >= 1;
+  const unlock2 = jobsCompleted >= 2 && paymentsReceived >= 1;
+  const unlock3 = jobsCompleted >= 3 && avgRating >= 4.8;
+
+  // Final unlock state
+  const growthCenterUnlocked = unlock3;
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  React.useEffect(() => {
+    if (unlock3 && !growthCenterUnlocked) {
+      setShowUnlockModal(true);
+    }
+  }, [unlock3]);
+
+
+  // Fetch real jobs using the SAME query keys as list screens
+  // This ensures unified cache across dashboard and job lists
+  const { data: availableJobs, refetch: refetchAvailable } = useQuery({
     queryKey: ['contractor-available-jobs'],
     queryFn: async () => {
       const response = await contractorAPI.getAvailableJobs();
@@ -42,7 +62,7 @@ export default function ContractorDashboard() {
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: acceptedJobs = [], refetch: refetchAccepted } = useQuery({
+  const { data: acceptedJobs, refetch: refetchAccepted } = useQuery({
     queryKey: ['contractor-accepted-jobs'],
     queryFn: async () => {
       const response = await contractorAPI.getAcceptedJobs();
@@ -51,7 +71,7 @@ export default function ContractorDashboard() {
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: scheduledJobs = [], refetch: refetchScheduled } = useQuery({
+  const { data: scheduledJobs, refetch: refetchScheduled } = useQuery({
     queryKey: ['contractor-scheduled-jobs'],
     queryFn: async () => {
       const response = await contractorAPI.getScheduledJobs();
@@ -60,7 +80,7 @@ export default function ContractorDashboard() {
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: completedJobs = [], refetch: refetchCompleted } = useQuery({
+  const { data: completedJobs, refetch: refetchCompleted } = useQuery({
     queryKey: ['contractor-completed-jobs'],
     queryFn: async () => {
       const response = await contractorAPI.getCompletedJobs();
@@ -69,18 +89,23 @@ export default function ContractorDashboard() {
     staleTime: 2 * 60 * 1000,
   });
 
-  // Derive stats from actual job arrays
+  // Derive stats from real job data
   const stats = {
-    availableJobsCount: availableJobs.length,
-    acceptedJobsCount: acceptedJobs.length,
-    scheduledJobsCount: scheduledJobs.length,
-    completedJobsCount: completedJobs.length,
-    totalEarnings: 0, // TODO: calculate from completed jobs
-    pendingPayouts: 0, // TODO: calculate from payout data
+    availableJobsCount: availableJobs?.length ?? 0,
+    acceptedJobsCount: acceptedJobs?.length ?? 0,
+    scheduledJobsCount: scheduledJobs?.length ?? 0,
+    completedThisMonth: completedJobs?.length ?? 0,
+    completedYearToDate: completedJobs?.length ?? 0,
+    revenueThisMonth: 0,  // TODO: Calculate from completed jobs
+    revenueYearToDate: 0,
+    expensesThisMonth: 0,
+    expensesYearToDate: 0,
+    profitThisMonth: 0,
+    profitYearToDate: 0,
+    milesThisMonth: 0,
+    milesYearToDate: 0,
+    milesAllTime: 0,
   };
-
-  const isLoading = false; // All queries load independently
-  const error = null;
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -114,68 +139,47 @@ export default function ContractorDashboard() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
+                {/* Unlock Hint #1 */}
+        {!growthCenterUnlocked && unlock1 && !unlock2 && (
+          <View style={styles.unlockHint}>
+            <Text style={styles.unlockHintText}>
+              Keep going — something unlocks soon.
+            </Text>
+          </View>
+        )}
+
+        {/* Unlock Hint #2 */}
+        {!growthCenterUnlocked && unlock2 && !unlock3 && (
+          <View style={styles.unlockHint}>
+            <Text style={styles.unlockHintText}>
+              One more job… and the real magic starts.
+            </Text>
+          </View>
+        )}
+
         {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Welcome back,</Text>
             <Text style={styles.name}>{user?.firstName || 'Contractor'}</Text>
           </View>
+          {/* Secret Growth Center button */}
+          {growthCenterUnlocked && (
+            <TouchableOpacity
+              style={styles.growthButton}
+              onPress={() => router.push('/(contractor)/growth')}
+            >
+              <Text style={styles.growthButtonIcon}>📈</Text>
+            </TouchableOpacity>
+          )}       
+        
+          
           <TouchableOpacity
-            style={styles.avatarButton}
-            onPress={() => router.push('/(contractor)/profile')}
+            style={styles.profileButton}
+            onPress={() => router.push('/profile')}
           >
-            {user?.profilePhoto ? (
-              <Image source={{ uri: user.profilePhoto }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitials}>
-                  {user?.firstName?.[0]}{user?.lastName?.[0]}
-                </Text>
-              </View>
-            )}
+            <Text style={styles.profileIcon}>👤</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Loading State */}
-        {isLoading && (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading dashboard...</Text>
-          </View>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>
-              Failed to load dashboard data. Pull down to refresh.
-            </Text>
-          </View>
-        )}
-
-        {/* Registration Status Banner */}
-        {!isLoading && !error && (
-        <>
-        <View style={styles.section}>
-          <Card style={styles.registrationCard}>
-            <View style={styles.registrationContent}>
-              <View style={styles.registrationInfo}>
-                <Ionicons name="shield-checkmark" size={32} color={colors.success.main} />
-                <View style={styles.registrationText}>
-                  <Text style={styles.registrationTitle}>Registration Active</Text>
-                  <Text style={styles.registrationSubtitle}>
-                    Expires: {/* TODO: Add actual expiration date */} Nov 12, 2026
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => router.push('/auth/contractor/register-step1')}
-              >
-                <Ionicons name="create-outline" size={20} color={colors.primary.main} />
-                <Text style={styles.editButtonText}>Edit</Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
         </View>
 
         {/* Job Status Cards */}
@@ -251,9 +255,44 @@ export default function ContractorDashboard() {
           </View>
         </View>
 
+        {/* Change Orders Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Change Orders</Text>
+          <Card style={styles.changeOrderCard}>
+            <Text style={styles.changeOrderIcon}>📝</Text>
+            <Text style={styles.changeOrderTitle}>Manage Change Orders</Text>
+            <Text style={styles.changeOrderSubtitle}>
+              Document scope changes and additional work for your jobs
+            </Text>
+            <TouchableOpacity
+              style={styles.changeOrderButton}
+              onPress={() => {
+                // Navigate to first scheduled job's change order list
+                // If no scheduled jobs, show info
+                if (scheduledJobs && scheduledJobs.length > 0) {
+                  router.push(`/(contractor)/change-order/list/${scheduledJobs[0].id}`);
+                } else {
+                  Alert.alert(
+                    'Change Orders',
+                    'Change orders are job-specific. Visit a job detail screen to create or view change orders.',
+                    [{ text: 'OK' }]
+                  );
+                }
+              }}
+            >
+              <Text style={styles.changeOrderButtonText}>View Change Orders</Text>
+            </TouchableOpacity>
+          </Card>
+        </View>
+
         {/* Financial Summary */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Financials</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Financials</Text>
+            <TouchableOpacity onPress={() => router.push('/(contractor)/reports')}>
+              <Text style={styles.sectionLink}>View Reports</Text>
+            </TouchableOpacity>
+          </View>
 
           <Card style={styles.financialCard}>
             {/* This Month */}
@@ -336,8 +375,6 @@ export default function ContractorDashboard() {
             </TouchableOpacity>
           </View>
         </View>
-        </>
-        )}
 
         {/* Mileage Summary */}
         {stats && (
@@ -362,6 +399,35 @@ export default function ContractorDashboard() {
           </View>
         )}
       </ScrollView>
+            {/* Growth Center Unlock Modal */}
+      <Modal
+        visible={showUnlockModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowUnlockModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>You’ve Proven Yourself</Text>
+            <Text style={styles.modalMessage}>
+              You’re officially invited to the Growth Center.
+              Unlock powerful tools to raise prices, scale smarter,
+              and access the elite side of the platform.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setShowUnlockModal(false);
+                router.push('/(contractor)/growth');
+              }}
+            >
+              <Text style={styles.modalButtonText}>Enter Growth Center</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -386,41 +452,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
   greeting: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
   },
   name: {
-    ...typography.sizes['3xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h2,
     color: colors.neutral[900],
   },
-  avatarButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.primary.main,
-  },
-  avatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary.lightest || `${colors.primary.main}20`,
-    justifyContent: 'center',
+  profileButton: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.neutral[100],
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.primary.main,
+    justifyContent: 'center',
   },
-  avatarInitials: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary.main,
+  profileIcon: {
+    fontSize: 24,
   },
   section: {
     marginTop: spacing.xl,
@@ -433,13 +481,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h3,
     color: colors.neutral[900],
     marginBottom: spacing.md,
   },
   sectionLink: {
-    ...typography.sizes.sm,
+    ...typography.body.small,
     color: colors.primary.main,
     fontWeight: typography.weights.semibold,
   },
@@ -490,19 +537,50 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary.main,
   },
   jobCardBadgeText: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.background.primary,
     fontWeight: typography.weights.bold,
   },
   jobCardTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   jobCardSubtitle: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
+  },
+  changeOrderCard: {
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  changeOrderIcon: {
+    fontSize: 48,
+    marginBottom: spacing.md,
+  },
+  changeOrderTitle: {
+    ...typography.headings.h4,
+    color: colors.neutral[900],
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  changeOrderSubtitle: {
+    ...typography.body.regular,
+    color: colors.neutral[600],
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+  },
+  changeOrderButton: {
+    backgroundColor: colors.primary.main,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.md,
+  },
+  changeOrderButtonText: {
+    ...typography.body.regular,
+    fontWeight: typography.weights.semibold,
+    color: colors.background.primary,
   },
   financialCard: {
     padding: spacing.lg,
@@ -511,7 +589,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   financialLabel: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[700],
     marginBottom: spacing.sm,
@@ -526,13 +604,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   financialItemLabel: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   financialAmount: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
   },
   revenueText: {
     color: colors.secondary.main,
@@ -571,7 +648,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   actionText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[700],
     textAlign: 'center',
@@ -587,74 +664,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   mileageLabel: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   mileageValue: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.primary.main,
   },
-  registrationCard: {
-    padding: spacing.base,
-  },
-  registrationContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  registrationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    modalOverlay: {
     flex: 1,
-  },
-  registrationText: {
-    marginLeft: spacing.md,
-    flex: 1,
-  },
-  registrationTitle: {
-    ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
-    color: colors.neutral[900],
-    marginBottom: spacing.xs,
-  },
-  registrationSubtitle: {
-    ...typography.sizes.sm,
-    color: colors.neutral[600],
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.primary.lightest,
-    borderRadius: borderRadius.md,
-  },
-  editButtonText: {
-    ...typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
-    color: colors.primary.main,
-    marginLeft: spacing.xs,
-  },
-  loadingContainer: {
-    padding: spacing.xl,
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
   },
-  loadingText: {
-    ...typography.sizes.base,
-    color: colors.neutral[600],
-  },
-  errorContainer: {
+  modalContainer: {
+    width: '100%',
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
     padding: spacing.xl,
-    backgroundColor: colors.error.lightest,
-    borderRadius: borderRadius.md,
-    margin: spacing.md,
+    ...shadows.md,
   },
-  errorText: {
-    ...typography.sizes.base,
-    color: colors.error.main,
+  modalTitle: {
+    fontSize: typography.xl,
+    fontWeight: '700',
+    marginBottom: spacing.md,
+    color: colors.neutral[900],
     textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: typography.md,
+    lineHeight: 22,
+    marginBottom: spacing.lg,
+    color: colors.neutral[700],
+    textAlign: 'center',
+  },
+  modalButton: {
+    backgroundColor: colors.primary[600],
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: colors.white,
+    fontSize: typography.md,
+    fontWeight: '600',
+  },
+    growthButton: {
+    marginRight: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.sm,
+  },
+  growthButtonIcon: {
+    fontSize: typography.xl,
+    color: colors.primary[600],
   },
 });

@@ -4,7 +4,7 @@
  * Displays customer information and manages addresses.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,20 @@ export default function CustomerProfile() {
   const { user, logout, refreshUser } = useAuth();
   const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Role guard: Only customers should access this profile
+  useEffect(() => {
+    if (user && user.role !== 'customer') {
+      // Redirect to appropriate dashboard
+      if (user.role === 'technician') {
+        router.replace('/(contractor)/dashboard');
+      } else if (user.role === 'handyman') {
+        router.replace('/(handyman)/dashboard');
+      } else if (user.role === 'admin') {
+        router.replace('/admin/dashboard');
+      }
+    }
+  }, [user, router]);
 
   // Address form state
   const [street, setStreet] = useState('');

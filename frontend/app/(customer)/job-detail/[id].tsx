@@ -21,7 +21,8 @@ const mockJob = {
   id: '1',
   title: 'Fix hole in bedroom wall',
   category: 'drywall',
-  status: 'in_progress_50',
+  status: 'in_progress',
+  progress: 50,
   contractor: {
     name: 'Mike Johnson',
     rating: 4.8,
@@ -119,14 +120,12 @@ export default function JobDetailScreen() {
     console.log('Rejecting milestone:', milestoneId);
   };
 
+  // Use progress field from backend or calculate from milestones
+  // Don't infer progress from status - that's frontend invention
   const completionPercentage =
     job.status === 'completed'
       ? 100
-      : job.status === 'in_progress_50'
-      ? 50
-      : job.status === 'materials_ordered'
-      ? 25
-      : 10;
+      : (job as any).progress || 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -346,6 +345,27 @@ export default function JobDetailScreen() {
           </Card>
         </View>
 
+        {/* Change Orders */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Change Orders</Text>
+            <TouchableOpacity
+              onPress={() => router.push(`/(customer)/job-detail/${job.id}/change-orders`)}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          <Card variant="outlined" padding="base">
+            <View style={styles.changeOrderEmptyState}>
+              <Ionicons name="document-text-outline" size={48} color={colors.neutral[400]} />
+              <Text style={styles.changeOrderEmptyTitle}>No Change Orders</Text>
+              <Text style={styles.changeOrderEmptyText}>
+                Change orders will appear here when your contractor requests scope changes or additional work.
+              </Text>
+            </View>
+          </Card>
+        </View>
+
         {/* Support */}
         <Card variant="flat" padding="base" style={styles.supportCard}>
           <View style={styles.supportContent}>
@@ -396,8 +416,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   title: {
-    ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h2,
     color: colors.neutral[900],
     flex: 1,
     marginRight: spacing.md,
@@ -406,13 +425,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   cardTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
     marginBottom: spacing.md,
   },
   progressLabel: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
     marginTop: spacing.sm,
     textAlign: 'center',
@@ -434,8 +452,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contractorName: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
@@ -445,12 +462,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   contractorRating: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
     fontWeight: typography.weights.medium,
   },
   contractorJobs: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
   },
   paymentCard: {
@@ -463,7 +480,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   paymentLabel: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[700],
   },
   paymentLabelWithIcon: {
@@ -472,16 +489,15 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   paymentAmount: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
   },
   paymentLabelSmall: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
   },
   paymentAmountSmall: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     fontWeight: typography.weights.medium,
     color: colors.neutral[700],
   },
@@ -494,10 +510,36 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   sectionTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.neutral[900],
     marginBottom: spacing.md,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  viewAllText: {
+    ...typography.body.small,
+    color: colors.primary.main,
+    fontWeight: typography.weights.semibold,
+  },
+  changeOrderEmptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  changeOrderEmptyTitle: {
+    ...typography.headings.h5,
+    color: colors.neutral[700],
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  changeOrderEmptyText: {
+    ...typography.body.small,
+    color: colors.neutral[600],
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
   },
   milestoneCard: {
     marginBottom: spacing.md,
@@ -513,13 +555,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   milestoneName: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
   },
   milestoneAmount: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.primary.main,
   },
   milestoneDate: {
@@ -529,11 +569,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   milestoneDateText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
   },
   milestoneNotes: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[700],
     lineHeight: 24,
     marginBottom: spacing.md,
@@ -542,7 +582,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   evidenceTitle: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[700],
     marginBottom: spacing.sm,
@@ -589,12 +629,12 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
   },
   timelineEventText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   timelineDate: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
   },
   supportCard: {
@@ -609,13 +649,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   supportTitle: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   supportDescription: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[600],
     lineHeight: 20,
   },

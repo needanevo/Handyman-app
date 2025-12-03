@@ -1,69 +1,59 @@
 /**
- * Customer Role Guard Layout
- * Ensures only authenticated customers can access customer routes
+ * Customer Routes Layout Guard
+ *
+ * Prevents non-customer users from accessing customer-only routes.
+ * Redirects contractors/handymen to their appropriate dashboards.
  */
 
 import React, { useEffect } from 'react';
 import { Slot, useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { View, StyleSheet } from 'react-native';
-import { LoadingSpinner } from '../../src/components/LoadingSpinner';
+import { LoadingSpinner } from '../../src/components';
 
 export default function CustomerLayout() {
-  const { isHydrated, isAuthenticated, user } = useAuth();
+  const { user, isHydrated, isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isHydrated) {
-      // Wait for auth state to hydrate
-      return;
-    }
+    // Wait for auth hydration to complete
+    if (!isHydrated) return;
 
+    // If not authenticated, redirect to welcome
     if (!isAuthenticated) {
-      // Not authenticated - redirect to login
-      console.log('Customer route accessed without auth - redirecting to welcome');
       router.replace('/auth/welcome');
       return;
     }
 
-    if (user?.role !== 'customer') {
-      // Wrong role - redirect to correct dashboard
-      console.log('Non-customer tried to access customer route - redirecting');
-      if (user?.role === 'technician') {
-        router.replace('/(contractor)/dashboard');
-      } else if (user?.role === 'admin') {
-        router.replace('/admin');
-      } else {
-        router.replace('/');
-      }
+    // Role guard: only customers can access customer routes
+    if (user?.role === 'technician' || user?.role === 'handyman') {
+      // Redirect contractors/handymen to contractor dashboard
+      router.replace('/(contractor)/dashboard');
+      return;
     }
-  }, [isHydrated, isAuthenticated, user, router]);
 
-  // Show loading while hydrating
+    if (user?.role === 'admin') {
+      // Redirect admins to admin dashboard
+      router.replace('/admin');
+      return;
+    }
+
+    // If role is not customer, technician, handyman, or admin, redirect to welcome
+    if (user?.role !== 'customer') {
+      router.replace('/auth/welcome');
+      return;
+    }
+  }, [user, isHydrated, isAuthenticated, router]);
+
+  // Show loading state while hydrating
   if (!isHydrated) {
-    return (
-      <View style={styles.container}>
-        <LoadingSpinner fullScreen />
-      </View>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
-  // Show loading while redirecting
+  // Show loading state while redirecting non-customers
   if (!isAuthenticated || user?.role !== 'customer') {
-    return (
-      <View style={styles.container}>
-        <LoadingSpinner fullScreen />
-      </View>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
-  // Render customer routes
+  // Role matches - render customer routes
   return <Slot />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-});

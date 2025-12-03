@@ -1,69 +1,59 @@
 /**
- * Contractor Role Guard Layout
- * Ensures only authenticated contractors/technicians can access contractor routes
+ * Contractor Routes Layout Guard
+ *
+ * Prevents non-contractor users from accessing contractor-only routes.
+ * Redirects customers to customer dashboard.
  */
 
 import React, { useEffect } from 'react';
 import { Slot, useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { View, StyleSheet } from 'react-native';
-import { LoadingSpinner } from '../../src/components/LoadingSpinner';
+import { LoadingSpinner } from '../../src/components';
 
 export default function ContractorLayout() {
-  const { isHydrated, isAuthenticated, user } = useAuth();
+  const { user, isHydrated, isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isHydrated) {
-      // Wait for auth state to hydrate
-      return;
-    }
+    // Wait for auth hydration to complete
+    if (!isHydrated) return;
 
+    // If not authenticated, redirect to welcome
     if (!isAuthenticated) {
-      // Not authenticated - redirect to login
-      console.log('Contractor route accessed without auth - redirecting to welcome');
       router.replace('/auth/welcome');
       return;
     }
 
-    if (user?.role !== 'technician') {
-      // Wrong role - redirect to correct dashboard
-      console.log('Non-contractor tried to access contractor route - redirecting');
-      if (user?.role === 'customer') {
-        router.replace('/(customer)/dashboard');
-      } else if (user?.role === 'admin') {
-        router.replace('/admin');
-      } else {
-        router.replace('/');
-      }
+    // Role guard: only technicians and handymen can access contractor routes
+    if (user?.role === 'customer') {
+      // Redirect customers to customer dashboard
+      router.replace('/(customer)/dashboard');
+      return;
     }
-  }, [isHydrated, isAuthenticated, user, router]);
 
-  // Show loading while hydrating
+    if (user?.role === 'admin') {
+      // Redirect admins to admin dashboard
+      router.replace('/admin');
+      return;
+    }
+
+    // If role is not technician or handyman, redirect to welcome
+    if (user?.role !== 'technician' && user?.role !== 'handyman') {
+      router.replace('/auth/welcome');
+      return;
+    }
+  }, [user, isHydrated, isAuthenticated, router]);
+
+  // Show loading state while hydrating
   if (!isHydrated) {
-    return (
-      <View style={styles.container}>
-        <LoadingSpinner fullScreen />
-      </View>
-    );
+    return <LoadingSpinner fullScreen />;
   }
 
-  // Show loading while redirecting
-  if (!isAuthenticated || user?.role !== 'technician') {
-    return (
-      <View style={styles.container}>
-        <LoadingSpinner fullScreen />
-      </View>
-    );
+  // Show loading state while redirecting non-contractors
+  if (!isAuthenticated || (user?.role !== 'technician' && user?.role !== 'handyman')) {
+    return <LoadingSpinner fullScreen />;
   }
 
-  // Render contractor routes
+  // Role matches - render contractor routes
   return <Slot />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-});
