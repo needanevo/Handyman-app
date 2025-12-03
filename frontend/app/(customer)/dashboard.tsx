@@ -15,19 +15,33 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Card } from '../../src/components/Card';
+import { jobsAPI } from '../../src/services/api';
 
 export default function CustomerDashboard() {
   const router = useRouter();
   const { user } = useAuth();
 
-  // TODO: Fetch real data from backend
-  const activeJobsCount = 0;
-  const completedJobsCount = 0;
-  const warrantiesCount = 0;
+  // Fetch real jobs using the SAME query key as jobs list screen
+  // This ensures unified cache across dashboard and job list
+  const { data: allJobs } = useQuery({
+    queryKey: ['customer-jobs'],
+    queryFn: async () => {
+      const response = await jobsAPI.getJobs();
+      return response || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Derive counts from real job data
+  const jobs = allJobs || [];
+  const activeJobsCount = jobs.filter((job: any) => job.status !== 'completed').length;
+  const completedJobsCount = jobs.filter((job: any) => job.status === 'completed').length;
+  const warrantiesCount = 0; // TODO: Implement warranty API
   const hasAddresses = user?.addresses && user.addresses.length > 0;
 
   return (
