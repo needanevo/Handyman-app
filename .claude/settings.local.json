@@ -30,7 +30,20 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(gh issue list:*)",
-      "Bash(sshpass -p '$1Jennifer$1Joshua' ssh -o StrictHostKeyChecking=no root@172.234.70.157 'cd /srv/handyman-app/Handyman-app-main && git pull origin dev && systemctl restart handyman-api && systemctl status handyman-api --no-pager')"
+      "Bash(sshpass -p '$1Jennifer$1Joshua' ssh -o StrictHostKeyChecking=no root@172.234.70.157 'cd /srv/handyman-app/Handyman-app-main && git pull origin dev && systemctl restart handyman-api && systemctl status handyman-api --no-pager')",
+      "Bash(venv\\Scripts\\python.exe -m pip:*)",
+      "Bash(for page in index.html step2.html step3.html step4.html confirmation.html)",
+      "Bash(do echo \"Checking /hire/$page:\")",
+      "Bash(curl:*)",
+      "Bash(for file in terms.html privacy.html contractor-agreement.html)",
+      "Bash(do echo \"Processing $file\")",
+      "Bash(test -f:*)",
+      "Bash(find:*)",
+      "Bash(dir venvScriptspython.exe)",
+      "Bash(timeout:*)",
+      "Bash(..venvScriptspython.exe -m uvicorn:*)",
+      "Bash(dir:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []
