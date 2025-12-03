@@ -60,7 +60,7 @@ export default function HandymanDashboard() {
   // Derive real-time stats from job data
   const growthLevel = 1;
   const jobsAvailable = availableJobs?.length || 0;
-  const jobsActive = (acceptedJobs?.length || 0) + (scheduledJobs?.length || 0);
+  const jobsActive = scheduledJobs?.length || 0;
   const totalEarned = completedJobs?.reduce((sum: number, job: any) => sum + (job.payout || 0), 0) || 0;
   const pendingPayout = 0; // TODO: Calculate from accepted/scheduled jobs
   const rating = completedJobs && completedJobs.length > 0

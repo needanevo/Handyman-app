@@ -45,7 +45,7 @@ export default function AvailableJobs() {
         customerId: job.customer_id,
         contractorId: job.contractor_id,
         quoteId: job.quote_id,
-        status: job.status?.toUpperCase() || 'PENDING',
+        status: job.status || 'pending',
         title: job.description?.substring(0, 50) || 'Untitled Job',
         description: job.description || '',
         category: job.service_category || 'Other',

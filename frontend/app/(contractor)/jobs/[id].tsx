@@ -63,7 +63,7 @@ export default function JobDetail() {
           preferredContact: 'phone' as const,
         },
         contractorId: 'cont456',
-        status: 'IN_PROGRESS' as const,
+        status: 'in_progress' as const,
         title: 'Kitchen Faucet Replacement',
         description:
           'Replace leaking kitchen faucet with new Delta model. Customer has already purchased the faucet. Need to remove old faucet, clean area, and install new one.',
@@ -149,17 +149,17 @@ export default function JobDetail() {
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case 'AVAILABLE':
+      case 'pending':
         return 'neutral';
-      case 'ACCEPTED':
+      case 'accepted':
         return 'warning';
-      case 'SCHEDULED':
+      case 'scheduled':
         return 'primary';
-      case 'IN_PROGRESS':
+      case 'in_progress':
         return 'primary';
-      case 'COMPLETED':
+      case 'completed':
         return 'success';
-      case 'CANCELLED':
+      case 'cancelled':
         return 'error';
       default:
         return 'neutral';

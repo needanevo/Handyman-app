@@ -21,7 +21,8 @@ const mockJob = {
   id: '1',
   title: 'Fix hole in bedroom wall',
   category: 'drywall',
-  status: 'in_progress_50',
+  status: 'in_progress',
+  progress: 50,
   contractor: {
     name: 'Mike Johnson',
     rating: 4.8,
@@ -119,14 +120,12 @@ export default function JobDetailScreen() {
     console.log('Rejecting milestone:', milestoneId);
   };
 
+  // Use progress field from backend or calculate from milestones
+  // Don't infer progress from status - that's frontend invention
   const completionPercentage =
     job.status === 'completed'
       ? 100
-      : job.status === 'in_progress_50'
-      ? 50
-      : job.status === 'materials_ordered'
-      ? 25
-      : 10;
+      : (job as any).progress || 0;
 
   return (
     <SafeAreaView style={styles.container}>

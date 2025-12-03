@@ -17,17 +17,8 @@ import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 export default function ActiveJobs() {
   const router = useRouter();
 
-  // Fetch both accepted and scheduled jobs to show as "active"
-  // Using unified query keys for cache synchronization with dashboard
-  const { data: acceptedJobs } = useQuery({
-    queryKey: ['handyman-accepted-jobs'],
-    queryFn: async () => {
-      const response = await contractorAPI.getAcceptedJobs();
-      return response.jobs || [];
-    },
-    staleTime: 2 * 60 * 1000,
-  });
-
+  // Fetch scheduled jobs only (backend truth, no frontend grouping)
+  // Using unified query key for cache synchronization with dashboard
   const { data: scheduledJobs, isLoading } = useQuery({
     queryKey: ['handyman-scheduled-jobs'],
     queryFn: async () => {
@@ -37,17 +28,23 @@ export default function ActiveJobs() {
     staleTime: 2 * 60 * 1000,
   });
 
-  // Combine accepted and scheduled jobs as "active"
-  const activeJobs = [...(acceptedJobs || []), ...(scheduledJobs || [])];
+  // Use scheduled jobs directly from backend (no merging)
+  const activeJobs = scheduledJobs || [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Scheduled':
+      case 'scheduled':
         return '#3B82F6';
-      case 'In Progress':
+      case 'in_progress':
         return '#FFA500';
-      case 'Awaiting Confirmation':
+      case 'accepted':
         return '#8B5CF6';
+      case 'pending':
+        return colors.warning.main;
+      case 'completed':
+        return colors.success.main;
+      case 'cancelled':
+        return colors.error.main;
       default:
         return colors.neutral[600];
     }

@@ -39,7 +39,9 @@ export default function CustomerDashboard() {
 
   // Derive counts from real job data
   const jobs = allJobs || [];
-  const activeJobsCount = jobs.filter((job: any) => job.status !== 'completed').length;
+  const activeJobsCount = jobs.filter((job: any) =>
+    job.status !== 'completed' && job.status !== 'cancelled'
+  ).length;
   const completedJobsCount = jobs.filter((job: any) => job.status === 'completed').length;
   const warrantiesCount = 0; // TODO: Implement warranty API
   const hasAddresses = user?.addresses && user.addresses.length > 0;

@@ -65,7 +65,9 @@ export default function JobsListScreen() {
 
   // Filter jobs based on selected tab
   const jobs = allJobs || [];
-  const activeJobs = jobs.filter((job: any) => job.status !== 'completed');
+  const activeJobs = jobs.filter((job: any) =>
+    job.status !== 'completed' && job.status !== 'cancelled'
+  );
   const completedJobs = jobs.filter((job: any) => job.status === 'completed');
 
   const filteredJobs =
