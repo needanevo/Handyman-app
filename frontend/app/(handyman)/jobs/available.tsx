@@ -8,38 +8,34 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
+import { contractorAPI } from '../../../src/services/api';
+import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 
 export default function AvailableJobs() {
   const router = useRouter();
   const [selectedDistance, setSelectedDistance] = useState(25);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // TODO: Fetch from backend GET /api/handyman/jobs/available
-  const mockJobs = [
-    {
-      id: '1',
-      category: 'Drywall',
-      title: 'Repair ceiling drywall',
-      distance: 3.2,
-      estimatedPay: 150,
-      urgency: 'Today',
-      customerRating: 4.8,
+  // Fetch real available jobs from API
+  // Using unified query key for cache synchronization with dashboard
+  const { data: jobs, isLoading } = useQuery({
+    queryKey: ['handyman-available-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getAvailableJobs();
+      return response.jobs || [];
     },
-    {
-      id: '2',
-      category: 'Painting',
-      title: 'Paint bedroom walls',
-      distance: 7.5,
-      estimatedPay: 280,
-      urgency: 'This week',
-      customerRating: 4.9,
-    },
-  ];
+    staleTime: 2 * 60 * 1000,
+  });
 
   const categories = ['All', 'Drywall', 'Painting', 'Electrical', 'Plumbing', 'Carpentry'];
   const distances = [5, 10, 25, 50];
+
+  if (isLoading) {
+    return <LoadingSpinner fullScreen text="Loading available jobs..." />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -105,7 +101,7 @@ export default function AvailableJobs() {
 
         {/* Job Cards */}
         <View style={styles.jobsList}>
-          {mockJobs.map((job) => (
+          {jobs && jobs.length > 0 ? jobs.map((job: any) => (
             <TouchableOpacity key={job.id} style={styles.jobCard}>
               <View style={styles.jobHeader}>
                 <View style={styles.categoryBadge}>
@@ -141,7 +137,12 @@ export default function AvailableJobs() {
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
-          ))}
+          )) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="briefcase-outline" size={64} color={colors.neutral[400]} />
+              <Text style={styles.emptyStateText}>No jobs available in your area</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -291,5 +292,15 @@ const styles = StyleSheet.create({
     ...typography.caption.regular,
     fontWeight: typography.weights.semibold,
     color: '#FFF',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing['3xl'],
+  },
+  emptyStateText: {
+    ...typography.body.regular,
+    color: colors.neutral[600],
+    marginTop: spacing.base,
   },
 });

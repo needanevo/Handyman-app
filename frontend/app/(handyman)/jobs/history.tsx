@@ -8,41 +8,35 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
+import { contractorAPI } from '../../../src/services/api';
+import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 
 export default function JobHistory() {
   const router = useRouter();
 
-  // TODO: Fetch from backend GET /api/handyman/jobs/history
-  const mockHistory = [
-    {
-      id: '1',
-      category: 'Carpentry',
-      title: 'Install door frame',
-      completedDate: '2025-11-20',
-      customer: 'Mike Davis',
-      rating: 5,
-      review: 'Excellent work! Very professional.',
-      payout: 200,
+  // Fetch completed jobs from API
+  // Using unified query key for cache synchronization with dashboard
+  const { data: completedJobs, isLoading } = useQuery({
+    queryKey: ['handyman-completed-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getCompletedJobs();
+      return response.jobs || [];
     },
-    {
-      id: '2',
-      category: 'Electrical',
-      title: 'Replace light fixture',
-      completedDate: '2025-11-18',
-      customer: 'Lisa Chen',
-      rating: 4,
-      review: 'Good work, arrived on time.',
-      payout: 120,
-    },
-  ];
+    staleTime: 2 * 60 * 1000,
+  });
 
-  const totalCompleted = mockHistory.length;
-  const totalEarned = mockHistory.reduce((sum, job) => sum + job.payout, 0);
-  const averageRating = (
-    mockHistory.reduce((sum, job) => sum + job.rating, 0) / mockHistory.length
-  ).toFixed(1);
+  const totalCompleted = completedJobs?.length || 0;
+  const totalEarned = completedJobs?.reduce((sum: number, job: any) => sum + (job.payout || 0), 0) || 0;
+  const averageRating = completedJobs && completedJobs.length > 0
+    ? (completedJobs.reduce((sum: number, job: any) => sum + (job.rating || 0), 0) / completedJobs.length).toFixed(1)
+    : '0.0';
+
+  if (isLoading) {
+    return <LoadingSpinner fullScreen text="Loading job history..." />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -90,7 +84,7 @@ export default function JobHistory() {
 
         {/* Job History List */}
         <View style={styles.historyList}>
-          {mockHistory.map((job) => (
+          {completedJobs && completedJobs.length > 0 ? completedJobs.map((job: any) => (
             <View key={job.id} style={styles.historyCard}>
               <View style={styles.historyHeader}>
                 <View style={styles.categoryBadge}>
@@ -125,7 +119,12 @@ export default function JobHistory() {
                 <Text style={styles.payoutAmount}>${job.payout}</Text>
               </View>
             </View>
-          ))}
+          )) : (
+            <View style={styles.emptyHistoryState}>
+              <Ionicons name="time-outline" size={64} color={colors.neutral[400]} />
+              <Text style={styles.emptyHistoryText}>No completed jobs yet</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -282,5 +281,15 @@ const styles = StyleSheet.create({
     ...typography.headings.h5,
     fontWeight: typography.weights.bold,
     color: '#FFA500',
+  },
+  emptyHistoryState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing['3xl'],
+  },
+  emptyHistoryText: {
+    ...typography.body.regular,
+    color: colors.neutral[600],
+    marginTop: spacing.base,
   },
 });

@@ -8,21 +8,63 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { contractorAPI } from '../../src/services/api';
 
 export default function HandymanDashboard() {
   const router = useRouter();
   const { user, logout } = useAuth();
 
-  // TODO: Fetch real data from backend
+  // Fetch real jobs using the SAME query keys as list screens
+  // This ensures unified cache across dashboard and job lists
+  const { data: availableJobs } = useQuery({
+    queryKey: ['handyman-available-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getAvailableJobs();
+      return response.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: acceptedJobs } = useQuery({
+    queryKey: ['handyman-accepted-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getAcceptedJobs();
+      return response.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: scheduledJobs } = useQuery({
+    queryKey: ['handyman-scheduled-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getScheduledJobs();
+      return response.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: completedJobs } = useQuery({
+    queryKey: ['handyman-completed-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getCompletedJobs();
+      return response.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Derive real-time stats from job data
   const growthLevel = 1;
-  const jobsAvailable = 12;
-  const jobsActive = 2;
-  const totalEarned = 2850;
-  const pendingPayout = 450;
-  const rating = 4.7;
+  const jobsAvailable = availableJobs?.length || 0;
+  const jobsActive = (acceptedJobs?.length || 0) + (scheduledJobs?.length || 0);
+  const totalEarned = completedJobs?.reduce((sum: number, job: any) => sum + (job.payout || 0), 0) || 0;
+  const pendingPayout = 0; // TODO: Calculate from accepted/scheduled jobs
+  const rating = completedJobs && completedJobs.length > 0
+    ? completedJobs.reduce((sum: number, job: any) => sum + (job.rating || 0), 0) / completedJobs.length
+    : 4.7;
 
   return (
     <SafeAreaView style={styles.container}>

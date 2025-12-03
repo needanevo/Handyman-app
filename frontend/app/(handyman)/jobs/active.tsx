@@ -8,35 +8,37 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
+import { contractorAPI } from '../../../src/services/api';
+import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 
 export default function ActiveJobs() {
   const router = useRouter();
 
-  // TODO: Fetch from backend GET /api/handyman/jobs/active
-  const mockActiveJobs = [
-    {
-      id: '1',
-      category: 'Drywall',
-      title: 'Repair ceiling drywall',
-      status: 'Scheduled',
-      scheduledDate: 'Tomorrow, 9:00 AM',
-      customer: 'John Smith',
-      address: '123 Main St, Baltimore, MD',
-      estimatedPay: 150,
+  // Fetch both accepted and scheduled jobs to show as "active"
+  // Using unified query keys for cache synchronization with dashboard
+  const { data: acceptedJobs } = useQuery({
+    queryKey: ['handyman-accepted-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getAcceptedJobs();
+      return response.jobs || [];
     },
-    {
-      id: '2',
-      category: 'Painting',
-      title: 'Paint bedroom walls',
-      status: 'In Progress',
-      scheduledDate: 'Today',
-      customer: 'Sarah Johnson',
-      address: '456 Oak Ave, Baltimore, MD',
-      estimatedPay: 280,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: scheduledJobs, isLoading } = useQuery({
+    queryKey: ['handyman-scheduled-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getScheduledJobs();
+      return response.jobs || [];
     },
-  ];
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Combine accepted and scheduled jobs as "active"
+  const activeJobs = [...(acceptedJobs || []), ...(scheduledJobs || [])];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -51,6 +53,10 @@ export default function ActiveJobs() {
     }
   };
 
+  if (isLoading) {
+    return <LoadingSpinner fullScreen text="Loading active jobs..." />;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -62,7 +68,7 @@ export default function ActiveJobs() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {mockActiveJobs.length === 0 ? (
+        {activeJobs.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="briefcase-outline" size={64} color={colors.neutral[400]} />
             <Text style={styles.emptyStateTitle}>No Active Jobs</Text>
@@ -78,7 +84,7 @@ export default function ActiveJobs() {
           </View>
         ) : (
           <View style={styles.jobsList}>
-            {mockActiveJobs.map((job) => (
+            {activeJobs.map((job: any) => (
               <TouchableOpacity key={job.id} style={styles.jobCard}>
                 <View style={styles.jobHeader}>
                   <View style={styles.categoryBadge}>
