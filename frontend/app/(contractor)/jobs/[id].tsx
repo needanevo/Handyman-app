@@ -47,7 +47,7 @@ export default function JobDetail() {
   const [notes, setNotes] = useState('');
 
   // Mock data - in production, fetch from API
-  const { data: job } = useQuery<Job>({
+  const { data: job } = useQuery({
     queryKey: ['contractor', 'jobs', id],
     queryFn: async () => {
       // Mock job data
@@ -125,7 +125,7 @@ export default function JobDetail() {
         acceptedAt: '2025-11-12T14:30:00',
       };
     },
-  });
+  }) as any;
 
   const handlePhotoPress = (photo: JobPhoto, index: number) => {
     setSelectedPhotoIndex(index);
@@ -197,7 +197,7 @@ export default function JobDetail() {
     );
   }
 
-  const photosToday = job.photos.filter((p) => {
+  const photosToday = job.photos.filter((p: any) => {
     const photoDate = new Date(p.timestamp).toDateString();
     const today = new Date().toDateString();
     return photoDate === today;

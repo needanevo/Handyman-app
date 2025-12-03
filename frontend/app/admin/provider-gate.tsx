@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { Button } from '../../src/components/Button';
-import { api } from '../../src/services/api';
+import api from '../../src/services/api';
 
 type ProviderGateMode = 'both' | 'licensed_only' | 'handyman_only' | 'contractors_disabled';
 

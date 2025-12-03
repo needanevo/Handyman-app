@@ -56,38 +56,38 @@ export default function ContractorDashboard() {
   const { data: availableJobs, refetch: refetchAvailable } = useQuery({
     queryKey: ['contractor-available-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getAvailableJobs();
+      const response: any = await contractorAPI.getAvailableJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
-  });
+  }) as any;
 
   const { data: acceptedJobs, refetch: refetchAccepted } = useQuery({
     queryKey: ['contractor-accepted-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getAcceptedJobs();
+      const response: any = await contractorAPI.getAcceptedJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
-  });
+  }) as any;
 
   const { data: scheduledJobs, refetch: refetchScheduled } = useQuery({
     queryKey: ['contractor-scheduled-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getScheduledJobs();
+      const response: any = await contractorAPI.getScheduledJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
-  });
+  }) as any;
 
   const { data: completedJobs, refetch: refetchCompleted } = useQuery({
     queryKey: ['contractor-completed-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getCompletedJobs();
+      const response: any = await contractorAPI.getCompletedJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
-  });
+  }) as any;
 
   // Derive stats from real job data
   const stats = {
@@ -672,7 +672,22 @@ const styles = StyleSheet.create({
     ...typography.headings.h5,
     color: colors.primary.main,
   },
-    modalOverlay: {
+  unlockHint: {
+    backgroundColor: colors.warning.lightest,
+    padding: spacing.md,
+    marginHorizontal: spacing.base,
+    marginTop: spacing.md,
+    borderRadius: borderRadius.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning.main,
+  },
+  unlockHintText: {
+    ...typography.body.small,
+    color: colors.neutral[700],
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
@@ -681,44 +696,44 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: '100%',
-    backgroundColor: colors.white,
+    backgroundColor: colors.brand.white,
     borderRadius: borderRadius.lg,
     padding: spacing.xl,
     ...shadows.md,
   },
   modalTitle: {
-    fontSize: typography.xl,
+    ...(typography.sizes.xl as any),
     fontWeight: '700',
     marginBottom: spacing.md,
     color: colors.neutral[900],
     textAlign: 'center',
   },
   modalMessage: {
-    fontSize: typography.md,
+    ...(typography.sizes.base as any),
     lineHeight: 22,
     marginBottom: spacing.lg,
     color: colors.neutral[700],
     textAlign: 'center',
   },
   modalButton: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.primary.main,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
   },
   modalButtonText: {
-    color: colors.white,
-    fontSize: typography.md,
+    color: colors.brand.white,
+    ...(typography.sizes.base as any),
     fontWeight: '600',
   },
-    growthButton: {
+  growthButton: {
     marginRight: spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.sm,
   },
   growthButtonIcon: {
-    fontSize: typography.xl,
-    color: colors.primary[600],
+    ...(typography.sizes.xl as any),
+    color: colors.primary.main,
   },
 });

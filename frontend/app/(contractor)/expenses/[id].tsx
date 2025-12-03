@@ -91,10 +91,8 @@ export default function ExpenseDetailScreen() {
           icon="receipt-outline"
           title="Expense Not Found"
           description="This expense could not be loaded"
-          action={{
-            label: 'Go Back',
-            onPress: () => router.back(),
-          }}
+          actionLabel="Go Back"
+          onAction={() => router.back()}
         />
       </SafeAreaView>
     );

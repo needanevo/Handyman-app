@@ -7,7 +7,7 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'customer' | 'technician' | 'admin';
+  role: 'customer' | 'technician' | 'admin' | 'handyman';
   phone: string;
   addresses: Address[];
   isActive: boolean;
@@ -23,6 +23,11 @@ export interface User {
   };
   portfolioPhotos?: string[];
   profilePhoto?: string;
+  stats?: {
+    completedJobs?: number;
+    averageRating?: number;
+    paymentsReceived?: number;
+  };
 }
 
 export interface Address {
