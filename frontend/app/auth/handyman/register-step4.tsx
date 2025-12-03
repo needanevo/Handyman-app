@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { colors, spacing, typography, borderRadius } from '../../../src/constant
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { contractorAPI } from '../../../src/services/api';
+import { useAuth } from '../../../src/contexts/AuthContext';
 
 interface Step4Form {
   accountHolderName: string;
@@ -26,7 +27,9 @@ interface Step4Form {
 
 export default function HandymanRegisterStep4() {
   const router = useRouter();
+  const { isHydrated, isAuthenticated, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [registrationComplete, setRegistrationComplete] = useState(false);
 
   const {
     control,
@@ -36,6 +39,35 @@ export default function HandymanRegisterStep4() {
   } = useForm<Step4Form>();
 
   const accountNumber = watch('accountNumber');
+
+  // Fix 5.11: Explicit redirect after registration completion
+  useEffect(() => {
+    if (!registrationComplete) return;
+    if (!isHydrated) {
+      console.log('Handyman registration complete - waiting for hydration...');
+      return;
+    }
+    if (!isAuthenticated || !user || !user.role) {
+      console.log('Handyman registration complete - waiting for user auth...');
+      return;
+    }
+
+    console.log('Handyman registration hydrated - redirecting to dashboard for role:', user.role);
+
+    // Explicit role-based redirect
+    if (user.role === 'handyman') {
+      router.replace('/(handyman)/dashboard');
+    } else if (user.role === 'technician') {
+      router.replace('/(contractor)/dashboard');
+    } else if (user.role === 'customer') {
+      router.replace('/(customer)/dashboard');
+    } else if (user.role === 'admin') {
+      router.replace('/admin');
+    } else {
+      // Unknown role - go to welcome
+      router.replace('/auth/welcome');
+    }
+  }, [registrationComplete, isHydrated, isAuthenticated, user, router]);
 
   const onSubmit = async (data: Step4Form) => {
     if (data.accountNumber !== data.confirmAccountNumber) {
@@ -57,14 +89,12 @@ export default function HandymanRegisterStep4() {
         },
       });
 
-      // Registration complete - index.tsx will redirect based on role
-      // No modal or manual navigation needed
-      console.log('Handyman registration complete - auto-redirect to dashboard');
-
+      // Fix 5.11: Signal registration completion, useEffect will handle redirect
+      console.log('Handyman banking setup complete - waiting for hydration');
+      setRegistrationComplete(true);
     } catch (error) {
       console.error('Banking setup error:', error);
       Alert.alert('Error', 'Failed to save banking information. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
