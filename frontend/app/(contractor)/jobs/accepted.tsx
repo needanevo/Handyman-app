@@ -21,20 +21,20 @@ import { Card } from '../../../src/components/Card';
 import { Badge } from '../../../src/components/Badge';
 import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 import { EmptyState } from '../../../src/components/EmptyState';
+import { contractorAPI } from '../../../src/services/api';
 
 export default function AcceptedJobsScreen() {
   const router = useRouter();
 
   // Fetch accepted jobs
+  // Using unified query key for cache synchronization with dashboard
   const { data: jobs, isLoading } = useQuery({
-    queryKey: ['contractor', 'jobs', 'accepted'],
+    queryKey: ['contractor-accepted-jobs'],
     queryFn: async () => {
-      // TODO: Implement actual API call
-      // return await contractorAPI.getJobsByStatus('accepted');
-
-      // Mock data for now
-      return [];
+      const response = await contractorAPI.getAcceptedJobs();
+      return response.jobs || [];
     },
+    staleTime: 2 * 60 * 1000,
   });
 
   if (isLoading) {

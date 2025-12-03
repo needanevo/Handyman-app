@@ -21,20 +21,20 @@ import { Card } from '../../../src/components/Card';
 import { Badge } from '../../../src/components/Badge';
 import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 import { EmptyState } from '../../../src/components/EmptyState';
+import { contractorAPI } from '../../../src/services/api';
 
 export default function CompletedJobsScreen() {
   const router = useRouter();
 
   // Fetch completed jobs
+  // Using unified query key for cache synchronization with dashboard
   const { data: jobs, isLoading } = useQuery({
-    queryKey: ['contractor', 'jobs', 'completed'],
+    queryKey: ['contractor-completed-jobs'],
     queryFn: async () => {
-      // TODO: Implement actual API call
-      // return await contractorAPI.getJobsByStatus('completed');
-
-      // Mock data for now
-      return [];
+      const response = await contractorAPI.getCompletedJobs();
+      return response.jobs || [];
     },
+    staleTime: 2 * 60 * 1000,
   });
 
   const formatCurrency = (amount: number) => {

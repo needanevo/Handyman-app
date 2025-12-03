@@ -24,6 +24,7 @@ import { Card } from '../../src/components/Card';
 import { Badge } from '../../src/components/Badge';
 import { Button } from '../../src/components/Button';
 import { DashboardStats, JobStatus } from '../../src/types/contractor';
+import { contractorAPI } from '../../src/services/api';
 
 export default function ContractorDashboard() {
   const router = useRouter();
@@ -49,35 +50,70 @@ export default function ContractorDashboard() {
   }, [unlock3]);
 
 
-  // In production, this would fetch from API
-  // For now, we'll use mock data
-  const { data: stats, refetch } = useQuery<DashboardStats>({
-    queryKey: ['contractor', 'stats'],
+  // Fetch real jobs using the SAME query keys as list screens
+  // This ensures unified cache across dashboard and job lists
+  const { data: availableJobs, refetch: refetchAvailable } = useQuery({
+    queryKey: ['contractor-available-jobs'],
     queryFn: async () => {
-      // Mock data - replace with actual API call
-      return {
-        availableJobsCount: 8,
-        acceptedJobsCount: 3,
-        scheduledJobsCount: 5,
-        completedThisMonth: 12,
-        completedYearToDate: 47,
-        revenueThisMonth: 8500,
-        revenueYearToDate: 42300,
-        expensesThisMonth: 2100,
-        expensesYearToDate: 9800,
-        profitThisMonth: 6400,
-        profitYearToDate: 32500,
-        milesThisMonth: 245,
-        milesYearToDate: 1823,
-        milesAllTime: 5642,
-      };
+      const response = await contractorAPI.getAvailableJobs();
+      return response.jobs || [];
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 2 * 60 * 1000,
   });
+
+  const { data: acceptedJobs, refetch: refetchAccepted } = useQuery({
+    queryKey: ['contractor-accepted-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getAcceptedJobs();
+      return response.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: scheduledJobs, refetch: refetchScheduled } = useQuery({
+    queryKey: ['contractor-scheduled-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getScheduledJobs();
+      return response.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: completedJobs, refetch: refetchCompleted } = useQuery({
+    queryKey: ['contractor-completed-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getCompletedJobs();
+      return response.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Derive stats from real job data
+  const stats = {
+    availableJobsCount: availableJobs?.length ?? 0,
+    acceptedJobsCount: acceptedJobs?.length ?? 0,
+    scheduledJobsCount: scheduledJobs?.length ?? 0,
+    completedThisMonth: completedJobs?.length ?? 0,
+    completedYearToDate: completedJobs?.length ?? 0,
+    revenueThisMonth: 0,  // TODO: Calculate from completed jobs
+    revenueYearToDate: 0,
+    expensesThisMonth: 0,
+    expensesYearToDate: 0,
+    profitThisMonth: 0,
+    profitYearToDate: 0,
+    milesThisMonth: 0,
+    milesYearToDate: 0,
+    milesAllTime: 0,
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([
+      refetchAvailable(),
+      refetchAccepted(),
+      refetchScheduled(),
+      refetchCompleted(),
+    ]);
     setRefreshing(false);
   };
 

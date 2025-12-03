@@ -31,8 +31,9 @@ export default function AvailableJobs() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch real available jobs from API
+  // Using unified query key for cache synchronization with dashboard
   const { data: jobs, refetch, isLoading, error } = useQuery<Job[]>({
-    queryKey: ['contractor', 'jobs', 'available'],
+    queryKey: ['contractor-available-jobs'],
     queryFn: async () => {
       const response = await contractorAPI.getAvailableJobs();
       // Backend returns { jobs: [], count, max_distance_miles, contractor_location }
