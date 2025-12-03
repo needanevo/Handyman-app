@@ -205,45 +205,62 @@ async def register_user(user_data: UserCreate):
 @api_router.post("/auth/login", response_model=Token)
 async def login_user(login_data: UserLogin):
     """Login user and return tokens"""
-    user = await auth_handler.authenticate_user(login_data.email, login_data.password)
-    if not user:
-        raise HTTPException(401, detail="That email or password didn't match. Please try again or use Forgot Password.")
-    
+    try:
+        user = await auth_handler.authenticate_user(login_data.email, login_data.password)
+        if not user:
+            raise HTTPException(401, detail="That email or password didn't match. Please try again or use Forgot Password.")
 
-    access_token = auth_handler.create_access_token(
-        data={"user_id": user.id, "email": user.email, "role": user.role}
-    )
-    refresh_token = auth_handler.create_refresh_token(
-        data={"user_id": user.id, "email": user.email}
-    )
 
-    return Token(access_token=access_token, refresh_token=refresh_token)
+        access_token = auth_handler.create_access_token(
+            data={"user_id": user.id, "email": user.email, "role": user.role}
+        )
+        refresh_token = auth_handler.create_refresh_token(
+            data={"user_id": user.id, "email": user.email}
+        )
+
+        return Token(access_token=access_token, refresh_token=refresh_token)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Log the error for debugging but don't expose internal details
+        logger.error(f"Login error for {login_data.email}: {str(e)}")
+        # Return 401 for any authentication failures (security: don't expose DB/model errors)
+        raise HTTPException(401, detail="Invalid email or password")
 
 
 async def get_current_user_dependency(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """Dependency wrapper to inject auth_handler"""
-    payload = auth_handler.verify_token(credentials.credentials)
-    user_id = payload.get("user_id")
+    try:
+        payload = auth_handler.verify_token(credentials.credentials)
+        user_id = payload.get("user_id")
 
-    if not user_id:
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
+            )
+
+        user = await auth_handler.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user"
+            )
+
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Log error but don't expose internal details
+        logger.error(f"User authentication error: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed"
         )
-
-    user = await auth_handler.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user"
-        )
-
-    return user
 
 
 @api_router.get("/auth/me")
@@ -257,32 +274,40 @@ async def get_current_user_info(
     - Customers: Basic profile fields only (no contractor data)
     - Handyman/Technician: Includes business, skills, documents, portfolio
     """
-    user_dict = current_user.model_dump()
+    try:
+        user_dict = current_user.model_dump()
 
-    # Define contractor/handyman-specific fields to filter
-    contractor_fields = [
-        'business_name', 'hourly_rate', 'skills', 'available_hours',
-        'years_experience', 'service_areas', 'documents', 'portfolio_photos',
-        'has_llc', 'llc_formation_date', 'is_licensed', 'license_number',
-        'license_state', 'license_expiry', 'is_insured', 'insurance_policy_number',
-        'insurance_expiry', 'upgrade_to_technician_date', 'registration_completed_date',
-        'registration_status'
-    ]
+        # Define contractor/handyman-specific fields to filter
+        contractor_fields = [
+            'business_name', 'hourly_rate', 'skills', 'available_hours',
+            'years_experience', 'service_areas', 'documents', 'portfolio_photos',
+            'has_llc', 'llc_formation_date', 'is_licensed', 'license_number',
+            'license_state', 'license_expiry', 'is_insured', 'insurance_policy_number',
+            'insurance_expiry', 'upgrade_to_technician_date', 'registration_completed_date',
+            'registration_status'
+        ]
 
-    # Filter fields based on role
-    if current_user.role == UserRole.CUSTOMER:
-        # Remove ALL contractor/handyman fields for customers
-        for field in contractor_fields:
-            user_dict.pop(field, None)
+        # Filter fields based on role
+        if current_user.role == UserRole.CUSTOMER:
+            # Remove ALL contractor/handyman fields for customers
+            for field in contractor_fields:
+                user_dict.pop(field, None)
 
-        # Also remove customer_notes and tags (internal use only)
-        user_dict.pop('customer_notes', None)
-        user_dict.pop('tags', None)
+            # Also remove customer_notes and tags (internal use only)
+            user_dict.pop('customer_notes', None)
+            user_dict.pop('tags', None)
 
-    # For handyman/technician roles, include all fields (no filtering needed)
-    # For admin, include all fields as well
+        # For handyman/technician roles, include all fields (no filtering needed)
+        # For admin, include all fields as well
 
-    return user_dict
+        return user_dict
+    except Exception as e:
+        # Log error but don't expose internal details
+        logger.error(f"Error fetching user info: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve user information"
+        )
 
 
 @api_router.post("/auth/refresh", response_model=Token)
