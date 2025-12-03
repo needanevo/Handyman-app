@@ -127,3 +127,7 @@ frontend/.env
 .eas-temp
 nul
 providers.txt
+-e 
+# Environment files
+*.env
+*.env.*
