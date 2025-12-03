@@ -154,45 +154,56 @@ async def register_user(user_data: UserCreate):
 @api_router.post("/auth/login", response_model=Token)
 async def login_user(login_data: UserLogin):
     """Login user and return tokens"""
-    user = await auth_handler.authenticate_user(login_data.email, login_data.password)
-    if not user:
-        raise HTTPException(401, detail="That email or password didn't match. Please try again or use Forgot Password.")
-    
+    try:
+        user = await auth_handler.authenticate_user(login_data.email, login_data.password)
+        if not user:
+            raise HTTPException(401, detail="That email or password didn't match. Please try again or use Forgot Password.")
 
-    access_token = auth_handler.create_access_token(
-        data={"user_id": user.id, "email": user.email, "role": user.role}
-    )
-    refresh_token = auth_handler.create_refresh_token(
-        data={"user_id": user.id, "email": user.email}
-    )
+        access_token = auth_handler.create_access_token(
+            data={"user_id": user.id, "email": user.email, "role": user.role}
+        )
+        refresh_token = auth_handler.create_refresh_token(
+            data={"user_id": user.id, "email": user.email}
+        )
 
-    return Token(access_token=access_token, refresh_token=refresh_token)
+        return Token(access_token=access_token, refresh_token=refresh_token)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Login error: {e}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
 
 async def get_current_user_dependency(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """Dependency wrapper to inject auth_handler"""
-    payload = auth_handler.verify_token(credentials.credentials)
-    user_id = payload.get("user_id")
+    try:
+        payload = auth_handler.verify_token(credentials.credentials)
+        user_id = payload.get("user_id")
 
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
-        )
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
+            )
 
-    user = await auth_handler.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
-        )
+        user = await auth_handler.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+            )
 
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user"
-        )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user"
+            )
 
-    return user
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Token verification error: {e}")
+        raise HTTPException(status_code=401, detail="Invalid authentication")
 
 
 @api_router.get("/auth/me", response_model=User)
@@ -200,7 +211,11 @@ async def get_current_user_info(
     current_user: User = Depends(get_current_user_dependency),
 ):
     """Get current user information"""
-    return current_user
+    try:
+        return current_user
+    except Exception as e:
+        logging.error(f"Error returning user info: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve user information")
 
 
 # ==================== SERVICE CATALOG ROUTES ====================
