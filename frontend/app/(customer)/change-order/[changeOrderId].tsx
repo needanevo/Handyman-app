@@ -14,7 +14,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
-import { api } from '../../../src/services/api';
+import api from '../../../src/services/api';
 
 interface ChangeOrderData {
   id: string;
@@ -45,7 +45,7 @@ export default function CustomerChangeOrderScreen() {
 
   const fetchChangeOrder = async () => {
     try {
-      const response = await api.get(`/jobs/${jobId}/change-orders`);
+      const response = await api.get(`/jobs/${jobId}/change-orders`) as any;
       const order = response.data.change_orders.find((co: ChangeOrderData) => co.id === changeOrderId);
       if (order) {
         setChangeOrder(order);
@@ -222,7 +222,7 @@ export default function CustomerChangeOrderScreen() {
           <Button
             title="Reject Change"
             onPress={handleReject}
-            isLoading={isSubmitting}
+            loading={isSubmitting}
             disabled={isSubmitting}
             variant="outline"
             fullWidth
@@ -232,7 +232,7 @@ export default function CustomerChangeOrderScreen() {
           <Button
             title="Approve Change"
             onPress={handleApprove}
-            isLoading={isSubmitting}
+            loading={isSubmitting}
             disabled={isSubmitting}
             fullWidth
             icon={<Ionicons name="checkmark-circle" size={20} color="#fff" />}
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    fontWeight: '700' as const,
     color: colors.neutral[900],
     marginTop: spacing.md,
   },
@@ -280,14 +280,14 @@ const styles = StyleSheet.create({
   },
   costText: {
     ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    fontWeight: '700' as const,
   },
   section: {
     marginBottom: spacing.xl,
   },
   sectionTitle: {
     ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
     color: colors.neutral[700],
     marginBottom: spacing.md,
   },
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
     color: colors.neutral[900],
   },
   photosScroll: {
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
     color: colors.neutral[700],
     marginBottom: spacing.xs,
   },
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    fontWeight: '700' as const,
     color: colors.neutral[700],
     marginBottom: spacing.sm,
   },

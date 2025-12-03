@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../../src/constants/theme';
 import { Button } from '../../../../src/components/Button';
 import { PhotoUploader } from '../../../../src/components/PhotoUploader';
-import { api } from '../../../../src/services/api';
+import api from '../../../../src/services/api';
 
 export default function WarrantyRequestScreen() {
   const router = useRouter();
@@ -90,7 +90,7 @@ export default function WarrantyRequestScreen() {
           <Button
             title="Submit Warranty Request"
             onPress={handleSubmit}
-            isLoading={isSubmitting}
+            loading={isSubmitting}
             disabled={isSubmitting}
             size="large"
             fullWidth
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    fontWeight: '700' as const,
     color: colors.neutral[900],
     marginTop: spacing.md,
   },
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
     color: colors.neutral[700],
     marginBottom: spacing.xs,
   },

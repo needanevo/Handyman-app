@@ -12,7 +12,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../../src/constants/theme';
 import { Button } from '../../../../src/components/Button';
-import { api } from '../../../../src/services/api';
+import api from '../../../../src/services/api';
 
 interface ChangeOrderData {
   id: string;
@@ -43,7 +43,7 @@ export default function ChangeOrderListScreen() {
 
   const fetchChangeOrders = async () => {
     try {
-      const response = await api.get(`/jobs/${jobId}/change-orders`);
+      const response = await api.get(`/jobs/${jobId}/change-orders`) as any;
       setChangeOrders(response.data.change_orders || []);
     } catch (error) {
       console.error('Failed to fetch change orders:', error);
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    fontWeight: '700' as const,
     color: colors.neutral[900],
     marginTop: spacing.md,
     marginBottom: spacing.sm,
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    fontWeight: '700' as const,
     color: colors.neutral[700],
   },
   emptyText: {
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     ...typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
   },
   dateText: {
     ...typography.sizes.sm,
@@ -290,11 +290,11 @@ const styles = StyleSheet.create({
   },
   costText: {
     ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    fontWeight: '700' as const,
   },
   descriptionTitle: {
     ...typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
     color: colors.neutral[700],
   },
   descriptionText: {
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   },
   notesLabel: {
     ...typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
     color: colors.neutral[700],
     marginBottom: spacing.xs,
   },

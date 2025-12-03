@@ -11,7 +11,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../../src/constants/theme';
 import { Button, LoadingSpinner, EmptyState } from '../../../../src/components';
-import { api } from '../../../../src/services/api';
+import api from '../../../../src/services/api';
 
 interface WarrantyData {
   id: string;
@@ -40,10 +40,10 @@ export default function WarrantyStatusScreen() {
 
   const fetchWarrantyStatus = async () => {
     try {
-      const response = await api.get(`/jobs/${jobId}/warranty/status`);
+      const response = await api.get(`/jobs/${jobId}/warranty/status`) as { data: { has_warranty: boolean; warranty?: WarrantyData } };
       setHasWarranty(response.data.has_warranty);
       if (response.data.has_warranty) {
-        setWarranty(response.data.warranty);
+        setWarranty(response.data.warranty!);
       }
     } catch (error) {
       console.error('Failed to fetch warranty status:', error);
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     ...typography.body.regular,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
     color: colors.neutral[900],
   },
 });

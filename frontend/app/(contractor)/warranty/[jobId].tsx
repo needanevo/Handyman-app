@@ -13,7 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button, LoadingSpinner, EmptyState } from '../../../src/components';
-import { api } from '../../../src/services/api';
+import api from '../../../src/services/api';
 
 interface WarrantyData {
   id: string;
@@ -42,10 +42,10 @@ export default function ContractorWarrantyScreen() {
 
   const fetchWarrantyStatus = async () => {
     try {
-      const response = await api.get(`/jobs/${jobId}/warranty/status`);
+      const response = await api.get(`/jobs/${jobId}/warranty/status`) as { data: { has_warranty: boolean; warranty?: WarrantyData } };
       setHasWarranty(response.data.has_warranty);
       if (response.data.has_warranty) {
-        setWarranty(response.data.warranty);
+        setWarranty(response.data.warranty!);
       }
     } catch (error) {
       console.error('Failed to fetch warranty status:', error);
@@ -213,7 +213,7 @@ export default function ContractorWarrantyScreen() {
           <Button
             title="Deny Warranty"
             onPress={handleDeny}
-            isLoading={isSubmitting}
+            loading={isSubmitting}
             disabled={isSubmitting}
             variant="outline"
             fullWidth
@@ -223,7 +223,7 @@ export default function ContractorWarrantyScreen() {
           <Button
             title="Approve Warranty"
             onPress={handleApprove}
-            isLoading={isSubmitting}
+            loading={isSubmitting}
             disabled={isSubmitting}
             fullWidth
             icon={<Ionicons name="checkmark-circle" size={20} color="#fff" />}
@@ -299,12 +299,12 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     ...typography.body.regular,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
     color: colors.neutral[900],
   },
   label: {
     ...typography.body.regular,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
     color: colors.neutral[700],
     marginBottom: spacing.xs,
   },

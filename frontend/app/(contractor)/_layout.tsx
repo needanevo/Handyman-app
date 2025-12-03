@@ -33,7 +33,7 @@ export default function ContractorLayout() {
 
     if (user?.role === 'admin') {
       // Redirect admins to admin dashboard
-      router.replace('/admin');
+      router.replace('/admin' as any);
       return;
     }
 

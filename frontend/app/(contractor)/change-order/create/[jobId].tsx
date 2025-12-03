@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../../src/constants/theme';
 import { Button } from '../../../../src/components/Button';
 import { PhotoUploader } from '../../../../src/components/PhotoUploader';
-import { api } from '../../../../src/services/api';
+import api from '../../../../src/services/api';
 
 export default function CreateChangeOrderScreen() {
   const router = useRouter();
@@ -153,7 +153,7 @@ export default function CreateChangeOrderScreen() {
           <Button
             title="Submit Change Order"
             onPress={handleSubmit}
-            isLoading={isSubmitting}
+            loading={isSubmitting}
             disabled={isSubmitting}
             size="large"
             fullWidth
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
+    fontWeight: '700' as const,
     color: colors.neutral[900],
     marginTop: spacing.md,
     marginBottom: spacing.sm,
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
     color: colors.neutral[700],
     marginBottom: spacing.xs,
   },
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.md,
     ...typography.sizes.base,
     color: colors.neutral[600],
-    fontWeight: typography.weights.semibold,
+    fontWeight: '600' as const,
   },
   textArea: {
     backgroundColor: colors.background.secondary,
