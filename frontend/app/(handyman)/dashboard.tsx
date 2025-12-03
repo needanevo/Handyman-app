@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -214,6 +215,37 @@ export default function HandymanDashboard() {
           </TouchableOpacity>
         </View>
 
+        {/* Panel 2.5: CHANGE ORDERS */}
+        <View style={styles.panel}>
+          <View style={styles.panelHeader}>
+            <Ionicons name="document-text" size={24} color="#FFA500" />
+            <Text style={styles.panelTitle}>Change Orders</Text>
+          </View>
+
+          <Text style={styles.panelDescription}>
+            Document scope changes and additional work for your jobs
+          </Text>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => {
+              // Navigate to first scheduled job's change order list
+              if (scheduledJobs && scheduledJobs.length > 0) {
+                router.push(`/(handyman)/change-order/list/${scheduledJobs[0].id}`);
+              } else {
+                Alert.alert(
+                  'Change Orders',
+                  'Change orders are job-specific. Visit a job detail screen to create or view change orders.',
+                  [{ text: 'OK' }]
+                );
+              }
+            }}
+          >
+            <Text style={styles.secondaryButtonText}>View Change Orders</Text>
+            <Ionicons name="arrow-forward" size={16} color="#FFA500" />
+          </TouchableOpacity>
+        </View>
+
         {/* Panel 3: WALLET */}
         <View style={styles.panel}>
           <View style={styles.panelHeader}>
@@ -330,6 +362,11 @@ const styles = StyleSheet.create({
     ...typography.sizes.xl,
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
+  },
+  panelDescription: {
+    ...typography.body.regular,
+    color: colors.neutral[600],
+    marginBottom: spacing.md,
   },
   growthPhase: {
     flexDirection: 'row',

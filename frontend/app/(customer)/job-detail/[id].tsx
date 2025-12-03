@@ -346,6 +346,27 @@ export default function JobDetailScreen() {
           </Card>
         </View>
 
+        {/* Change Orders */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Change Orders</Text>
+            <TouchableOpacity
+              onPress={() => router.push(`/(customer)/job-detail/${job.id}/change-orders`)}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          <Card variant="outlined" padding="base">
+            <View style={styles.changeOrderEmptyState}>
+              <Ionicons name="document-text-outline" size={48} color={colors.neutral[400]} />
+              <Text style={styles.changeOrderEmptyTitle}>No Change Orders</Text>
+              <Text style={styles.changeOrderEmptyText}>
+                Change orders will appear here when your contractor requests scope changes or additional work.
+              </Text>
+            </View>
+          </Card>
+        </View>
+
         {/* Support */}
         <Card variant="flat" padding="base" style={styles.supportCard}>
           <View style={styles.supportContent}>
@@ -493,6 +514,33 @@ const styles = StyleSheet.create({
     ...typography.headings.h4,
     color: colors.neutral[900],
     marginBottom: spacing.md,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  viewAllText: {
+    ...typography.body.small,
+    color: colors.primary.main,
+    fontWeight: typography.weights.semibold,
+  },
+  changeOrderEmptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  changeOrderEmptyTitle: {
+    ...typography.headings.h5,
+    color: colors.neutral[700],
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  changeOrderEmptyText: {
+    ...typography.body.small,
+    color: colors.neutral[600],
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
   },
   milestoneCard: {
     marginBottom: spacing.md,

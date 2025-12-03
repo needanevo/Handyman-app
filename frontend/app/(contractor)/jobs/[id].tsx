@@ -376,6 +376,29 @@ export default function JobDetail() {
           />
         </Card>
 
+        {/* Change Orders */}
+        <Card style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Change Orders</Text>
+            <TouchableOpacity
+              onPress={() => router.push(`/(contractor)/change-order/list/${job.id}`)}
+            >
+              <Text style={styles.viewAllLink}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.cardSubtitle}>
+            Document scope changes and additional work for this job
+          </Text>
+          <Button
+            title="Create Change Order"
+            onPress={() => router.push(`/(contractor)/change-order/create/${job.id}`)}
+            variant="outline"
+            size="medium"
+            fullWidth
+            style={{ marginTop: spacing.md }}
+          />
+        </Card>
+
         {/* Quick Actions */}
         <Card style={styles.card}>
           <Text style={styles.cardTitle}>Quick Actions</Text>
@@ -510,6 +533,16 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...typography.headings.h5,
     color: colors.neutral[900],
+  },
+  cardSubtitle: {
+    ...typography.body.small,
+    color: colors.neutral[600],
+    marginBottom: spacing.sm,
+  },
+  viewAllLink: {
+    ...typography.caption.regular,
+    color: colors.primary.main,
+    fontWeight: typography.weights.semibold,
   },
   contactLink: {
     ...typography.caption.regular,

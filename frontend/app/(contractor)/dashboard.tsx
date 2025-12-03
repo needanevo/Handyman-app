@@ -13,8 +13,9 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Modal,
+  Alert,
 } from 'react-native';
-import { Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -252,6 +253,36 @@ export default function ContractorDashboard() {
               <Text style={styles.jobCardSubtitle}>{stats?.completedThisMonth || 0} this month</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Change Orders Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Change Orders</Text>
+          <Card style={styles.changeOrderCard}>
+            <Text style={styles.changeOrderIcon}>📝</Text>
+            <Text style={styles.changeOrderTitle}>Manage Change Orders</Text>
+            <Text style={styles.changeOrderSubtitle}>
+              Document scope changes and additional work for your jobs
+            </Text>
+            <TouchableOpacity
+              style={styles.changeOrderButton}
+              onPress={() => {
+                // Navigate to first scheduled job's change order list
+                // If no scheduled jobs, show info
+                if (scheduledJobs && scheduledJobs.length > 0) {
+                  router.push(`/(contractor)/change-order/list/${scheduledJobs[0].id}`);
+                } else {
+                  Alert.alert(
+                    'Change Orders',
+                    'Change orders are job-specific. Visit a job detail screen to create or view change orders.',
+                    [{ text: 'OK' }]
+                  );
+                }
+              }}
+            >
+              <Text style={styles.changeOrderButtonText}>View Change Orders</Text>
+            </TouchableOpacity>
+          </Card>
         </View>
 
         {/* Financial Summary */}
@@ -518,6 +549,38 @@ const styles = StyleSheet.create({
   jobCardSubtitle: {
     ...typography.caption.regular,
     color: colors.neutral[600],
+  },
+  changeOrderCard: {
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  changeOrderIcon: {
+    fontSize: 48,
+    marginBottom: spacing.md,
+  },
+  changeOrderTitle: {
+    ...typography.headings.h4,
+    color: colors.neutral[900],
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  changeOrderSubtitle: {
+    ...typography.body.regular,
+    color: colors.neutral[600],
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+  },
+  changeOrderButton: {
+    backgroundColor: colors.primary.main,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.md,
+  },
+  changeOrderButtonText: {
+    ...typography.body.regular,
+    fontWeight: typography.weights.semibold,
+    color: colors.background.primary,
   },
   financialCard: {
     padding: spacing.lg,
