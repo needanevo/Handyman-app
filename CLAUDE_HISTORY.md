@@ -5,6 +5,51 @@ Use this file ONLY for historical reference.
 Do not load into every task.
 
 2025-12-02 — Fixes & Phase 5 Execution
+[2025-12-02 11:45] Fix 5.7 — Handyman Job Query Sync + Dashboard Counter Parity
+
+Summary:
+Eliminated cache desynchronization between handyman dashboard and job list screens.
+
+Files Modified:
+frontend/app/(handyman)/dashboard.tsx
+frontend/app/(handyman)/jobs/available.tsx
+frontend/app/(handyman)/jobs/active.tsx
+frontend/app/(handyman)/jobs/history.tsx
+
+Changes:
+
+1. dashboard.tsx:
+   - Replaced mock data with 4 real job queries
+   - Unified query keys with job list screens
+   - Derived stats from actual job array lengths
+   - Combined accepted + scheduled jobs for "active" count
+
+2. Job list screens (available/active/history):
+   - Updated available.tsx to use contractorAPI.getAvailableJobs()
+   - Updated active.tsx to fetch both accepted and scheduled jobs
+   - Updated history.tsx to use contractorAPI.getCompletedJobs()
+   - Added React Query with unified cache keys
+   - Added loading states and empty states
+
+Query Key Unification:
+'handyman-available-jobs' → dashboard + available screen
+'handyman-accepted-jobs' → dashboard + active screen
+'handyman-scheduled-jobs' → dashboard + active screen
+'handyman-completed-jobs' → dashboard + history screen
+
+Root Cause:
+Handyman dashboard used hardcoded mock data (jobsAvailable=12, jobsActive=2).
+Job list screens also used mock data with no API integration.
+This created inconsistent counters and no real-time synchronization.
+
+Impact:
+Handyman dashboard counters now show real-time job counts
+Job lists and dashboard share unified cache
+No more stale/mock data on dashboard
+Active jobs screen combines accepted + scheduled jobs
+Both contractor and handyman dashboards now use accurate real-time data
+Cache synchronization works across all Slot boundaries
+
 [2025-12-02 11:30] Fix 5.6 — Unified Job Count Sync + Slot Cache Boundary Repair
 
 Summary:
