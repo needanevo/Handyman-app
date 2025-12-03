@@ -39,6 +39,7 @@ export interface Address {
 export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  isHydrated: boolean; // True when initial auth check is complete
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
@@ -60,6 +61,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     // Check for stored token on app start
@@ -83,7 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Auth state check failed:', error);
       }
     } finally {
+      console.log('Auth hydration complete');
       setIsLoading(false);
+      setIsHydrated(true);
     }
   };
 
@@ -232,6 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextType = {
     user,
     isLoading,
+    isHydrated,
     isAuthenticated: !!user,
     login,
     register,

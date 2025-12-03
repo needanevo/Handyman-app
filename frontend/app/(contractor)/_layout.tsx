@@ -11,12 +11,12 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { LoadingSpinner } from '../../src/components';
 
 export default function ContractorLayout() {
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user, isHydrated, isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    // Wait for auth to finish loading
-    if (isLoading) return;
+    // Wait for auth hydration to complete
+    if (!isHydrated) return;
 
     // If not authenticated, redirect to welcome
     if (!isAuthenticated) {
@@ -42,10 +42,10 @@ export default function ContractorLayout() {
       router.replace('/auth/welcome');
       return;
     }
-  }, [user, isLoading, isAuthenticated, router]);
+  }, [user, isHydrated, isAuthenticated, router]);
 
-  // Show loading state while checking auth
-  if (isLoading) {
+  // Show loading state while hydrating
+  if (!isHydrated) {
     return <LoadingSpinner fullScreen />;
   }
 
