@@ -5,6 +5,58 @@ Use this file ONLY for historical reference.
 Do not load into every task.
 
 2025-12-02 — Fixes & Phase 5 Execution
+[2025-12-02 12:15] Fix 5.9 — Admin Theme Integration + Crash Repair
+
+Summary:
+Fixed admin screens crashing due to undefined color references and integrated Phase 6B brand colors.
+
+Files Modified:
+frontend/app/admin/index.tsx
+frontend/app/admin/jobs.tsx
+frontend/app/admin/provider-gate.tsx
+frontend/app/admin/warranties.tsx
+
+Changes:
+
+1. admin/index.tsx:
+   - Replaced colors.primary.main → colors.brand.navy (lines 28, 206)
+   - Replaced colors.success.main → colors.brand.gold (line 35)
+   - Replaced colors.secondary.main → colors.brand.navy (line 49)
+   - Statistics and stat values now use navy brand color
+   - Users section uses gold brand color
+   - Consistent brand palette across admin dashboard
+
+2. admin/jobs.tsx:
+   - Replaced colors.info.main → colors.brand.navy (line 88 - CRITICAL CRASH FIX)
+   - Replaced all colors.primary.main → colors.brand.navy (lines 117, 133, 218, 346, 347)
+   - Job status "in_progress" now uses navy instead of non-existent info
+   - Job status "accepted" now uses gold brand color
+   - Activity indicators and icons use brand colors
+
+3. admin/provider-gate.tsx:
+   - Replaced all colors.primary.main → colors.brand.navy (lines 41, 48, 117, 135)
+   - Provider gate UI uses consistent brand colors
+   - Activity indicators, back buttons use navy
+
+4. admin/warranties.tsx:
+   - Replaced all colors.primary.main → colors.brand.navy (lines 75, 119, 202, 209)
+   - Warranty navigation and borders use brand colors
+   - Consistent with overall admin theme
+
+Root Cause:
+Admin screens created before Phase 6B design system standardization.
+Referenced colors.primary.main which may have been undefined in some contexts.
+Critical: colors.info.main doesn't exist in theme → TypeError crash.
+Admin UI should use brand.navy/brand.gold for professional consistency.
+
+Impact:
+Admin dashboard loads without crashes
+TypeError: Cannot read property 'main' of undefined - FIXED
+All admin screens use consistent brand.navy/brand.gold palette
+Eliminated non-existent colors.info.main reference
+Admin branding matches mobile app design system
+Phase 6B design system fully integrated across customer/contractor/handyman/admin
+
 [2025-12-02 12:00] Fix 5.8 — Registration & Login Pipeline Stabilization
 
 Summary:
