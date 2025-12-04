@@ -346,17 +346,17 @@ export default function JobRequestScreen() {
       setIsLoading(true);
 
       // Check if address matches an existing saved address
-      let addressId = user?.addresses?.find(
+      const existingAddress = user?.addresses?.find(
         addr =>
           addr.street === data.street &&
           addr.city === data.city &&
           addr.state === data.state &&
           addr.zipCode === data.zipCode
-      )?.id;
+      );
 
-      // If no matching address, save the new address to profile
-      if (!addressId) {
-        console.log('Saving new address to profile...');
+      // If no matching address, save the new address to profile for future use
+      if (!existingAddress) {
+        console.log('Saving new address to profile for future use...');
         const addressData = {
           street: data.street,
           city: data.city,
@@ -366,36 +366,36 @@ export default function JobRequestScreen() {
         };
 
         try {
-          const savedAddress = await profileAPI.addAddress(addressData);
-          addressId = savedAddress.id;
-          console.log('Address saved with ID:', addressId);
+          await profileAPI.addAddress(addressData);
+          console.log('Address saved to profile');
 
-          // Refresh user data to include new address
+          // Try to refresh user data to include new address
           try {
-            await user && refreshUser();
+            await refreshUser();
           } catch (refreshError) {
             console.warn('Could not refresh user after saving address');
           }
         } catch (addressError: any) {
-          console.error('Failed to save address:', addressError);
-          showAlert(
-            'Error',
-            'Failed to save service address. Please try again.'
-          );
-          return;
+          console.warn('Could not save address to profile:', addressError);
+          // Continue with job creation even if address save fails
         }
       }
 
+      // Create job request with embedded address (not address_id)
       const jobRequest = {
         service_category: data.serviceCategory,
-        address_id: addressId,
+        address: {
+          street: data.street,
+          city: data.city,
+          state: data.state,
+          zip: data.zipCode,
+        },
         description: data.description,
         photos: photos.filter(p => p.status === 'success' && p.url).map(p => p.url!),
-        preferred_dates: [], // Will be enhanced later with date picker
-        maxBudget: parseFloat(data.maxBudget) || 0,
+        preferred_timing: null,
+        budget_max: parseFloat(data.maxBudget) || null,
         urgency: data.urgency,
-        source: 'app',
-        status: 'requested',
+        status: 'published', // Changed from 'requested' to 'published' to match JobStatus enum
       };
 
       const response = await jobsAPI.createJob(jobRequest);

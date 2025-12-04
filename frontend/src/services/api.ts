@@ -115,13 +115,17 @@ export const servicesAPI = {
 export const jobsAPI = {
   createJob: (jobData: {
     service_category: string;
-    address_id: string;
+    address: {
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+    };
     description: string;
     photos: string[];
-    preferred_dates: string[];
-    maxBudget: number;
+    preferred_timing?: string | null;
+    budget_max?: number | null;
     urgency: string;
-    source: string;
     status: string;
   }) => apiClient.post<{
     job_id: string;

@@ -1063,18 +1063,10 @@ async def create_job(
     This endpoint:
     1. Validates request data
     2. Calculates estimated_total using pricing engine
-    3. Creates job record with status='requested'
+    3. Creates job record with status from request (draft or published)
     4. Sends notifications (email + SMS to homeowner, email to admin)
     5. Returns job_id, status, estimated_total, created_at
     """
-    # Validate address belongs to customer
-    address = await db.users.find_one(
-        {"id": current_user.id, "addresses.id": job_data.address_id},
-        {"addresses.$": 1}
-    )
-    if not address or not address.get("addresses"):
-        raise HTTPException(404, detail="Address not found")
-
     # Get service for pricing calculation
     service = await db.services.find_one({"category": job_data.service_category})
     if not service:
@@ -1091,26 +1083,25 @@ async def create_job(
         estimated_total = pricing["base_price"]
 
         # Adjust based on urgency
-        if job_data.urgency == "urgent":
+        if job_data.urgency == "urgent" or job_data.urgency == "high":
             estimated_total *= 1.25  # 25% urgency surcharge
 
         # Cap at budget_max if provided
         if job_data.budget_max and estimated_total > job_data.budget_max:
             estimated_total = job_data.budget_max
 
-    # Create job
+    # Create job with embedded address
     job = Job(
         customer_id=current_user.id,
         service_category=job_data.service_category,
         description=job_data.description,
         photos=job_data.photos,
-        address_id=job_data.address_id,
+        address=job_data.address,  # Use embedded address object
         budget_max=job_data.budget_max,
         urgency=job_data.urgency,
-        preferred_dates=job_data.preferred_dates,
-        source=job_data.source,
-        status=JobStatus.REQUESTED,
-        estimated_total=estimated_total,
+        preferred_timing=job_data.preferred_timing,
+        contractor_type_preference=job_data.contractor_type_preference,
+        status=job_data.status,  # Use status from request (draft or published)
     )
 
     # Save job to MongoDB
