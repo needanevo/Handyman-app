@@ -1,189 +1,152 @@
 # CLAUDE_CORE.md
-Core rules for Claude Code when operating in this repository.
+Minimal rules for Claude Code in this repo.
 
-## 1. Behavior Rules
-- You ONLY write code when the Manager instructs you explicitly.
-- You NEVER invent files, endpoints, routes, or features.
-- You DO NOT modify files outside the scope of the Manager task.
-- You MUST keep changes small, isolated, and incremental.
-- You MUST update CLAUDE_HISTORY.md after each fix.
+## 1. Operating Mode
 
-## 2. Branching Rules
-- Every new phase → new branch:
-  git checkout main
-  git pull
-  git checkout -b feature/phase<N>-<name>
-- Never mix phase work.
-- Never merge unless Manager says:
-  “Claude — merge Phase <N> into main”
+- You are a **worker**. The Manager is the **authority**.
+- You only act on:
+  - Explicit Manager instructions
+  - Real files on disk in this repo
+- Never assume prior chat = current code. Always reopen files from disk before editing.
 
-## 3. Commit Rules
-Each commit MUST be:
-- Single-purpose
-- Under 200 changed lines
-- With a message in this format:
-  [YYYY-MM-DD HH:MM] <Fix/Feat> — <summary>
+Repo root (Windows):
+`C:\Users\Joshua\Desktop\TheRealJohnson.com\Handyman-app-main`
 
-## 4. Allowed Actions
-Claude may:
-- Modify frontend files
-- Modify backend files
-- Create new files ONLY if Manager says
-- Update documentation in CLAUDE_HISTORY.md
+## 2. Scope Boundaries
 
-## 5. Forbidden Actions
-Claude may NOT:
-- Invent API endpoints
-- Invent models
-- Invent routes not in file tree
-- Change authentication logic
-- Change provider architecture
-- Touch deployment unless instructed
-- Write test automation unless instructed
+You may edit only:
 
-## 6. Task Execution Format
-Every task MUST follow this pattern:
-1. Read Manager instruction
-2. Make required code changes ONLY
-3. Update CLAUDE_HISTORY.md (append entry)
-4. Return:
-   "Manager: <Fix Name> applied. Ready for next fix."
+- Frontend:  
+  - `frontend/app/**`  
+  - `frontend/src/**`
 
-## 7. Phase 5 Endpoint Testing Protocol
-Claude never starts Phase 5 by himself.
-Only responds to issue batch files produced by:
-automation/generate_issues.py
+- Backend:  
+  - `backend/**`  
+  - `ops/**`
 
-Fix rules:
-- Fix ONLY endpoints in the issues list
-- One commit per issue
-- Update CLAUDE_HISTORY.md after each fix
+- Docs:  
+  - `CLAUDE_CORE.md`  
+  - `CLAUDE_HISTORY.md`
 
-## 8. File Boundaries
-Frontend:
-  /frontend/app/**
-  /frontend/src/**
+Do NOT touch anything else unless the Manager explicitly names the file/path.
 
-Backend:
-  /backend/**
-  /ops/**
-  
-Documentation:
-  /CLAUDE_CORE.md (current file)
-  /CLAUDE_HISTORY.md (append-only log)
+## 3. Git Rules (Non-Negotiable)
 
-No writing outside these boundaries.
+Every meaningful task ends with:
 
-## 9. Output Requirements
-Claude must:
-- NEVER output full files unless asked
-- NEVER output placeholder code
-- NEVER output TODOs
-- NEVER output commented-out blocks
-- ALWAYS produce functional, working code
+1. `git status` (confirm what changed)
+2. `git add <only the files you actually touched>`
+3. `git commit -m "[YYYY-MM-DD HH:MM] <Fix/Feat> — <summary>"`
+4. `git push origin dev`
 
-## 10. Phase 5 Fix 6: Role-Based UI Isolation Rules
-Completed: 2025-12-02
+You MUST:
 
-MANDATORY UI ISOLATION:
-- All UI rendering MUST be role-based, NEVER field-based
-- Customer screens show ONLY customer features
-- Contractor/handyman screens show ONLY business features
-- No mixed-role components allowed
+- Always work on branch `dev` unless Manager says otherwise.
+- Never leave completed work uncommitted or unpushed.
+- Never create or switch branches unless Manager spells out the command.
 
-Customer UI (customer role only):
-- Job requests, active jobs, completed jobs
-- Warranties
-- Addresses
-- Profile (name, email, phone only)
-- NO: earnings, payouts, expenses, mileage, growth center, business metrics
+### Forbidden Git Commands (unless Manager writes them verbatim)
 
-Contractor/Handyman UI (technician/handyman roles only):
-- Available jobs, accepted jobs, scheduled jobs
-- Earnings, payouts, expenses
-- Mileage tracking, tax reports
-- Growth Center
-- Business profile (skills, documents, portfolio)
-- NO: customer job requests, warranties, consumer service categories
+Do NOT run any of these without explicit instruction:
 
-Role Guards (MANDATORY):
-- Every screen MUST check user.role, NOT field presence
-- Layout guards at (customer)/_layout, (contractor)/_layout, (handyman)/_layout
-- Redirect to correct dashboard if role mismatch
-- No UI should render based on "if field exists"
+- `git reset`, `git reset --hard`
+- `git rebase`
+- `git stash`, `git stash pop`
+- `git merge --ours`, `git merge --theirs`
+- `git clean`
+- Any `rm -rf` on the repo
 
-Routing Rules:
-- login → explicit routing for customer/technician/handyman/admin
-- index → role-based dashboard routing
-- home → customer-only page with role guard
-- All role routing MUST be explicit, no fallback assumptions
+If you see merge conflicts, **stop** and say:
+> “Manager: merge conflict in <file>. Tell me how to resolve it.”
 
-## 11. RECONVERGENCE PROTOCOL EXECUTION
-Completed: 2025-12-03
+## 4. Change Rules
 
-Manager initiated full reconvergence to sync conversation history with actual codebase.
+When given a task:
 
-GAPS FOUND:
-- Fix 3: Layout guards missing (only documented, not implemented)
-- Fix 5.6: Contractor dashboard still using old stats query
-- Fix 5.8: Backend auth endpoints missing error handling
-- Fix 5.10: isHydrated missing from AuthContext
-- Fix 5.12: Customer jobs.tsx still had mockJobs array
-- Fix 5.14: Status conversion to uppercase still present
+1. Read the instruction once, slowly.
+2. Open only the necessary files.
+3. Make the smallest change that solves the task.
+4. Run any relevant checks/commands the Manager specified.
+5. Update `CLAUDE_HISTORY.md` with:
+   - Date/time
+   - Short fix name
+   - Files touched
+   - Commit hash on `dev`
+6. Report back: what you changed + where.
 
-FIXES APPLIED:
-✅ Fix 5.10: Added isHydrated to AuthContext, updated index.tsx
-✅ Fix 3: Created (customer)/_layout.tsx and (contractor)/_layout.tsx guards
-✅ Fix 5.12: Removed mockJobs, integrated real API with unified query key
-✅ Fix 5.14: Removed uppercase status conversion, uses backend truth
-✅ Fix 5.6: Replaced stats endpoint with 4 unified job queries
-✅ Fix 5.8: Added try/catch to login, get_current_user_dependency, /auth/me
-✅ Fix 5.5: Added defensive model_validate with field filtering in auth_handler
+You MUST NOT:
 
-COMMITS:
-- [c4003dd] Frontend Fixes 3, 5.6, 5.10, 5.12, 5.14
-- [5266438] Backend Auth Hardening Fixes 5.5, 5.8
+- Invent API endpoints, models, routes, or providers unless the Manager explicitly asks for them.
+- Refactor unrelated code.
+- “Improve” architecture without being told to.
 
-VERIFIED STATUS:
-All applied fixes now exist in REAL CODE and match CLAUDE_HISTORY.md documentation.
-Codebase is synchronized and reconverged.
+## 5. Real Files Only (No Virtual Work)
 
-## 12. FIX 5.2 COMPLETION
-Completed: 2025-12-03 15:30
+- All edits must hit actual files on disk in this repo.
+- Never claim a fix is “done” unless:
+  - The file was opened from disk,
+  - The changes are saved,
+  - `git diff` would show the change.
 
-Created 4 missing contractor screens to complete navigation workflow:
+You MUST NOT:
 
-FILES CREATED:
-✅ frontend/app/(contractor)/jobs/accepted.tsx
-✅ frontend/app/(contractor)/jobs/scheduled.tsx
-✅ frontend/app/(contractor)/jobs/completed.tsx
-✅ frontend/app/(contractor)/expenses/[id].tsx
+- Pretend to apply patches in a “virtual” environment.
+- Describe work as completed if it was not written into real files.
 
-IMPLEMENTATION DETAILS:
-- All screens use unified query keys matching Fix 5.6 dashboard
-- Query keys: contractor-accepted-jobs, contractor-scheduled-jobs, contractor-completed-jobs
-- Consistent patterns from available.tsx and Fix 5.12 customer screens
-- React Query loading + empty states + pull-to-refresh
-- Search and filter capabilities on all job lists
-- Expense detail links to associated job
-- No new backend endpoints invented
+## 6. Phase & Task Discipline
 
-COMMITS:
-- [7b51f1f] Fix 5.2 — Contractor Routing Stability & Missing Routes
-- [cf481d1] HOTFIX — Fix 5.2 Theme Color References
+- A “fix” or “phase task” = one logical unit of work.
+- One commit per logical task, under ~200 changed lines when possible.
+- If a task grows too large, tell the Manager and propose a split.
 
-HOTFIX DETAILS:
-Root cause: Used non-existent theme colors (brand.navy, background.default, background.paper)
-Fixed: All instances replaced with correct theme colors (primary.main, background.secondary, background.primary)
-All 4 screens now load without TypeErrors
+### Role / UI Rules (Phase 5–6)
 
-IMPACT:
-✅ All contractor navigation links functional
-✅ Dashboard job counters sync with list screens via unified cache
-✅ No more Expo Router missing route errors
-✅ No more theme color crashes
-✅ Complete contractor workflow: Available → Accept → Schedule → Complete
-✅ Expense tracking workflow complete with detail view
-✅ Theme consistency maintained across all contractor routes
+- UI is **role-based**, not field-based.
+- Customer screens: only customer features.
+- Contractor/handyman screens: only business features.
+- Layout guards must enforce roles for:
+  - `(customer)/_layout.tsx`
+  - `(contractor)/_layout.tsx`
+- Redirect on role mismatch instead of rendering wrong UI.
 
---- END OF CORE RULES ---
+Do not add new roles, dashboards, or flows without explicit instruction.
+
+## 7. Auth & Backend Safety
+
+- Do not change auth flows, tokens, or security logic unless the task says so.
+- Do not create or remove collections, indexes, or major models unless ordered.
+- When adding endpoints, follow existing patterns:
+  - Use existing db access style.
+  - Strip `_id` before returning.
+  - Use proper `HTTPException` statuses.
+
+If anything looks destructive or ambiguous, stop and ask.
+
+## 8. Output Rules
+
+When responding after a task:
+
+- Be concise.
+- Include:
+  - Files edited
+  - Short description per file
+  - Any commands run
+  - Result (tests passed / manual check done)
+- Only show full file contents if the Manager asks for them.
+
+## 9. History Log
+
+For every completed fix or feature:
+
+- Append a new entry to `CLAUDE_HISTORY.md`:
+  - `[YYYY-MM-DD HH:MM] <Fix/Feat Name>`
+  - Bullet list of files changed
+  - Commit hash (from `git log -1 --oneline`)
+  - One short paragraph of what changed
+
+`CLAUDE_HISTORY.md` is **append-only**. Do not rewrite old entries.
+
+---
+
+This file is the contract.  
+If a Manager instruction conflicts with this file, follow the Manager and log what you did.

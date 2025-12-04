@@ -17,11 +17,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Card } from '../../src/components/Card';
 import { Button } from '../../src/components/Button';
+import { AddressForm } from '../../src/components/AddressForm';
+import { profileAPI } from '../../src/services/api';
+
+interface AddressFormData {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  unitNumber?: string;
+}
 
 export default function CustomerProfileScreen() {
   const router = useRouter();
@@ -29,26 +40,48 @@ export default function CustomerProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Editable fields
+  // Phone state (not in AddressForm)
   const [phone, setPhone] = useState(user?.phone || '');
-  const [street, setStreet] = useState(user?.addresses?.[0]?.street || '');
-  const [city, setCity] = useState(user?.addresses?.[0]?.city || '');
-  const [state, setState] = useState(user?.addresses?.[0]?.state || '');
-  const [zipCode, setZipCode] = useState(user?.addresses?.[0]?.zipCode || '');
+
+  // Address form control
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<AddressFormData>({
+    defaultValues: {
+      street: user?.addresses?.[0]?.street || '',
+      city: user?.addresses?.[0]?.city || '',
+      state: user?.addresses?.[0]?.state || '',
+      zipCode: user?.addresses?.[0]?.zipCode || '',
+    },
+  });
 
   const hasAddress = user?.addresses && user.addresses.length > 0;
 
-  const handleSave = async () => {
+  const handleSave = async (data: AddressFormData) => {
     setIsSaving(true);
     try {
-      // TODO: Call API to update profile
-      // For now, just simulate save and refresh
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Save address to profile
+      const addressData = {
+        street: data.street,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zipCode,
+        is_default: true,
+      };
+
+      await profileAPI.addAddress(addressData);
+
+      // Refresh user to get updated data
       await refreshUser();
+
       setIsEditing(false);
       Alert.alert('Success', 'Profile updated successfully');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update profile');
+    } catch (error: any) {
+      console.error('Failed to update profile:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to update profile');
     } finally {
       setIsSaving(false);
     }
@@ -57,10 +90,10 @@ export default function CustomerProfileScreen() {
   const handleCancel = () => {
     // Reset to original values
     setPhone(user?.phone || '');
-    setStreet(user?.addresses?.[0]?.street || '');
-    setCity(user?.addresses?.[0]?.city || '');
-    setState(user?.addresses?.[0]?.state || '');
-    setZipCode(user?.addresses?.[0]?.zipCode || '');
+    setValue('street', user?.addresses?.[0]?.street || '');
+    setValue('city', user?.addresses?.[0]?.city || '');
+    setValue('state', user?.addresses?.[0]?.state || '');
+    setValue('zipCode', user?.addresses?.[0]?.zipCode || '');
     setIsEditing(false);
   };
 
@@ -91,6 +124,16 @@ export default function CustomerProfileScreen() {
     );
   };
 
+  // Get default values for AddressForm
+  const defaultValues = user?.addresses && user.addresses.length > 0
+    ? {
+        street: user.addresses[0].street || '',
+        city: user.addresses[0].city || '',
+        state: user.addresses[0].state || '',
+        zipCode: user.addresses[0].zipCode || '',
+      }
+    : undefined;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -116,6 +159,7 @@ export default function CustomerProfileScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Profile Photo */}
         <View style={styles.photoSection}>
@@ -179,69 +223,42 @@ export default function CustomerProfileScreen() {
             </View>
           )}
 
-          {(hasAddress || isEditing) && (
+          {(hasAddress || isEditing) && !isEditing && (
             <>
               <View style={styles.infoRow}>
                 <Text style={styles.label}>Street Address</Text>
-                {isEditing ? (
-                  <TextInput
-                    style={styles.input}
-                    value={street}
-                    onChangeText={setStreet}
-                    placeholder="Street address"
-                  />
-                ) : (
-                  <Text style={styles.value}>{user?.addresses?.[0]?.street || 'Not provided'}</Text>
-                )}
+                <Text style={styles.value}>{user?.addresses?.[0]?.street || 'Not provided'}</Text>
               </View>
 
               <View style={styles.infoRow}>
                 <Text style={styles.label}>City</Text>
-                {isEditing ? (
-                  <TextInput
-                    style={styles.input}
-                    value={city}
-                    onChangeText={setCity}
-                    placeholder="City"
-                  />
-                ) : (
-                  <Text style={styles.value}>{user?.addresses?.[0]?.city || 'Not provided'}</Text>
-                )}
+                <Text style={styles.value}>{user?.addresses?.[0]?.city || 'Not provided'}</Text>
               </View>
 
               <View style={styles.infoRowHalf}>
                 <View style={styles.halfColumn}>
                   <Text style={styles.label}>State</Text>
-                  {isEditing ? (
-                    <TextInput
-                      style={styles.input}
-                      value={state}
-                      onChangeText={setState}
-                      placeholder="State"
-                      maxLength={2}
-                    />
-                  ) : (
-                    <Text style={styles.value}>{user?.addresses?.[0]?.state || 'N/A'}</Text>
-                  )}
+                  <Text style={styles.value}>{user?.addresses?.[0]?.state || 'N/A'}</Text>
                 </View>
 
                 <View style={styles.halfColumn}>
                   <Text style={styles.label}>ZIP Code</Text>
-                  {isEditing ? (
-                    <TextInput
-                      style={styles.input}
-                      value={zipCode}
-                      onChangeText={setZipCode}
-                      placeholder="ZIP"
-                      keyboardType="number-pad"
-                      maxLength={5}
-                    />
-                  ) : (
-                    <Text style={styles.value}>{user?.addresses?.[0]?.zipCode || 'N/A'}</Text>
-                  )}
+                  <Text style={styles.value}>{user?.addresses?.[0]?.zipCode || 'N/A'}</Text>
                 </View>
               </View>
             </>
+          )}
+
+          {isEditing && (
+            <View style={styles.addressFormContainer}>
+              <AddressForm
+                control={control}
+                errors={errors}
+                setValue={setValue}
+                defaultValues={defaultValues}
+                showUnitNumber={false}
+              />
+            </View>
           )}
         </Card>
 
@@ -250,7 +267,7 @@ export default function CustomerProfileScreen() {
           <View style={styles.actions}>
             <Button
               title="Save Changes"
-              onPress={handleSave}
+              onPress={handleSubmit(handleSave)}
               variant="primary"
               size="large"
               disabled={isSaving}
@@ -393,6 +410,9 @@ const styles = StyleSheet.create({
     ...typography.sizes.sm,
     color: colors.neutral[600],
     textAlign: 'center',
+  },
+  addressFormContainer: {
+    marginTop: spacing.md,
   },
   actions: {
     paddingHorizontal: spacing.base,
