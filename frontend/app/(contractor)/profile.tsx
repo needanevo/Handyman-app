@@ -5,7 +5,7 @@
  * Includes navigation to registration steps for updating information.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,21 +15,88 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Card } from '../../src/components/Card';
 import { Button } from '../../src/components/Button';
-import { contractorAPI } from '../../src/services/api';
+import { AddressForm } from '../../src/components/AddressForm';
+import { contractorAPI, profileAPI } from '../../src/services/api';
+
+interface AddressFormData {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  unitNumber?: string;
+}
 
 export default function ContractorProfile() {
   const router = useRouter();
   const { user, logout, refreshUser } = useAuth();
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Address form control
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<AddressFormData>({
+    defaultValues: {
+      street: user?.addresses?.[0]?.street || '',
+      city: user?.addresses?.[0]?.city || '',
+      state: user?.addresses?.[0]?.state || '',
+      zipCode: user?.addresses?.[0]?.zipCode || '',
+    },
+  });
+
+  const hasAddress = user?.addresses && user.addresses.length > 0;
+
+  const handleSave = async (data: AddressFormData) => {
+    setIsSaving(true);
+    try {
+      // Save address to profile
+      const addressData = {
+        street: data.street,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zipCode,
+        is_default: true,
+      };
+
+      await profileAPI.addAddress(addressData);
+
+      // Refresh user to get updated data
+      await refreshUser();
+
+      setIsEditing(false);
+      Alert.alert('Success', 'Profile updated successfully');
+    } catch (error: any) {
+      console.error('Failed to update profile:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset to original values
+    setValue('street', user?.addresses?.[0]?.street || '');
+    setValue('city', user?.addresses?.[0]?.city || '');
+    setValue('state', user?.addresses?.[0]?.state || '');
+    setValue('zipCode', user?.addresses?.[0]?.zipCode || '');
+    setIsEditing(false);
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -152,23 +219,50 @@ export default function ContractorProfile() {
     return `${firstInitial}${lastInitial}`.toUpperCase();
   };
 
+  // Memoize default values to prevent infinite loops
+  const defaultValues = useMemo(() => {
+    if (user?.addresses && user.addresses.length > 0) {
+      return {
+        street: user.addresses[0].street || '',
+        city: user.addresses[0].city || '',
+        state: user.addresses[0].state || '',
+        zipCode: user.addresses[0].zipCode || '',
+      };
+    }
+    return undefined;
+  }, [user?.addresses]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity
+          onPress={() => isEditing ? handleCancel() : setIsEditing(true)}
+          style={styles.editButton}
+        >
+          <Text style={styles.editButtonText}>
+            {isEditing ? 'Cancel' : 'Edit'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
 
         {/* Profile Photo Section */}
         <View style={styles.photoSection}>
@@ -253,6 +347,76 @@ export default function ContractorProfile() {
                 <Text style={styles.infoValue}>{user?.phone || 'Not provided'}</Text>
               </View>
             </View>
+          </Card>
+        </View>
+
+        {/* Address */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Address</Text>
+          <Card style={styles.infoCard}>
+            {!hasAddress && !isEditing && (
+              <View style={styles.emptyState}>
+                <Ionicons name="location-outline" size={48} color={colors.neutral[400]} />
+                <Text style={styles.emptyText}>No address added yet</Text>
+                <Text style={styles.emptySubtext}>
+                  Add your address for job location matching
+                </Text>
+              </View>
+            )}
+
+            {(hasAddress || isEditing) && !isEditing && (
+              <>
+                <View style={styles.infoRow}>
+                  <Ionicons name="location-outline" size={20} color={colors.neutral[600]} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Street Address</Text>
+                    <Text style={styles.infoValue}>{user?.addresses?.[0]?.street || 'Not provided'}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="location-outline" size={20} color={colors.neutral[600]} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>City</Text>
+                    <Text style={styles.infoValue}>{user?.addresses?.[0]?.city || 'Not provided'}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="location-outline" size={20} color={colors.neutral[600]} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>State</Text>
+                    <Text style={styles.infoValue}>{user?.addresses?.[0]?.state || 'N/A'}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="location-outline" size={20} color={colors.neutral[600]} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>ZIP Code</Text>
+                    <Text style={styles.infoValue}>{user?.addresses?.[0]?.zipCode || 'N/A'}</Text>
+                  </View>
+                </View>
+              </>
+            )}
+
+            {isEditing && (
+              <View style={styles.addressFormContainer}>
+                <AddressForm
+                  control={control}
+                  errors={errors}
+                  setValue={setValue}
+                  defaultValues={defaultValues}
+                  showUnitNumber={false}
+                />
+              </View>
+            )}
           </Card>
         </View>
 
@@ -404,29 +568,46 @@ export default function ContractorProfile() {
           </Card>
         </View>
 
-        {/* Actions */}
-        <View style={styles.section}>
-          <Button
-            title="Edit Registration"
-            onPress={handleEditRegistration}
-            variant="primary"
-            size="large"
-            fullWidth
-            icon={<Ionicons name="create-outline" size={20} color={colors.background.primary} />}
-            style={styles.actionButton}
-          />
+        {/* Save Button */}
+        {isEditing && (
+          <View style={styles.section}>
+            <Button
+              title="Save Changes"
+              onPress={handleSubmit(handleSave)}
+              variant="primary"
+              size="large"
+              fullWidth
+              disabled={isSaving}
+            />
+          </View>
+        )}
 
-          <Button
-            title="Logout"
-            onPress={handleLogout}
-            variant="outline"
-            size="large"
-            fullWidth
-            icon={<Ionicons name="log-out-outline" size={20} color={colors.error.main} />}
-            style={styles.logoutButton}
-          />
-        </View>
-      </ScrollView>
+        {/* Actions */}
+        {!isEditing && (
+          <View style={styles.section}>
+            <Button
+              title="Edit Registration"
+              onPress={handleEditRegistration}
+              variant="primary"
+              size="large"
+              fullWidth
+              icon={<Ionicons name="create-outline" size={20} color={colors.background.primary} />}
+              style={styles.actionButton}
+            />
+
+            <Button
+              title="Logout"
+              onPress={handleLogout}
+              variant="outline"
+              size="large"
+              fullWidth
+              icon={<Ionicons name="log-out-outline" size={20} color={colors.error.main} />}
+              style={styles.logoutButton}
+            />
+          </View>
+        )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -461,6 +642,20 @@ const styles = StyleSheet.create({
     ...typography.sizes['2xl'],
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
+  },
+  editButton: {
+    width: 60,
+    height: 40,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  editButtonText: {
+    ...typography.sizes.base,
+    color: colors.primary.main,
+    fontWeight: typography.weights.semibold,
+  },
+  keyboardView: {
+    flex: 1,
   },
   photoSection: {
     alignItems: 'center',
@@ -618,5 +813,24 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     borderColor: colors.error.main,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  emptyText: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.medium,
+    color: colors.neutral[700],
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  emptySubtext: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    textAlign: 'center',
+  },
+  addressFormContainer: {
+    marginTop: spacing.md,
   },
 });

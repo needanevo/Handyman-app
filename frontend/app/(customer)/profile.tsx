@@ -5,7 +5,7 @@
  * CUSTOMER-ONLY UI - no contractor/business elements.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -138,15 +138,18 @@ export default function CustomerProfileScreen() {
     );
   };
 
-  // Get default values for AddressForm
-  const defaultValues = user?.addresses && user.addresses.length > 0
-    ? {
+  // Memoize default values to prevent infinite loops
+  const defaultValues = useMemo(() => {
+    if (user?.addresses && user.addresses.length > 0) {
+      return {
         street: user.addresses[0].street || '',
         city: user.addresses[0].city || '',
         state: user.addresses[0].state || '',
         zipCode: user.addresses[0].zipCode || '',
-      }
-    : undefined;
+      };
+    }
+    return undefined;
+  }, [user?.addresses]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,18 +6,48 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { useAuth } from '../../../src/contexts/AuthContext';
+import { AddressForm } from '../../../src/components/AddressForm';
+import { profileAPI } from '../../../src/services/api';
+
+interface AddressFormData {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  unitNumber?: string;
+}
 
 export default function HandymanProfile() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Address form control
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<AddressFormData>({
+    defaultValues: {
+      street: user?.addresses?.[0]?.street || '',
+      city: user?.addresses?.[0]?.city || '',
+      state: user?.addresses?.[0]?.state || '',
+      zipCode: user?.addresses?.[0]?.zipCode || '',
+    },
+  });
 
   // TODO: Fetch from backend GET /api/handyman/profile
   const mockProfile = {
@@ -38,6 +68,8 @@ export default function HandymanProfile() {
 
   const [skills, setSkills] = useState(mockProfile.skills);
 
+  const hasAddress = user?.addresses && user.addresses.length > 0;
+
   const availableSkills = [
     'Drywall', 'Painting', 'Electrical', 'Plumbing', 'Carpentry',
     'HVAC', 'Flooring', 'Roofing', 'Landscaping', 'Appliance',
@@ -52,10 +84,60 @@ export default function HandymanProfile() {
     }
   };
 
+  const handleSaveAddress = async (data: AddressFormData) => {
+    setIsSaving(true);
+    try {
+      // Save address to profile
+      const addressData = {
+        street: data.street,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zipCode,
+        is_default: true,
+      };
+
+      await profileAPI.addAddress(addressData);
+
+      // Refresh user to get updated data
+      await refreshUser();
+
+      setIsEditing(false);
+      Alert.alert('Success', 'Profile updated successfully');
+    } catch (error: any) {
+      console.error('Failed to update profile:', error);
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset to original values
+    setValue('street', user?.addresses?.[0]?.street || '');
+    setValue('city', user?.addresses?.[0]?.city || '');
+    setValue('state', user?.addresses?.[0]?.state || '');
+    setValue('zipCode', user?.addresses?.[0]?.zipCode || '');
+    setSkills(mockProfile.skills);
+    setIsEditing(false);
+  };
+
   const saveProfile = () => {
     // TODO: Save to backend PATCH /api/handyman/profile
     setIsEditing(false);
   };
+
+  // Memoize default values to prevent infinite loops
+  const defaultValues = useMemo(() => {
+    if (user?.addresses && user.addresses.length > 0) {
+      return {
+        street: user.addresses[0].street || '',
+        city: user.addresses[0].city || '',
+        state: user.addresses[0].state || '',
+        zipCode: user.addresses[0].zipCode || '',
+      };
+    }
+    return undefined;
+  }, [user?.addresses]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -64,12 +146,20 @@ export default function HandymanProfile() {
           <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity onPress={() => isEditing ? saveProfile() : setIsEditing(true)}>
-          <Text style={styles.editButton}>{isEditing ? 'Save' : 'Edit'}</Text>
+        <TouchableOpacity onPress={() => isEditing ? handleCancel() : setIsEditing(true)}>
+          <Text style={styles.editButton}>{isEditing ? 'Cancel' : 'Edit'}</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.avatar}>
@@ -143,10 +233,43 @@ export default function HandymanProfile() {
               <Ionicons name="call" size={20} color={colors.neutral[600]} />
               <Text style={styles.infoText}>{mockProfile.phone}</Text>
             </View>
-            <View style={styles.infoRow}>
-              <Ionicons name="location" size={20} color={colors.neutral[600]} />
-              <Text style={styles.infoText}>{mockProfile.businessAddress}</Text>
-            </View>
+          </View>
+        </View>
+
+        {/* Address */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Business Address</Text>
+          <View style={styles.infoCard}>
+            {!hasAddress && !isEditing && (
+              <View style={styles.emptyState}>
+                <Ionicons name="location-outline" size={48} color={colors.neutral[400]} />
+                <Text style={styles.emptyText}>No address added yet</Text>
+                <Text style={styles.emptySubtext}>
+                  Add your business address for job location matching
+                </Text>
+              </View>
+            )}
+
+            {(hasAddress || isEditing) && !isEditing && (
+              <View style={styles.infoRow}>
+                <Ionicons name="location" size={20} color={colors.neutral[600]} />
+                <Text style={styles.infoText}>
+                  {user?.addresses?.[0]?.street}, {user?.addresses?.[0]?.city}, {user?.addresses?.[0]?.state} {user?.addresses?.[0]?.zipCode}
+                </Text>
+              </View>
+            )}
+
+            {isEditing && (
+              <View style={styles.addressFormContainer}>
+                <AddressForm
+                  control={control}
+                  errors={errors}
+                  setValue={setValue}
+                  defaultValues={defaultValues}
+                  showUnitNumber={false}
+                />
+              </View>
+            )}
           </View>
         </View>
 
@@ -181,28 +304,46 @@ export default function HandymanProfile() {
           </View>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push('/(handyman)/growth')}
-          >
-            <Ionicons name="trending-up" size={20} color="#FFA500" />
-            <Text style={styles.actionText}>View Growth Center</Text>
-            <Ionicons name="arrow-forward" size={16} color={colors.neutral[600]} />
-          </TouchableOpacity>
+        {/* Save Button */}
+        {isEditing && (
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleSubmit(handleSaveAddress)}
+              disabled={isSaving}
+            >
+              <Text style={styles.saveButtonText}>
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push('/(handyman)/profile/settings')}
-          >
-            <Ionicons name="settings" size={20} color="#FFA500" />
-            <Text style={styles.actionText}>Settings & Notifications</Text>
-            <Ionicons name="arrow-forward" size={16} color={colors.neutral[600]} />
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+        {/* Quick Actions */}
+        {!isEditing && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => router.push('/(handyman)/growth')}
+            >
+              <Ionicons name="trending-up" size={20} color="#FFA500" />
+              <Text style={styles.actionText}>View Growth Center</Text>
+              <Ionicons name="arrow-forward" size={16} color={colors.neutral[600]} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => router.push('/(handyman)/profile/settings')}
+            >
+              <Ionicons name="settings" size={20} color="#FFA500" />
+              <Text style={styles.actionText}>Settings & Notifications</Text>
+              <Ionicons name="arrow-forward" size={16} color={colors.neutral[600]} />
+            </TouchableOpacity>
+          </View>
+        )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

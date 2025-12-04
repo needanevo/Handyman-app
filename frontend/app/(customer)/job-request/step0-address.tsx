@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -47,15 +47,18 @@ export default function JobRequestStep0() {
     },
   });
 
-  // Get default values from user's address
-  const defaultValues = user?.addresses && user.addresses.length > 0
-    ? {
+  // Memoize default values to prevent infinite loops
+  const defaultValues = useMemo(() => {
+    if (user?.addresses && user.addresses.length > 0) {
+      return {
         street: user.addresses[0].street || '',
         city: user.addresses[0].city || '',
         state: user.addresses[0].state || '',
         zipCode: user.addresses[0].zipCode || '',
-      }
-    : undefined;
+      };
+    }
+    return undefined;
+  }, [user?.addresses]);
 
   const onSubmit = async (data: AddressFormData) => {
     setIsLoading(true);
@@ -123,9 +126,16 @@ export default function JobRequestStep0() {
     { label: 'Review', completed: false },
   ];
 
-  // Check if form is filled
+  // Watch all fields at once to reduce re-renders
   const formValues = watch();
-  const isFormFilled = formValues.street && formValues.city && formValues.state && formValues.zipCode && formValues.zipCode.length === 5;
+
+  const isFormFilled =
+    formValues.street &&
+    formValues.city &&
+    formValues.state &&
+    formValues.zipCode &&
+    formValues.zipCode.length === 5;
+
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
