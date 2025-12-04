@@ -1296,3 +1296,60 @@ Jobs post successfully but don't appear in "My Jobs" list yet. Investigating dis
 - 609a99f (Address ID capture + final fixes)
 
 **Server:** Production nginx updated and reloaded
+
+---
+
+[2025-12-04 19:15] DISCOVERY — Quotes vs Jobs Architecture + API Method
+
+**Summary:**
+Discovered why submitted jobs weren't appearing in "My Jobs" list: Quotes and Jobs are separate entities in the database and workflow. A quote request must be accepted by a contractor to become a job. Added getQuotes() API method to enable fetching quote requests.
+
+**Root Cause:**
+- User flow submits QUOTE REQUEST → POST /api/quotes/request → saved to db.quotes (status: DRAFT)
+- "My Jobs" screen queries GET /api/jobs → returns from db.jobs collection
+- These are two separate MongoDB collections representing different stages of the workflow
+- A quote must be accepted/approved to transition into a job
+
+**Architecture Discovery:**
+```
+Customer Flow:
+1. Submit job request → Creates Quote (db.quotes, status: DRAFT)
+2. Contractors see quote and bid
+3. Customer accepts a bid → Quote becomes Job (db.jobs)
+4. Job progresses through workflow
+
+Collections:
+- db.quotes: Quote requests (DRAFT, PENDING, ACCEPTED, REJECTED)
+- db.jobs: Active jobs (PUBLISHED, IN_PROGRESS, COMPLETED)
+```
+
+**Files Modified:**
+- frontend/src/services/api.ts (added getQuotes method)
+
+**Changes:**
+Added getQuotes() method to jobsAPI:
+```typescript
+getQuotes: (status?: string) =>
+  apiClient.get<any[]>('/quotes', status ? { status_filter: status } : undefined),
+```
+
+**Backend Already Working:**
+- ✅ POST /api/quotes/request creates quotes (server.py:665-705)
+- ✅ GET /api/quotes returns user's quotes (server.py:715-726)
+- ✅ GET /api/jobs returns user's jobs (server.py:1152-1175)
+- ✅ Both endpoints filter by current_user.id automatically
+
+**Next Steps:**
+- Update frontend/app/(customer)/jobs.tsx to fetch and display both quotes AND jobs
+- Show quotes with status badges: "Pending Quote", "Quote Received", etc.
+- Allow navigation to quote detail view when clicking quote items
+- Merge and sort quotes + jobs by created_at for chronological display
+
+**Result:**
+✅ Identified why jobs weren't appearing (wrong collection query)
+✅ Added API method to fetch quotes
+✅ Clear path forward to display both quotes and jobs in "My Jobs"
+
+**Commit:** 677027f
+**Branch:** dev
+

@@ -27,11 +27,11 @@ export default function JobsListScreen() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch all customer jobs using unified query key
+  // Fetch all customer jobs
   const {
-    data: allJobs,
-    isLoading,
-    refetch
+    data: jobs,
+    isLoading: jobsLoading,
+    refetch: refetchJobs
   } = useQuery({
     queryKey: ['customer-jobs'],
     queryFn: async () => {
@@ -41,9 +41,41 @@ export default function JobsListScreen() {
     staleTime: 2 * 60 * 1000,
   });
 
+  // Fetch all customer quotes
+  const {
+    data: quotes,
+    isLoading: quotesLoading,
+    refetch: refetchQuotes
+  } = useQuery({
+    queryKey: ['customer-quotes'],
+    queryFn: async () => {
+      const response = await jobsAPI.getQuotes();
+      return response || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Merge jobs and quotes into a single list
+  const allJobs = React.useMemo(() => {
+    const jobItems = (jobs || []).map((job: any) => ({ ...job, itemType: 'job' }));
+    const quoteItems = (quotes || []).map((quote: any) => ({ ...quote, itemType: 'quote' }));
+
+    // Merge and sort by created_at (most recent first)
+    const merged = [...jobItems, ...quoteItems];
+    merged.sort((a, b) => {
+      const dateA = new Date(a.created_at || a.createdAt || 0).getTime();
+      const dateB = new Date(b.created_at || b.createdAt || 0).getTime();
+      return dateB - dateA; // Descending order
+    });
+
+    return merged;
+  }, [jobs, quotes]);
+
+  const isLoading = jobsLoading || quotesLoading;
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetchJobs(), refetchQuotes()]);
     setRefreshing(false);
   };
 
@@ -53,7 +85,20 @@ export default function JobsListScreen() {
     return 'neutral';
   };
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status: string, itemType?: string) => {
+    // Quote statuses
+    if (itemType === 'quote') {
+      const quoteLabels: Record<string, string> = {
+        draft: 'Pending Quote',
+        pending: 'Awaiting Response',
+        quoted: 'Quote Received',
+        accepted: 'Quote Accepted',
+        rejected: 'Quote Declined',
+      };
+      return quoteLabels[status.toLowerCase()] || 'Pending Quote';
+    }
+
+    // Job statuses
     const labels: Record<string, string> = {
       pending_contractor: 'Finding Contractor',
       materials_ordered: 'Materials Ordered',
@@ -63,17 +108,19 @@ export default function JobsListScreen() {
     return labels[status] || status;
   };
 
-  // Filter jobs based on selected tab
-  const jobs = allJobs || [];
-  const activeJobs = jobs.filter((job: any) =>
-    job.status !== 'completed' && job.status !== 'cancelled'
+  // Filter items based on selected tab
+  const allItems = allJobs || [];
+  const activeItems = allItems.filter((item: any) =>
+    item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'rejected'
   );
-  const completedJobs = jobs.filter((job: any) => job.status === 'completed');
+  const completedItems = allItems.filter((item: any) =>
+    item.status === 'completed' || item.status === 'accepted'
+  );
 
   const filteredJobs =
-    filter === 'active' ? activeJobs :
-    filter === 'completed' ? completedJobs :
-    jobs;
+    filter === 'active' ? activeItems :
+    filter === 'completed' ? completedItems :
+    allItems;
 
   // Show loading spinner while fetching
   if (isLoading) {
@@ -111,7 +158,7 @@ export default function JobsListScreen() {
                 filter === 'all' && styles.filterTabTextActive,
               ]}
             >
-              All ({jobs.length})
+              All ({allItems.length})
             </Text>
           </TouchableOpacity>
 
@@ -125,7 +172,7 @@ export default function JobsListScreen() {
                 filter === 'active' && styles.filterTabTextActive,
               ]}
             >
-              Active ({activeJobs.length})
+              Active ({activeItems.length})
             </Text>
           </TouchableOpacity>
 
@@ -139,7 +186,7 @@ export default function JobsListScreen() {
                 filter === 'completed' && styles.filterTabTextActive,
               ]}
             >
-              Completed ({completedJobs.length})
+              Completed ({completedItems.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -170,17 +217,29 @@ export default function JobsListScreen() {
                 key={job.id}
                 variant="elevated"
                 padding="base"
-                onPress={() => router.push(`/(customer)/job-detail/${job.id}`)}
+                onPress={() => {
+                  if (job.itemType === 'quote') {
+                    router.push(`/(customer)/quote-detail/${job.id}`);
+                  } else {
+                    router.push(`/(customer)/job-detail/${job.id}`);
+                  }
+                }}
                 style={styles.jobCard}
               >
                 {/* Job Header */}
                 <View style={styles.jobHeader}>
                   <View style={styles.jobTitleSection}>
-                    <Text style={styles.jobTitle}>{job.title}</Text>
+                    <Text style={styles.jobTitle}>
+                      {job.title || job.service_category || 'Service Request'}
+                    </Text>
                     <View style={styles.jobMeta}>
-                      <Badge label={job.category} variant="neutral" size="sm" />
                       <Badge
-                        label={getStatusLabel(job.status)}
+                        label={job.category || job.service_category || 'Service'}
+                        variant="neutral"
+                        size="sm"
+                      />
+                      <Badge
+                        label={getStatusLabel(job.status, job.itemType)}
                         variant={getStatusBadgeVariant(job.status)}
                         size="sm"
                       />
@@ -188,8 +247,8 @@ export default function JobsListScreen() {
                   </View>
                 </View>
 
-                {/* Progress */}
-                {job.status !== 'pending_contractor' && (
+                {/* Progress - only show for jobs, not quotes */}
+                {job.itemType === 'job' && job.status !== 'pending_contractor' && (
                   <ProgressBar
                     progress={typeof job.progress === 'number' ? job.progress : 0}
                     showPercentage
@@ -214,17 +273,25 @@ export default function JobsListScreen() {
                 <View style={styles.jobFooter}>
                   <View style={styles.jobDates}>
                     <Text style={styles.dateLabel}>
-                      {job.status === 'completed' ? 'Completed' : 'Posted'}
+                      {job.status === 'completed' || job.status === 'accepted' ? 'Completed' : 'Posted'}
                     </Text>
                     <Text style={styles.dateValue}>
-                      {job.status === 'completed' ? job.completedAt : job.createdAt}
+                      {job.status === 'completed' || job.status === 'accepted'
+                        ? (job.completedAt || job.completed_at || job.createdAt || job.created_at)
+                        : (job.createdAt || job.created_at)}
                     </Text>
                   </View>
 
                   <View style={styles.costSection}>
-                    <Text style={styles.costLabel}>Total</Text>
+                    <Text style={styles.costLabel}>
+                      {job.itemType === 'quote' ? 'Estimate' : 'Total'}
+                    </Text>
                     <Text style={styles.costAmount}>
-                      {typeof job.totalCost === 'number' ? `$${job.totalCost.toFixed(2)}` : '$TBD'}
+                      {typeof job.totalCost === 'number'
+                        ? `$${job.totalCost.toFixed(2)}`
+                        : typeof job.estimated_total === 'number'
+                        ? `$${job.estimated_total.toFixed(2)}`
+                        : '$TBD'}
                     </Text>
                   </View>
 
