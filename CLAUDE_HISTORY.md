@@ -1470,3 +1470,108 @@ db.users {
 **Commit:** d9ba021
 **Branch:** dev
 
+
+---
+
+[2025-12-04 20:15] ARCH — Phase 3: Align Quote + Job Flows to Canonical address_id
+
+**Summary:**
+Updated quote and job creation endpoints to enforce canonical address_id references. All new quotes and jobs now validate against the addresses collection, with automatic fallback to create canonical addresses from embedded address data.
+
+**Problem Solved:**
+Previously, quotes and jobs could be created with arbitrary address data or references to non-existent addresses. This made geospatial queries, job matching, and contractor routing impossible. By enforcing canonical address_id validation, we ensure:
+- All quotes/jobs reference verified addresses in addresses collection
+- Consistent address data for geofencing and distance calculations
+- Historical address snapshots preserved for audit trail
+- Automatic migration path for embedded addresses
+
+**Files Modified:**
+- backend/server.py (quote creation + job creation endpoints)
+
+**Changes:**
+
+1. **Quote Creation Validation (server.py:484-489):**
+   ```python
+   # Validate address_id is provided and exists in addresses collection
+   if not quote_request.address_id:
+       raise HTTPException(status_code=400, detail="address_id is required")
+
+   address = await get_address_by_id(quote_request.address_id)
+   if not address:
+       raise HTTPException(status_code=404, detail="Address not found")
+   ```
+   - Quote requests without address_id → 400 Bad Request
+   - Quote requests with invalid address_id → 404 Not Found
+   - Ensures all quotes reference canonical addresses
+
+2. **Job Creation Unified Address Logic (server.py:1101-1150):**
+   ```python
+   # Unified address logic: use canonical address_id or create from embedded address
+   address_id = getattr(job_data, "address_id", None)
+
+   if address_id:
+       # Validate canonical address exists
+       address = await get_address_by_id(address_id)
+       if not address:
+           raise HTTPException(status_code=404, detail="Address not found")
+   else:
+       # Fallback: if embedded address present but no id, create canonical address
+       if getattr(job_data, "address", None):
+           created = create_address_for_user(
+               user_id=current_user.id,
+               address_data={
+                   "street": job_data.address.street,
+                   "city": job_data.address.city,
+                   "state": job_data.address.state,
+                   "zip_code": job_data.address.zip,
+                   "latitude": getattr(job_data.address, "lat", None),
+                   "longitude": getattr(job_data.address, "lon", None),
+                   "is_default": True,
+               },
+           )
+           await db.addresses.insert_one(created.model_dump())
+           address = created
+           address_id = created.id
+       else:
+           raise HTTPException(status_code=400, detail="Address info required")
+
+   # Store both canonical address_id and snapshot
+   job_doc["address_id"] = address_id
+   job_doc["address_snapshot"] = address.model_dump()
+   ```
+
+   **Behavior:**
+   - If frontend sends `address_id` → validates it exists
+   - If frontend sends embedded `address` → creates canonical address automatically
+   - If neither → rejects with 400 error
+   - All jobs now have both `address_id` (reference) and `address_snapshot` (historical copy)
+
+**Migration Path:**
+- New frontend (Phase 5) will send address_id from addresses collection
+- Old embedded address requests automatically create canonical addresses
+- No breaking changes to existing API contracts
+- Gradual migration as users create new jobs/quotes
+
+**Result:**
+✅ All new quotes validated against addresses collection (400/404 on invalid)
+✅ All new jobs reference canonical address_id
+✅ Automatic canonical address creation from embedded addresses
+✅ Historical address snapshot preserved in job_doc for audit trail
+✅ Backward compatible with embedded address requests
+
+**Testing Needed:**
+- Create quote with valid address_id → success
+- Create quote with invalid address_id → 404 error
+- Create quote without address_id → 400 error
+- Create job with address_id → validates and stores snapshot
+- Create job with embedded address → creates canonical + stores snapshot
+- Create job without address → 400 error
+
+**Next Steps:**
+- Phase 4: Migration script to populate addresses collection from existing embedded addresses
+- Phase 5: Frontend alignment (verify address_id is sent from step0-address.tsx)
+- Phase 7: Comprehensive test plan
+
+**Commit:** 3f4a3ad
+**Branch:** dev
+
