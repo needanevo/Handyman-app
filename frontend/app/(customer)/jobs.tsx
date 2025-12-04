@@ -161,7 +161,7 @@ export default function JobsListScreen() {
                 : 'Post a job to get started'
             }
             actionLabel="Request a Job"
-            onAction={() => router.push('/(customer)/job-request/step1-photos' as any)}
+            onAction={() => router.push('/(customer)/job-request/step0-address')}
           />
         ) : (
           <View style={styles.jobsList}>
@@ -223,7 +223,7 @@ export default function JobsListScreen() {
 
                   <View style={styles.costSection}>
                     <Text style={styles.costLabel}>Total</Text>
-                    <Text style={styles.costAmount}>${job.totalCost.toFixed(2)}</Text>
+                    <Text style={styles.costAmount}>${job.totalCost?.toFixed(2) || 'TBD'}</Text>
                   </View>
 
                   <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
@@ -237,7 +237,7 @@ export default function JobsListScreen() {
       {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push('/(customer)/job-request/step1-photos' as any)}
+        onPress={() => router.push('/(customer)/job-request/step0-address')}
       >
         <Ionicons name="add" size={28} color={colors.background.primary} />
       </TouchableOpacity>
