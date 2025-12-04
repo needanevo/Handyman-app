@@ -55,9 +55,22 @@ export default function JobRequestStep3() {
     setIsSubmitting(true);
 
     try {
-      // Photos are already uploaded URLs from PhotoUploader component
-      // No need to upload again - just use the URLs directly
-      await quotesAPI.requestQuote({ ...params, photos, quote });
+      // Format data according to backend QuoteRequest model
+      const quoteRequest = {
+        service_category: params.category, // Backend expects service_category, not category
+        address_id: params.addressId, // Critical: use the address_id from step0
+        description: params.description || '',
+        photos: photos, // Already uploaded URLs
+        preferred_dates: [], // Optional
+        budget_range: params.budgetMax ? {
+          max: parseFloat(params.budgetMax as string),
+        } : undefined,
+        urgency: params.urgency || 'normal',
+      };
+
+      console.log('Submitting quote request:', quoteRequest);
+
+      await quotesAPI.requestQuote(quoteRequest);
 
       Alert.alert(
         'Job Posted!',
@@ -69,9 +82,10 @@ export default function JobRequestStep3() {
           },
         ]
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Job submission error:', error);
-      Alert.alert('Error', 'Failed to post job. Please try again.');
+      const errorMessage = error.response?.data?.detail || 'Failed to post job. Please try again.';
+      Alert.alert('Error', errorMessage);
       setIsSubmitting(false);
     }
   };

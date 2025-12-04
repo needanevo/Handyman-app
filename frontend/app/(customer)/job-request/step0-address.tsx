@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,6 +17,8 @@ import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
 import { Card } from '../../../src/components/Card';
+import { useAuth } from '../../../src/contexts/AuthContext';
+import { profileAPI } from '../../../src/services/api';
 
 interface AddressForm {
   street: string;
@@ -27,25 +30,52 @@ interface AddressForm {
 
 export default function JobRequestStep0() {
   const router = useRouter();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<AddressForm>();
+
+  // Preload address from user's default address
+  useEffect(() => {
+    if (user?.addresses && user.addresses.length > 0) {
+      const defaultAddress = user.addresses.find(addr => addr.isDefault) || user.addresses[0];
+      if (defaultAddress) {
+        setValue('street', defaultAddress.street || '');
+        setValue('city', defaultAddress.city || '');
+        setValue('state', defaultAddress.state || '');
+        setValue('zip', defaultAddress.zipCode || '');
+      }
+    }
+  }, [user, setValue]);
 
   const onSubmit = async (data: AddressForm) => {
     setIsLoading(true);
 
-    // Construct full address
-    const fullAddress = `${data.street}${data.unitNumber ? ` ${data.unitNumber}` : ''}, ${data.city}, ${data.state} ${data.zip}`;
-
     try {
-      // Navigate to next step with address data
+      // Save address to profile and get address_id
+      const addressData = {
+        street: data.street,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zip,
+        is_default: true, // Mark as default for now
+      };
+
+      const savedAddress = await profileAPI.addAddress(addressData);
+
+      // Construct full address for display
+      const fullAddress = `${data.street}${data.unitNumber ? ` ${data.unitNumber}` : ''}, ${data.city}, ${data.state} ${data.zip}`;
+
+      // Navigate to next step with address_id
       router.push({
         pathname: '/(customer)/job-request/step1-category',
         params: {
+          addressId: savedAddress.id, // This is the critical change
           street: data.street,
           city: data.city,
           state: data.state,
@@ -54,9 +84,12 @@ export default function JobRequestStep0() {
           fullAddress,
         },
       });
-    } catch (error) {
-      console.error('Error submitting address:', error);
-      alert('Something went wrong. Please try again.');
+    } catch (error: any) {
+      console.error('Error saving address:', error);
+      Alert.alert(
+        'Address Error',
+        error.response?.data?.detail || 'Failed to save address. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -120,6 +153,7 @@ export default function JobRequestStep0() {
                   required
                   icon="home-outline"
                   autoComplete="street-address"
+                  textContentType="streetAddressLine1"
                 />
               )}
             />
@@ -151,7 +185,8 @@ export default function JobRequestStep0() {
                   error={errors.city?.message}
                   required
                   icon="locate-outline"
-                  autoComplete="address-line2"
+                  autoComplete="address-level2"
+                  textContentType="addressCity"
                 />
               )}
             />
@@ -176,7 +211,8 @@ export default function JobRequestStep0() {
                       required
                       maxLength={2}
                       autoCapitalize="characters"
-                      autoComplete="address-line1"
+                      autoComplete="address-level1"
+                      textContentType="addressState"
                     />
                   )}
                 />
@@ -201,6 +237,7 @@ export default function JobRequestStep0() {
                       keyboardType="numeric"
                       maxLength={5}
                       autoComplete="postal-code"
+                      textContentType="postalCode"
                     />
                   )}
                 />

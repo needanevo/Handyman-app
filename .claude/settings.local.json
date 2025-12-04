@@ -43,7 +43,8 @@
       "Bash(timeout:*)",
       "Bash(..venvScriptspython.exe -m uvicorn:*)",
       "Bash(dir:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []
