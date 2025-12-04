@@ -145,6 +145,7 @@ For every completed fix or feature:
   - One short paragraph of what changed
 
 `CLAUDE_HISTORY.md` is **append-only**. Do not rewrite old entries.
+At the end of every task, and when you have only 5% of context left, ssh into the server root@172.234.70.157 (ssh key present in current environment) and reboot if necessary. Per \frontend\.env the backend exists on this server and needs to be updated and rebooted any time changes are made. 
 
 ---
 

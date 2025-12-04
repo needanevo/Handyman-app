@@ -137,6 +137,9 @@ export const jobsAPI = {
   getJobs: (status?: string) =>
     apiClient.get<any[]>('/jobs', status ? { status_filter: status } : undefined),
 
+  getQuotes: (status?: string) =>
+    apiClient.get<any[]>('/quotes', status ? { status_filter: status } : undefined),
+
   getJob: (id: string) =>
     apiClient.get<any>(`/jobs/${id}`),
 
