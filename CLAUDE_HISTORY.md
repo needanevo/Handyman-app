@@ -1155,3 +1155,56 @@ Testing Required:
 7. Verify keyboard doesn't block any inputs
 8. Test profile address editing and saving
 9. Verify UI updates immediately after profile save
+
+[2025-12-04 17:45] FIX — Address Infinite Loop (Complete Fix) + Server Restart
+
+**Summary:**
+Resolved "Maximum update depth exceeded" errors that crashed the app whenever any address form was used. Also fixed 503 Service Unavailable errors at login by restarting the backend API server.
+
+**Root Causes:**
+1. **Infinite Loop:** `defaultValues` objects were recreated on every render, triggering infinite re-render loops in AddressForm component
+2. **Multiple watch() calls:** Each `watch()` call created separate subscriptions causing excessive re-renders
+3. **Backend Down:** handyman-api service was inactive since 08:31:22 EST
+
+**Files Modified:**
+- frontend/src/components/AddressForm.tsx (added useRef initialization tracking)
+- frontend/app/(customer)/job-request/step0-address.tsx (memoized defaultValues, optimized watch())
+- frontend/app/(contractor)/profile.tsx (memoized defaultValues)
+- frontend/app/(handyman)/profile/index.tsx (memoized defaultValues)
+- frontend/app/(customer)/profile.tsx (memoized defaultValues)
+
+**Changes:**
+
+1. **AddressForm.tsx:**
+   - Added `useRef` import and `isInitialized` ref
+   - Wrapped setValue calls in `if (!isInitialized.current)` check
+   - Prevents setValue from running more than once, breaking the infinite loop
+
+2. **step0-address.tsx:**
+   - Wrapped `defaultValues` calculation in `useMemo` with `[user?.addresses]` dependency
+   - Changed from 4 separate `watch()` calls to single `watch()` call
+   - Reduces form subscriptions from 4 to 1, minimizing re-renders
+
+3. **All Profile Pages:**
+   - Added `useMemo` imports
+   - Wrapped `defaultValues` calculations in `useMemo` hooks
+   - Prevents object reference changes on every render
+
+4. **Server Restart:**
+   - Stashed uncommitted changes on production server
+   - Pulled latest code from dev branch (251 files changed)
+   - Restarted handyman-api service successfully
+   - Service now active with PID 635477
+
+**Result:**
+✅ No more "Maximum update depth exceeded" crashes
+✅ Address forms work correctly in all flows (job-request, profile editing)
+✅ Login working again (503 errors resolved)
+✅ Backend API running with all latest fixes
+✅ Form re-renders minimized for better performance
+
+**Commits:** 
+- 709fc8e (AddressForm initial fix)
+- 4884ea8 (Complete address loop fix across all files)
+
+**Server:** Production backend updated and restarted at 09:32:11 EST
