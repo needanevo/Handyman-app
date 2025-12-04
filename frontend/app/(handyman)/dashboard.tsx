@@ -139,6 +139,22 @@ export default function HandymanDashboard() {
             </TouchableOpacity>
           </View>
 
+          {/* Growth Center Card (Restored Horizontal Scroll Button) */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <TouchableOpacity
+                style={[
+                  styles.milestoneCard,
+                  { width: 150, height: 150, justifyContent: "center" },
+                ]}
+                onPress={() => router.push('/(handyman)/growth')}
+              >
+                <Ionicons name="trending-up" size={48} color="#FFA500" />
+                <Text style={styles.milestoneText}>Growth Center</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+
           {/* Gamified Checklist */}
           <View style={styles.checklistSection}>
             <Text style={styles.checklistTitle}>Unlock Achievements</Text>
