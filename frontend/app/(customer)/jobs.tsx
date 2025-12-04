@@ -95,7 +95,7 @@ export default function JobsListScreen() {
             size="small"
             icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
           />
-          <Text style={styles.headerTitle}>All Jobs</Text>
+          <Text style={styles.headerTitle}>My Jobs</Text>
           <View style={{ width: 44 }} />
         </View>
 
@@ -191,7 +191,7 @@ export default function JobsListScreen() {
                 {/* Progress */}
                 {job.status !== 'pending_contractor' && (
                   <ProgressBar
-                    progress={job.progress}
+                    progress={typeof job.progress === 'number' ? job.progress : 0}
                     showPercentage
                     variant={job.status === 'completed' ? 'success' : 'primary'}
                     style={styles.jobProgress}
@@ -223,7 +223,9 @@ export default function JobsListScreen() {
 
                   <View style={styles.costSection}>
                     <Text style={styles.costLabel}>Total</Text>
-                    <Text style={styles.costAmount}>${job.totalCost?.toFixed(2) || 'TBD'}</Text>
+                    <Text style={styles.costAmount}>
+                      {typeof job.totalCost === 'number' ? `$${job.totalCost.toFixed(2)}` : '$TBD'}
+                    </Text>
                   </View>
 
                   <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />

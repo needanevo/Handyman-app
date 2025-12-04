@@ -25,7 +25,7 @@ import { Button } from '../../src/components/Button';
 
 export default function CustomerProfileScreen() {
   const router = useRouter();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -62,6 +62,33 @@ export default function CustomerProfileScreen() {
     setState(user?.addresses?.[0]?.state || '');
     setZipCode(user?.addresses?.[0]?.zipCode || '');
     setIsEditing(false);
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              router.replace('/auth/welcome');
+            } catch (error) {
+              console.error('Logout failed:', error);
+              // Still navigate even if logout fails
+              router.replace('/auth/welcome');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -230,6 +257,20 @@ export default function CustomerProfileScreen() {
             />
           </View>
         )}
+
+        {/* Logout Button */}
+        {!isEditing && (
+          <View style={styles.actions}>
+            <Button
+              title="Logout"
+              onPress={handleLogout}
+              variant="outline"
+              size="large"
+              icon={<Ionicons name="log-out-outline" size={20} color={colors.error.main} />}
+              style={styles.logoutButton}
+            />
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -356,5 +397,8 @@ const styles = StyleSheet.create({
   actions: {
     paddingHorizontal: spacing.base,
     marginTop: spacing.xl,
+  },
+  logoutButton: {
+    borderColor: colors.error.main,
   },
 });

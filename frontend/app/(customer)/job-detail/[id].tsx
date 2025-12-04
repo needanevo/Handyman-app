@@ -6,6 +6,7 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -28,6 +29,7 @@ const mockJob = {
     rating: 4.8,
     completedJobs: 47,
     photo: 'https://ui-avatars.com/api/?name=Mike+Johnson&background=2563EB&color=fff',
+    role: 'contractor', // or 'handyman'
   },
   payment: {
     total: 300,
@@ -111,13 +113,19 @@ export default function JobDetailScreen() {
   };
 
   const handleApproveMilestone = (milestoneId: string) => {
-    // Implement approval logic
-    console.log('Approving milestone:', milestoneId);
+    Alert.alert(
+      'Payment Approval',
+      'This action will be enabled in a future update. Payment approval functionality is coming soon.',
+      [{ text: 'OK' }]
+    );
   };
 
   const handleRejectMilestone = (milestoneId: string) => {
-    // Implement rejection logic
-    console.log('Rejecting milestone:', milestoneId);
+    Alert.alert(
+      'Request Changes',
+      'This action will be enabled in a future update. Change request functionality is coming soon.',
+      [{ text: 'OK' }]
+    );
   };
 
   // Use progress field from backend or calculate from milestones
@@ -176,6 +184,22 @@ export default function JobDetailScreen() {
           <View style={styles.contractorContent}>
             <Image source={{ uri: job.contractor.photo }} style={styles.contractorPhoto} />
             <View style={styles.contractorInfo}>
+              {/* Role Label */}
+              <View style={styles.roleLabel}>
+                <Text style={styles.roleLabelText}>
+                  {job.contractor.role === 'handyman' ? 'Your Handyman' : 'Your Contractor'}
+                </Text>
+                {job.contractor.role === 'handyman' && (
+                  <TouchableOpacity
+                    onPress={() => router.push('/(customer)/handyman-info')}
+                    style={styles.handymanPill}
+                  >
+                    <Ionicons name="information-circle" size={14} color={colors.warning.main} />
+                    <Text style={styles.handymanPillText}>What's this?</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
               <Text style={styles.contractorName}>{job.contractor.name}</Text>
               <View style={styles.contractorMeta}>
                 <Ionicons name="star" size={16} color={colors.warning.main} />
@@ -378,7 +402,7 @@ export default function JobDetailScreen() {
             </View>
             <Button
               title="Contact"
-              onPress={() => {}}
+              onPress={() => router.push('/(customer)/support')}
               variant="outline"
               size="small"
             />
@@ -450,6 +474,35 @@ const styles = StyleSheet.create({
   },
   contractorInfo: {
     flex: 1,
+  },
+  roleLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+    gap: spacing.sm,
+  },
+  roleLabelText: {
+    ...typography.caption.small,
+    color: colors.neutral[600],
+    textTransform: 'uppercase',
+    fontWeight: typography.weights.semibold,
+    letterSpacing: 0.5,
+  },
+  handymanPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.warning.lightest,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.warning.main,
+  },
+  handymanPillText: {
+    ...typography.caption.small,
+    color: colors.warning.main,
+    fontWeight: typography.weights.medium,
   },
   contractorName: {
     ...typography.headings.h5,
