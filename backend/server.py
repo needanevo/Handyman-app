@@ -480,6 +480,14 @@ async def request_quote(
     Request a quote for services with photo upload to Linode and email notification
     """
     try:
+        # Validate address_id is provided and exists in addresses collection
+        if not quote_request.address_id:
+            raise HTTPException(status_code=400, detail="address_id is required")
+
+        address = await get_address_by_id(quote_request.address_id)
+        if not address:
+            raise HTTPException(status_code=404, detail="Address not found")
+
         quote_id = str(uuid.uuid4())
         
         # Step 1: Use photo URLs from immediate upload (no re-upload needed)
@@ -1090,7 +1098,37 @@ async def create_job(
         if job_data.budget_max and estimated_total > job_data.budget_max:
             estimated_total = job_data.budget_max
 
-    # Create job with embedded address
+    # Unified address logic: use canonical address_id or create from embedded address
+    address_id = getattr(job_data, "address_id", None)
+
+    if address_id:
+        # Validate canonical address exists
+        address = await get_address_by_id(address_id)
+        if not address:
+            raise HTTPException(status_code=404, detail="Address not found")
+    else:
+        # Fallback: if embedded address present but no id, create canonical address
+        if getattr(job_data, "address", None):
+            created = create_address_for_user(
+                user_id=current_user.id,
+                address_data={
+                    "street": job_data.address.street,
+                    "city": job_data.address.city,
+                    "state": job_data.address.state,
+                    "zip_code": job_data.address.zip,
+                    "latitude": getattr(job_data.address, "lat", None),
+                    "longitude": getattr(job_data.address, "lon", None),
+                    "is_default": True,
+                },
+            )
+            # Insert into addresses collection
+            await db.addresses.insert_one(created.model_dump())
+            address = created
+            address_id = created.id
+        else:
+            raise HTTPException(status_code=400, detail="Address info required")
+
+    # Create job with embedded address (backward compatibility)
     job = Job(
         customer_id=current_user.id,
         service_category=job_data.service_category,
@@ -1106,6 +1144,10 @@ async def create_job(
 
     # Save job to MongoDB
     job_doc = job.model_dump()
+
+    # Add canonical address_id and snapshot
+    job_doc["address_id"] = address_id
+    job_doc["address_snapshot"] = address.model_dump()
     job_doc["created_at"] = job_doc["created_at"].isoformat()
     job_doc["updated_at"] = job_doc["updated_at"].isoformat()
     if job_doc.get("scheduled_date"):
