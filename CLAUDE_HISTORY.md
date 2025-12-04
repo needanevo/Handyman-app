@@ -4,6 +4,85 @@ Append-only execution history for Claude Code.
 Use this file ONLY for historical reference.
 Do not load into every task.
 
+[2025-12-04 16:30] FIX — Job Creation 422 Error + AI Quote Setup
+
+**Summary:**
+Fixed 422 Unprocessable Entity error blocking job creation end-to-end. Root cause: Backend model was refactored to use embedded JobAddress objects, but server endpoint and frontend still used address_id references. Also identified that AI quote generation is already implemented but may not be active due to server not restarting after env config.
+
+**Issue Details:**
+1. **422 Error:** Frontend sending `address_id: string` but backend JobCreateRequest model expects `address: JobAddress` object
+2. **Server.py out of sync:** Endpoint code tried to validate and use `address_id` but Job model requires embedded `address` object
+3. **Identical quotes:** OpenAI provider is configured correctly in providers.env but server needs restart to load ACTIVE_AI_PROVIDER=openai
+
+**Files Modified:**
+- backend/server.py (lines 1056-1105)
+- frontend/app/quote/request.tsx (lines 384-399)
+- frontend/src/services/api.ts (lines 116-135)
+
+**Changes:**
+
+1. **Backend server.py:**
+   - Removed address_id validation that queried user.addresses
+   - Changed Job constructor from `address_id=job_data.address_id` to `address=job_data.address`
+   - Fixed field name mismatches: `preferred_dates` → `preferred_timing`
+   - Use `status=job_data.status` instead of hardcoded `REQUESTED`
+   - Added support for `contractor_type_preference` parameter
+   - Updated urgency check to handle both "urgent" and "high" values
+
+2. **Frontend request.tsx:**
+   - Changed job request payload from `address_id: addressId` to full `address` object
+   - Address object structure: `{ street, city, state, zip }`
+   - Updated field names: `maxBudget` → `budget_max`, made nullable
+   - Removed: `preferred_dates`, `source` (not in backend schema)
+   - Changed `status` from 'requested' to 'published' (matches JobStatus enum)
+   - Still saves address to profile for reuse, but job uses embedded address
+
+3. **Frontend api.ts:**
+   - Updated createJob TypeScript interface to match backend schema
+   - Changed `address_id: string` to `address: { street, city, state, zip }`
+   - Added optional fields: `preferred_timing`, `budget_max`
+
+**AI Quote Generation:**
+- OpenAI provider is implemented in `providers/openai_provider.py`
+- Configured in `providers.env`: ACTIVE_AI_PROVIDER=openai, OPENAI_API_KEY set
+- Uses gpt-4o-mini model for cost-effective AI quotes
+- Generates varied estimates based on service type, description, and photos
+- Has fallback to MockAiProvider if OpenAI fails (AI_SAFETY_MODE=true)
+- **Action required:** Restart backend server to load env config
+
+**Backend Model Structure (for reference):**
+```python
+JobCreateRequest:
+  - service_category: str
+  - address: JobAddress (not address_id!)
+  - description: str
+  - photos: List[str]
+  - budget_max: Optional[float]
+  - urgency: str = "low"
+  - preferred_timing: Optional[str]
+  - contractor_type_preference: Optional[ContractorTypePreference]
+  - status: JobStatus = DRAFT
+
+JobAddress:
+  - street: str
+  - city: str
+  - state: str
+  - zip: str
+  - lat: Optional[float]
+  - lon: Optional[float]
+```
+
+**Testing:**
+- Job creation should now succeed without 422 errors
+- Restart backend server to activate AI quotes
+- AI will generate varied quotes based on job details
+- Check server logs for "AI suggestion generated with X% confidence"
+
+**Commit:** 0ae16cf
+**Branch:** dev
+
+---
+
 [2025-12-04 16:00] CRITICAL FIX — Address Saving Across All Flows
 
 **Summary:**
