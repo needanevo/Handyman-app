@@ -4,6 +4,9 @@ import {
   Text,
   StyleSheet,
   Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -172,7 +175,10 @@ export default function JobRequestStep0() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.wrapper}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Button
@@ -185,64 +191,71 @@ export default function JobRequestStep0() {
           />
         </View>
 
-        {/* Progress */}
-        <View style={styles.progressSection}>
-          <StepIndicator steps={steps} currentStep={0} />
-        </View>
-
-        {/* Title */}
-        <View style={styles.titleSection}>
-          <View style={[styles.iconCircle, { backgroundColor: colors.primary.lightest }]}>
-            <Ionicons name="location" size={32} color={colors.primary.main} />
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Progress */}
+          <View style={styles.progressSection}>
+            <StepIndicator steps={steps} currentStep={0} />
           </View>
-          <Text style={styles.title}>Where's the job?</Text>
-          <Text style={styles.subtitle}>
-            Enter the address where you need work done
-          </Text>
-        </View>
 
-        {/* Address Form */}
-        <View style={styles.formSection}>
-          <AddressForm
-            control={control}
-            errors={errors}
-            setValue={setValue}
-            defaultValues={defaultValues}
-            showUnitNumber={true}
-          />
-        </View>
-
-        {/* Info Card */}
-        <Card variant="flat" padding="lg" style={styles.infoCard}>
-          <View style={styles.infoHeader}>
-            <Ionicons name="information-circle" size={24} color={colors.primary.main} />
-            <Text style={styles.infoTitle}>Why do we need this?</Text>
+          {/* Title */}
+          <View style={styles.titleSection}>
+            <View style={[styles.iconCircle, { backgroundColor: colors.primary.lightest }]}>
+              <Ionicons name="location" size={32} color={colors.primary.main} />
+            </View>
+            <Text style={styles.title}>Where's the job?</Text>
+            <Text style={styles.subtitle}>
+              Enter the address where you need work done
+            </Text>
           </View>
-          <Text style={styles.infoText}>
-            We use your address to match you with nearby contractors within a 50-mile radius.
-            Your exact address is only shared with contractors after you accept their proposal.
-          </Text>
-        </Card>
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          <Button
-            title="Continue"
-            onPress={handleSubmit(onSubmit)}
-            loading={isLoading}
-            disabled={!isFormFilled || isLoading}
-            size="large"
-            fullWidth
-          />
-          <Button
-            title="Back"
-            onPress={() => router.back()}
-            variant="outline"
-            size="medium"
-            fullWidth
-          />
-        </View>
-      </View>
+          {/* Address Form */}
+          <View style={styles.formSection}>
+            <AddressForm
+              control={control}
+              errors={errors}
+              setValue={setValue}
+              defaultValues={defaultValues}
+              showUnitNumber={true}
+            />
+          </View>
+
+          {/* Info Card */}
+          <Card variant="flat" padding="lg" style={styles.infoCard}>
+            <View style={styles.infoHeader}>
+              <Ionicons name="information-circle" size={24} color={colors.primary.main} />
+              <Text style={styles.infoTitle}>Why do we need this?</Text>
+            </View>
+            <Text style={styles.infoText}>
+              We use your address to match you with nearby contractors within a 50-mile radius.
+              Your exact address is only shared with contractors after you accept their proposal.
+            </Text>
+          </Card>
+
+          {/* Actions */}
+          <View style={styles.actions}>
+            <Button
+              title="Continue"
+              onPress={handleSubmit(onSubmit)}
+              loading={isLoading}
+              disabled={!isFormFilled || isLoading}
+              size="large"
+              fullWidth
+            />
+            <Button
+              title="Back"
+              onPress={() => router.back()}
+              variant="outline"
+              size="medium"
+              fullWidth
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -252,12 +265,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.primary,
   },
-  wrapper: {
+  keyboardView: {
     flex: 1,
-    paddingHorizontal: spacing.xl,
   },
   header: {
     paddingTop: spacing.sm,
+    paddingHorizontal: spacing.xl,
     marginBottom: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -265,6 +278,13 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignSelf: 'flex-start',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing['2xl'],
   },
   progressSection: {
     marginBottom: spacing.lg,
@@ -296,7 +316,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
   },
   formSection: {
-    flex: 1,
     marginBottom: spacing.lg,
   },
   infoCard: {
@@ -320,6 +339,6 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: spacing.md,
-    paddingBottom: spacing.xl,
+    marginTop: spacing.lg,
   },
 });
