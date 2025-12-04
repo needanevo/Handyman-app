@@ -141,20 +141,6 @@ export default function CustomerDashboard() {
           </View>
         </View>
 
-        {/* Change Orders Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Change Orders</Text>
-          <Card style={styles.changeOrderCard}>
-            <View style={styles.changeOrderContent}>
-              <Ionicons name="document-text-outline" size={48} color={colors.neutral[400]} />
-              <Text style={styles.changeOrderTitle}>No Pending Requests</Text>
-              <Text style={styles.changeOrderText}>
-                Change orders from your contractors will appear here for your review and approval
-              </Text>
-            </View>
-          </Card>
-        </View>
-
         {/* Warranties Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -389,25 +375,6 @@ const styles = StyleSheet.create({
   jobCardSubtitle: {
     ...typography.sizes.sm,
     color: colors.neutral[600],
-  },
-  changeOrderCard: {
-    padding: spacing.lg,
-  },
-  changeOrderContent: {
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  changeOrderTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
-    color: colors.neutral[700],
-    textAlign: 'center',
-  },
-  changeOrderText: {
-    ...typography.sizes.sm,
-    color: colors.neutral[600],
-    textAlign: 'center',
-    paddingHorizontal: spacing.md,
   },
   warrantyCard: {
     padding: spacing.lg,

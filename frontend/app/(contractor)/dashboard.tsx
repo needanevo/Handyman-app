@@ -255,36 +255,6 @@ export default function ContractorDashboard() {
           </View>
         </View>
 
-        {/* Change Orders Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Change Orders</Text>
-          <Card style={styles.changeOrderCard}>
-            <Text style={styles.changeOrderIcon}>📝</Text>
-            <Text style={styles.changeOrderTitle}>Manage Change Orders</Text>
-            <Text style={styles.changeOrderSubtitle}>
-              Document scope changes and additional work for your jobs
-            </Text>
-            <TouchableOpacity
-              style={styles.changeOrderButton}
-              onPress={() => {
-                // Navigate to first scheduled job's change order list
-                // If no scheduled jobs, show info
-                if (scheduledJobs && scheduledJobs.length > 0) {
-                  router.push(`/(contractor)/change-order/list/${scheduledJobs[0].id}` as any);
-                } else {
-                  Alert.alert(
-                    'Change Orders',
-                    'Change orders are job-specific. Visit a job detail screen to create or view change orders.',
-                    [{ text: 'OK' }]
-                  );
-                }
-              }}
-            >
-              <Text style={styles.changeOrderButtonText}>View Change Orders</Text>
-            </TouchableOpacity>
-          </Card>
-        </View>
-
         {/* Financial Summary */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
