@@ -5,11 +5,16 @@
  * Handles keyboard avoidance, state dropdown, and iOS autofill.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Modal,
+  ScrollView,
+  Pressable,
 } from 'react-native';
 import { Controller, Control, FieldErrors } from 'react-hook-form';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
@@ -96,6 +101,9 @@ export function AddressForm({
 }: AddressFormProps) {
   // Track if we've already initialized to prevent infinite loops
   const isInitialized = useRef(false);
+
+  // State for custom dropdown modal
+  const [showStateModal, setShowStateModal] = useState(false);
 
   // Preload default values if provided (only once)
   useEffect(() => {
@@ -185,31 +193,79 @@ export function AddressForm({
               <Text style={styles.label}>
                 State <Text style={styles.required}>*</Text>
               </Text>
+
               <Controller
                 control={control}
                 name="state"
-                rules={{ required: 'State is required' }}
+                rules={{
+                  validate: (value) => value !== '' || 'Please select a state'
+                }}
                 render={({ field: { onChange, value } }) => {
-                  console.log('[AddressForm] State picker render - value:', value);
+                  const selectedState = US_STATES.find(s => s.value === value);
+                  const displayText = selectedState?.label || 'Select State';
+
                   return (
-                    <View style={[styles.pickerContainer, errors.state && styles.pickerError]}>
-                      <Picker
-                        selectedValue={value}
-                        onValueChange={(newValue) => {
-                          console.log('[AddressForm] State picker changed:', newValue);
-                          onChange(newValue);
+                    <>
+                      <TouchableOpacity
+                        onPress={() => {
+                          console.log('[AddressForm] State button pressed, opening modal');
+                          setShowStateModal(true);
                         }}
-                        style={styles.picker}
+                        style={[styles.pickerContainer, errors.state && styles.pickerError]}
                       >
-                        {US_STATES.map((state) => (
-                          <Picker.Item
-                            key={state.value}
-                            label={state.label}
-                            value={state.value}
-                          />
-                        ))}
-                      </Picker>
-                    </View>
+                        <Text style={[
+                          styles.pickerText,
+                          !value && styles.placeholderText
+                        ]}>
+                          {displayText}
+                        </Text>
+                        <Text style={styles.pickerArrow}>▼</Text>
+                      </TouchableOpacity>
+
+                      <Modal
+                        visible={showStateModal}
+                        transparent={true}
+                        animationType="slide"
+                        onRequestClose={() => setShowStateModal(false)}
+                      >
+                        <Pressable
+                          style={styles.modalOverlay}
+                          onPress={() => setShowStateModal(false)}
+                        >
+                          <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                              <Text style={styles.modalTitle}>Select State</Text>
+                              <TouchableOpacity onPress={() => setShowStateModal(false)}>
+                                <Text style={styles.modalClose}>✕</Text>
+                              </TouchableOpacity>
+                            </View>
+                            <ScrollView style={styles.modalScroll}>
+                              {US_STATES.filter(s => s.value !== '').map((state) => (
+                                <TouchableOpacity
+                                  key={state.value}
+                                  onPress={() => {
+                                    console.log('[AddressForm] State selected:', state.value);
+                                    onChange(state.value);
+                                    setShowStateModal(false);
+                                  }}
+                                  style={[
+                                    styles.modalItem,
+                                    value === state.value && styles.modalItemSelected
+                                  ]}
+                                >
+                                  <Text style={[
+                                    styles.modalItemText,
+                                    value === state.value && styles.modalItemTextSelected
+                                  ]}>
+                                    {state.label}
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </ScrollView>
+                          </View>
+                        </Pressable>
+                      </Modal>
+                    </>
                   );
                 }}
               />
@@ -257,10 +313,12 @@ const styles = StyleSheet.create({
     gap: spacing.base,
   },
   stateContainer: {
-    width: 140,
+    flex: 1,
+    minWidth: 120,
   },
   zipContainer: {
     flex: 1,
+    minWidth: 100,
   },
   label: {
     ...typography.body.regular,
@@ -276,18 +334,79 @@ const styles = StyleSheet.create({
     borderColor: colors.neutral[300],
     borderRadius: borderRadius.md,
     backgroundColor: colors.background.primary,
-    overflow: 'hidden',
+    minHeight: 50,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: spacing.md,
   },
   pickerError: {
     borderColor: colors.error.main,
   },
-  picker: {
-    height: 50,
+  pickerText: {
+    ...typography.body.regular,
     color: colors.neutral[900],
+    flex: 1,
+  },
+  placeholderText: {
+    color: colors.neutral[500],
+  },
+  pickerArrow: {
+    color: colors.neutral[600],
+    fontSize: 12,
+    marginLeft: spacing.sm,
   },
   errorText: {
     ...typography.caption.small,
     color: colors.error.main,
     marginTop: spacing.xs,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.background.primary,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    maxHeight: '70%',
+    paddingBottom: spacing.xl,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  modalTitle: {
+    ...typography.headings.h3,
+    color: colors.neutral[900],
+  },
+  modalClose: {
+    ...typography.headings.h3,
+    color: colors.neutral[600],
+    paddingHorizontal: spacing.sm,
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  modalItem: {
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  modalItemSelected: {
+    backgroundColor: colors.primary.lightest,
+  },
+  modalItemText: {
+    ...typography.body.regular,
+    color: colors.neutral[900],
+  },
+  modalItemTextSelected: {
+    color: colors.primary.main,
+    fontWeight: typography.weights.semibold,
   },
 });
