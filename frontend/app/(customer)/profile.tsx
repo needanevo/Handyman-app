@@ -14,6 +14,8 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -72,16 +74,28 @@ export default function CustomerProfileScreen() {
         is_default: true,
       };
 
+      console.log('Saving address:', addressData);
       await profileAPI.addAddress(addressData);
+      console.log('Address saved successfully');
 
-      // Refresh user to get updated data
-      await refreshUser();
+      // Try to refresh user data, but don't fail if it errors
+      try {
+        await refreshUser();
+        console.log('User data refreshed');
+      } catch (refreshError: any) {
+        console.warn('Failed to refresh user data:', refreshError);
+        // Non-critical - address was saved, just couldn't refresh
+        // User can reload the page to see updates
+      }
 
       setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully');
+      Alert.alert('Success', 'Address saved successfully');
     } catch (error: any) {
-      console.error('Failed to update profile:', error);
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to update profile');
+      console.error('Failed to save address:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || error.message || 'Failed to save address. Please try again.'
+      );
     } finally {
       setIsSaving(false);
     }
@@ -155,12 +169,16 @@ export default function CustomerProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Profile Photo */}
         <View style={styles.photoSection}>
           <View style={styles.photoContainer}>
@@ -288,7 +306,8 @@ export default function CustomerProfileScreen() {
             />
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -323,6 +342,9 @@ const styles = StyleSheet.create({
     ...typography.sizes.base,
     color: colors.primary.main,
     fontWeight: typography.weights.semibold,
+  },
+  keyboardView: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,

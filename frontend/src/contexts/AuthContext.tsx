@@ -213,12 +213,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('User set in context - isAuthenticated should now be true');
 
     } catch (error: any) {
-      // Silently handle 401 errors (expected when auth fails)
-      if (error.response?.status !== 401) {
-        console.error('Failed to refresh user:', error);
+      console.error('Failed to refresh user:', error);
+      // Only logout on 401 (unauthorized) - not on 403 or other errors
+      if (error.response?.status === 401) {
+        console.log('Auth token invalid (401), logging out');
+        await logout();
       }
-      // If refresh fails, clear auth state
-      await logout();
       throw error;
     }
   };

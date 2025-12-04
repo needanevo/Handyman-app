@@ -18,14 +18,19 @@ import { Button } from '../../src/components/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { useForm, Controller } from 'react-hook-form';
 import * as ImagePicker from 'expo-image-picker';
-import { jobsAPI, quotesAPI } from '../../src/services/api';
+import { jobsAPI, quotesAPI, profileAPI } from '../../src/services/api';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { AddressForm } from '../../src/components/AddressForm';
 
 interface JobRequestForm {
   serviceCategory: string;
   description: string;
   urgency: string;
   maxBudget: string;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
 }
 interface PhotoUpload {
   id: string;
@@ -151,7 +156,7 @@ const showAlert = (title: string, message: string, buttons?: any[]) => {
 };
 
 export default function JobRequestScreen() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
   const { category } = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
@@ -168,6 +173,10 @@ export default function JobRequestScreen() {
       serviceCategory: (category as string) || '',
       urgency: 'normal',
       maxBudget: '',
+      street: user?.addresses?.[0]?.street || '',
+      city: user?.addresses?.[0]?.city || '',
+      state: user?.addresses?.[0]?.state || '',
+      zipCode: user?.addresses?.[0]?.zipCode || '',
     },
   });
   
@@ -318,6 +327,12 @@ export default function JobRequestScreen() {
       return;
     }
 
+    // Validate address fields
+    if (!data.street || !data.city || !data.state || !data.zipCode) {
+      showAlert('Error', 'Please provide a complete service address');
+      return;
+    }
+
     const uploadingPhotos = photos.filter(p => p.status === 'uploading');
     if (uploadingPhotos.length > 0) {
       showAlert(
@@ -330,13 +345,45 @@ export default function JobRequestScreen() {
     try {
       setIsLoading(true);
 
-      // Get user's default address or create a mock one
-      let addressId = user?.addresses?.find(addr => addr.isDefault)?.id;
-      if (!addressId && user?.addresses && user.addresses.length > 0) {
-        addressId = user.addresses[0].id;
-      } else if (!addressId) {
-        // Create a temporary address for demo purposes
-        addressId = 'temp-address-id';
+      // Check if address matches an existing saved address
+      let addressId = user?.addresses?.find(
+        addr =>
+          addr.street === data.street &&
+          addr.city === data.city &&
+          addr.state === data.state &&
+          addr.zipCode === data.zipCode
+      )?.id;
+
+      // If no matching address, save the new address to profile
+      if (!addressId) {
+        console.log('Saving new address to profile...');
+        const addressData = {
+          street: data.street,
+          city: data.city,
+          state: data.state,
+          zip_code: data.zipCode,
+          is_default: !user?.addresses || user.addresses.length === 0,
+        };
+
+        try {
+          const savedAddress = await profileAPI.addAddress(addressData);
+          addressId = savedAddress.id;
+          console.log('Address saved with ID:', addressId);
+
+          // Refresh user data to include new address
+          try {
+            await user && refreshUser();
+          } catch (refreshError) {
+            console.warn('Could not refresh user after saving address');
+          }
+        } catch (addressError: any) {
+          console.error('Failed to save address:', addressError);
+          showAlert(
+            'Error',
+            'Failed to save service address. Please try again.'
+          );
+          return;
+        }
       }
 
       const jobRequest = {
@@ -468,6 +515,32 @@ export default function JobRequestScreen() {
             {errors.description && (
               <Text style={styles.errorText}>{errors.description.message}</Text>
             )}
+          </View>
+
+          {/* Service Address */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Service Address</Text>
+            <Text style={styles.sectionDescription}>
+              Where should the contractor come to do the work?
+            </Text>
+            <View style={styles.addressFormContainer}>
+              <AddressForm
+                control={control}
+                errors={errors}
+                setValue={setValue}
+                defaultValues={
+                  user?.addresses && user.addresses.length > 0
+                    ? {
+                        street: user.addresses[0].street,
+                        city: user.addresses[0].city,
+                        state: user.addresses[0].state,
+                        zipCode: user.addresses[0].zipCode,
+                      }
+                    : undefined
+                }
+                showUnitNumber={false}
+              />
+            </View>
           </View>
 
           {/* Photos */}
@@ -924,5 +997,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     lineHeight: 16,
+  },
+  addressFormContainer: {
+    marginTop: 12,
   },
 });
