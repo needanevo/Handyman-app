@@ -1353,3 +1353,120 @@ getQuotes: (status?: string) =>
 **Commit:** 677027f
 **Branch:** dev
 
+
+---
+
+[2025-12-04 20:00] ARCH — Phase 1+2: Canonical Addresses Collection
+
+**Summary:**
+Major architectural change: Created canonical `addresses` MongoDB collection to replace embedded user.addresses as the single source of truth. Profile endpoints now write to both locations for backward compatibility during migration period.
+
+**Why This Matters:**
+Addresses are the "most important part of the game" for job matching, geofencing, and contractor routing. Previously embedded in user documents, they lacked proper indexing, made queries inefficient, and created data inconsistencies. The canonical collection enables:
+- Efficient geospatial queries for job matching
+- Proper indexing on user_id, is_default, and address_id
+- Single source of truth for all address references
+- Better data integrity and consistency
+
+**Architecture:**
+
+OLD (Embedded):
+```
+db.users {
+  id: "user-123",
+  addresses: [
+    { id: "addr-1", street: "...", city: "...", ... }
+  ]
+}
+```
+
+NEW (Canonical):
+```
+db.addresses {
+  id: "addr-1",
+  user_id: "user-123",
+  street: "...",
+  city: "...",
+  latitude: 39.123,
+  longitude: -76.456,
+  created_at: ISODate(...),
+  updated_at: ISODate(...)
+}
+
+db.users {
+  id: "user-123",
+  addresses: [ ... ]  // Still present for backward compatibility
+}
+```
+
+**Files Modified:**
+- backend/models/address.py (NEW FILE)
+- backend/models/__init__.py
+- backend/server.py
+
+**Changes:**
+
+1. **Created backend/models/address.py:**
+   - Canonical Address model with user_id field
+   - Added unit_number, created_at, updated_at fields
+   - Separate from embedded Address in user.py
+
+2. **Updated backend/models/__init__.py:**
+   - Import canonical Address from address.py
+   - Import embedded Address as EmbeddedAddress from user.py
+   - Both exported for backward compatibility
+
+3. **Updated backend/server.py (Indexes):**
+   ```python
+   await db.addresses.create_index("user_id")
+   await db.addresses.create_index([("user_id", 1), ("is_default", 1)])
+   await db.addresses.create_index("id", unique=True)
+   ```
+
+4. **Added Address Helper Functions (server.py:1507-1555):**
+   - `create_address_for_user()`: Create canonical address document
+   - `get_address_by_id()`: Fetch address by ID from collection
+   - `list_addresses_for_user()`: List all user addresses
+   - `set_default_address()`: Manage default address logic
+
+5. **Updated POST /api/profile/addresses (server.py:1561-1649):**
+   - Geocodes address via maps_provider
+   - Creates canonical address in addresses collection
+   - ALSO writes to user.addresses for backward compatibility
+   - Synchronizes IDs between both locations
+   - Returns address_id from canonical collection
+
+6. **Updated GET /api/profile/addresses (server.py:1652-1666):**
+   - Reads from addresses collection first (canonical source)
+   - Falls back to embedded addresses if collection empty
+   - Ensures backward compatibility during migration
+
+**Backward Compatibility:**
+- All new addresses write to BOTH locations
+- Reads prioritize canonical collection but fall back to embedded
+- Existing quotes/jobs with embedded addresses still work
+- Migration script (Phase 4) will move existing embedded addresses to collection
+
+**Result:**
+✅ Addresses collection created with proper indexes
+✅ Profile endpoints write to canonical collection
+✅ Backward compatibility maintained with embedded addresses
+✅ Geocoding preserved
+✅ ID synchronization between embedded and canonical
+✅ Ready for Phase 3 (job/quote alignment) and Phase 4 (migration)
+
+**Testing Needed:**
+- Add address via profile → verify appears in db.addresses
+- Get addresses via profile → verify returns from collection
+- Address geocoding → verify lat/lng populated
+- Default address logic → verify only one is_default per user
+- Existing users → verify fallback to embedded addresses works
+
+**Next Steps:**
+- Phase 3: Update job & quote flows to use address_id from collection
+- Phase 4: Migration script to move existing embedded addresses
+- Phase 7: Comprehensive test plan execution
+
+**Commit:** d9ba021
+**Branch:** dev
+
