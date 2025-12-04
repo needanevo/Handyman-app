@@ -4,6 +4,63 @@ Append-only execution history for Claude Code.
 Use this file ONLY for historical reference.
 Do not load into every task.
 
+[2025-12-04 16:00] CRITICAL FIX — Address Saving Across All Flows
+
+**Summary:**
+Fixed critical issue where addresses were not saving in customer profiles or during job requests despite autofill working correctly. Root cause: 403 errors from refreshUser() were triggering logout, and job requests had no address collection UI.
+
+**Files Modified:**
+- frontend/src/contexts/AuthContext.tsx
+- frontend/app/(customer)/profile.tsx
+- frontend/app/quote/request.tsx
+
+**Changes:**
+
+1. **AuthContext.tsx (src/contexts/AuthContext.tsx:215-222)**
+   - Fixed refreshUser() error handling to only logout on 401 (Unauthorized) errors
+   - Previously ANY error (including 403 Forbidden) would clear auth state and log user out
+   - Now 403, 500, and network errors are logged but don't destroy the session
+   - Added console logging to distinguish between auth failures and other errors
+
+2. **Customer Profile (app/(customer)/profile.tsx:65-102)**
+   - Enhanced handleSave() with try-catch around refreshUser()
+   - Address save now succeeds even if refreshUser fails
+   - Added detailed console logging for debugging
+   - Improved error messages showing actual API response details
+   - Changed success message to be more accurate: "Address saved successfully"
+
+3. **Job Request (app/quote/request.tsx)**
+   - Added AddressForm component import and integration
+   - Extended JobRequestForm interface with address fields (street, city, state, zipCode)
+   - Added address validation before job submission
+   - Implemented smart address handling:
+     * Checks if entered address matches an existing saved address
+     * If new address, saves it to profile via profileAPI.addAddress()
+     * Reuses existing address ID if match found
+     * Sets new address as default if user has no addresses
+   - Added "Service Address" section in UI with AddressForm component
+   - Pre-fills form with user's first saved address if available
+   - Added refreshUser import from useAuth
+   - Added addressFormContainer style
+
+**Issue Resolved:**
+User reported: "Address autofill is working — good job. But addresses still do not save in customer profiles or during job requests."
+
+Console showed: `403 Failed to refresh user`
+
+The 403 error was causing the entire auth context to logout, preventing addresses from being saved or displayed. With these fixes:
+- 403 errors no longer destroy the session
+- Address saves succeed independently of refreshUser
+- Job requests now collect and save addresses properly
+- Users can enter addresses during job creation
+- Addresses are automatically saved to profile for future use
+
+**Commit:** 5c8ea16
+**Branch:** dev
+**Testing:** Manual testing recommended for both customer profile address editing and job request address entry flows.
+
+---
+
 2025-12-02 — Fixes & Phase 5 Execution
 [2025-12-02 12:00] Fix 5.13 — Change Orders Promoted to First-Class UI
 
