@@ -801,3 +801,63 @@ Impact:
 All screens now respect exact backend job statuses. No frontend filtering or grouping logic. Status synchronization ensured across dashboards and lists.
 
 END OF HISTORY (APPEND-ONLY)
+[2025-12-03 19:30] Customer Dashboard Polish + Universal Logout
+
+Summary:
+Polished customer dashboard experience with improved job display, fixed NaN/TBD issues, added contractor/handyman labeling, created support infrastructure, and implemented universal logout functionality.
+
+Task A — Customer Jobs Tabs:
+- Changed header from 'All Jobs' to 'My Jobs' for clarity
+- Tabs correctly filter: All (all jobs), Active (non-completed/cancelled), Completed (completed only)
+
+Task B — Fixed NaN% and $TBD Issues:
+- Progress bar: Added type checking (typeof job.progress === 'number' ? job.progress : 0)
+- Total cost: Safe display with proper fallback (typeof job.totalCost === 'number' ? $job.totalCost.toFixed(2) : '$TBD')
+- Prevents .toFixed() calls on undefined values
+
+Task C — Job Detail Buttons:
+- Approve & Release Payment: Shows placeholder alert for future implementation
+- Request Changes: Shows placeholder alert for change order flow
+- Support Contact: Routes to new support page (/(customer)/support)
+- Added Alert import for user feedback
+
+Task D — Contractor/Handyman Labels:
+- Added role label above contractor name in job detail
+- Shows 'Your Contractor' for contractor role
+- Shows 'Your Handyman' for handyman role with orange info pill
+- Orange pill links to new handyman-info.tsx page
+- Created handyman-info.tsx explaining unlicensed status and certification process
+- Added styles: roleLabel, roleLabelText, handymanPill, handymanPillText
+
+Task E — Support Page:
+- Created support.tsx with full support contact form
+- Advises users to contact contractor first via chat
+- Email support form with message text area
+- Uses mailto: link when available, logs request otherwise
+- Includes FAQ section and expected response times
+- Direct email contact displayed: support@therealjohnson.com
+
+Task F — Universal Logout:
+- Added logout functionality to customer profile
+- Contractor profile already had logout (no changes needed)
+- Logout button with confirmation dialog (Alert.alert)
+- Clears token from secure storage via AuthContext
+- Navigates to /auth/welcome on success
+- Error handling ensures navigation even if logout fails
+- Added logoutButton style with error.main border color
+
+Files Modified:
+- frontend/app/(customer)/jobs.tsx
+- frontend/app/(customer)/job-detail/[id].tsx
+- frontend/app/(customer)/profile.tsx
+
+Files Created:
+- frontend/app/(customer)/handyman-info.tsx
+- frontend/app/(customer)/support.tsx
+
+Impact:
+- Customer dashboard displays job data safely without crashes
+- Clear distinction between contractors and handymen
+- Functional support infrastructure for customer issues
+- All profiles now have logout capability
+- Better UX with placeholder alerts for upcoming features
