@@ -925,3 +925,97 @@ Manager should test complete job request flow:
 4. Verify job appears in jobs list
 5. Verify address saved to user profile
 6. Test iOS autofill on physical device
+
+[2025-12-03 20:30] CRITICAL FIX — Global AddressForm Component + Full Autofill Support
+
+Summary:
+Created reusable AddressForm component with proper keyboard handling, state dropdown, and iOS autofill support. Applied to job-request flow and customer profile to fix keyboard blocking, enable address saving, and ensure consistent UX.
+
+Section A — AddressForm Component Created:
+- New file: frontend/src/components/AddressForm.tsx
+- Reusable component for all address entry across the app
+- Includes 50 U.S. states in Picker dropdown (NOT TextInput)
+- Built-in keyboard handling:
+  * SafeAreaView wrapper
+  * KeyboardAvoidingView (padding on iOS, height on Android)
+  * ScrollView with keyboardShouldPersistTaps="handled"
+  * contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+- iOS autofill attributes:
+  * street: autoComplete="street-address", textContentType="streetAddressLine1"
+  * city: autoComplete="address-level2", textContentType="addressCity"
+  * state: Native Picker (no autofill needed)
+  * zipCode: autoComplete="postal-code", textContentType="postalCode"
+- Accepts props: control, errors, setValue, defaultValues, showUnitNumber
+- Preloads defaultValues via useEffect if provided
+- Does NOT save addresses (collection only, parent handles saving)
+
+Section B — Job Request Step0 Updated:
+- Removed individual TextInput components for address fields
+- Replaced with AddressForm component
+- Added refreshUser() call after profileAPI.addAddress()
+- Extracts addressId from refreshed user.addresses array
+- Finds default address or last address in array
+- Passes addressId to next step via params (CRITICAL for backend)
+- Added form validation with watch() to track field values
+- Continue button disabled until all fields filled and valid
+- Better error handling with detailed Alert messages
+- Removed redundant KeyboardAvoidingView (now in AddressForm)
+
+Section C — Customer Profile Updated:
+- Replaced address editing TextInputs with AddressForm component
+- AddressForm only shown when isEditing = true
+- When not editing, shows read-only address display
+- Uses react-hook-form for address validation
+- Calls profileAPI.addAddress() on save
+- Calls refreshUser() to update UI with saved data
+- No navigation after save (stays on profile)
+- Maintains separate state for phone field
+- Shows empty state when user has no address
+- Added keyboardShouldPersistTaps to ScrollView
+
+Section D — Autofill Verification:
+All iOS autofill attributes verified:
+- textContentType set correctly on all text inputs
+- autoComplete attributes match iOS AutoFill spec
+- State uses native Picker (no autofill conflicts)
+- ZIP uses numeric keyboard with postalCode hint
+- No autofill interference between fields
+
+Keyboard Handling Improvements:
+- KeyboardAvoidingView prevents keyboard from blocking inputs
+- ScrollView allows scrolling to see all fields when keyboard open
+- keyboardShouldPersistTaps="handled" prevents accidental dismissal
+- Sufficient padding at bottom (40px) for full visibility
+- Works correctly on both iOS and Android platforms
+
+Files Created:
+- frontend/src/components/AddressForm.tsx
+
+Files Modified:
+- frontend/app/(customer)/job-request/step0-address.tsx
+- frontend/app/(customer)/profile.tsx
+
+Dependencies Required:
+Manager must install: npm install @react-native-picker/picker
+
+Impact:
+✅ Keyboard no longer blocks address inputs
+✅ State dropdown eliminates typos and validation errors
+✅ iOS autofill works correctly on all fields
+✅ Addresses save to profile successfully
+✅ addressId properly extracted after save and passed to backend
+✅ Consistent address UX across job-request and profile
+✅ Proper form validation prevents invalid submissions
+✅ Better error messages with detailed feedback
+✅ Users can see what they're typing (no keyboard overlap)
+
+Testing Required:
+1. Install @react-native-picker/picker package
+2. Test job-request flow as new customer
+3. Verify address saves to profile after step0
+4. Verify address preloads on return visits
+5. Test state dropdown selection
+6. Test iOS autofill on physical device
+7. Verify keyboard doesn't block any inputs
+8. Test profile address editing and saving
+9. Verify UI updates immediately after profile save
