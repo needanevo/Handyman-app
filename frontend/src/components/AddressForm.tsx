@@ -99,13 +99,22 @@ export function AddressForm({
 
   // Preload default values if provided (only once)
   useEffect(() => {
+    console.log('[AddressForm] useEffect triggered', {
+      isInitialized: isInitialized.current,
+      hasDefaultValues: !!defaultValues,
+      hasSetValue: !!setValue,
+      defaultValues,
+    });
+
     if (!isInitialized.current && defaultValues && setValue) {
+      console.log('[AddressForm] Setting default values...');
       if (defaultValues.street) setValue('street', defaultValues.street);
       if (defaultValues.city) setValue('city', defaultValues.city);
       if (defaultValues.state) setValue('state', defaultValues.state);
       if (defaultValues.zipCode) setValue('zipCode', defaultValues.zipCode);
       if (defaultValues.unitNumber) setValue('unitNumber', defaultValues.unitNumber);
       isInitialized.current = true;
+      console.log('[AddressForm] Default values set, isInitialized = true');
     }
   }, [defaultValues, setValue]);
 
@@ -180,23 +189,29 @@ export function AddressForm({
                 control={control}
                 name="state"
                 rules={{ required: 'State is required' }}
-                render={({ field: { onChange, value } }) => (
-                  <View style={[styles.pickerContainer, errors.state && styles.pickerError]}>
-                    <Picker
-                      selectedValue={value}
-                      onValueChange={onChange}
-                      style={styles.picker}
-                    >
-                      {US_STATES.map((state) => (
-                        <Picker.Item
-                          key={state.value}
-                          label={state.label}
-                          value={state.value}
-                        />
-                      ))}
-                    </Picker>
-                  </View>
-                )}
+                render={({ field: { onChange, value } }) => {
+                  console.log('[AddressForm] State picker render - value:', value);
+                  return (
+                    <View style={[styles.pickerContainer, errors.state && styles.pickerError]}>
+                      <Picker
+                        selectedValue={value}
+                        onValueChange={(newValue) => {
+                          console.log('[AddressForm] State picker changed:', newValue);
+                          onChange(newValue);
+                        }}
+                        style={styles.picker}
+                      >
+                        {US_STATES.map((state) => (
+                          <Picker.Item
+                            key={state.value}
+                            label={state.label}
+                            value={state.value}
+                          />
+                        ))}
+                      </Picker>
+                    </View>
+                  );
+                }}
               />
               {errors.state && (
                 <Text style={styles.errorText}>{errors.state.message}</Text>

@@ -61,6 +61,7 @@ export default function JobRequestStep0() {
   }, [user?.addresses]);
 
   const onSubmit = async (data: AddressFormData) => {
+    console.log('[Step0 Debug] onSubmit called with data:', data);
     setIsLoading(true);
 
     try {
@@ -72,23 +73,35 @@ export default function JobRequestStep0() {
         zip_code: data.zipCode,
         is_default: true,
       };
+      console.log('[Step0 Debug] Sending to API:', addressData);
 
       await profileAPI.addAddress(addressData);
+      console.log('[Step0 Debug] Address added successfully');
 
       // Refresh user to get updated addresses with IDs
       await refreshUser();
+      console.log('[Step0 Debug] User refreshed (first call)');
 
       // After refresh, user.addresses should have the new address with ID
       // Get the most recent address (should be the one we just added)
       const updatedUser = await refreshUser();
+      console.log('[Step0 Debug] User refreshed (second call), addresses:', updatedUser?.addresses);
 
       // Find the address we just added (should be the default one or the last one)
       const savedAddress = updatedUser?.addresses?.find((addr: any) => addr.isDefault)
         || updatedUser?.addresses?.[updatedUser.addresses.length - 1];
 
+      console.log('[Step0 Debug] Saved address:', savedAddress);
+
       if (!savedAddress || !savedAddress.id) {
+        console.error('[Step0 Debug] ERROR: No address ID found!', {
+          savedAddress,
+          allAddresses: updatedUser?.addresses,
+        });
         throw new Error('Failed to get address ID after saving');
       }
+
+      console.log('[Step0 Debug] Address ID found:', savedAddress.id);
 
       // Construct full address for display
       const fullAddress = `${data.street}${data.unitNumber ? ` ${data.unitNumber}` : ''}, ${data.city}, ${data.state} ${data.zipCode}`;
@@ -129,12 +142,32 @@ export default function JobRequestStep0() {
   // Watch all fields at once to reduce re-renders
   const formValues = watch();
 
+  // Debug logging
+  useEffect(() => {
+    console.log('[Step0 Debug] Form values:', {
+      street: formValues.street,
+      city: formValues.city,
+      state: formValues.state,
+      zipCode: formValues.zipCode,
+    });
+    console.log('[Step0 Debug] Errors:', {
+      street: errors.street?.message,
+      city: errors.city?.message,
+      state: errors.state?.message,
+      zipCode: errors.zipCode?.message,
+    });
+    console.log('[Step0 Debug] State value length:', formValues.state?.length);
+    console.log('[Step0 Debug] State is truthy:', !!formValues.state);
+  }, [formValues, errors]);
+
   const isFormFilled =
     formValues.street &&
     formValues.city &&
     formValues.state &&
     formValues.zipCode &&
     formValues.zipCode.length === 5;
+
+  console.log('[Step0 Debug] isFormFilled:', isFormFilled);
 
 
   return (
