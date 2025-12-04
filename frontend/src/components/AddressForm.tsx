@@ -5,16 +5,12 @@
  * Handles keyboard avoidance, state dropdown, and iOS autofill.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Controller, Control, FieldErrors } from 'react-hook-form';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
 import { Input } from './Input';
@@ -98,29 +94,24 @@ export function AddressForm({
   defaultValues,
   showUnitNumber = true,
 }: AddressFormProps) {
-  // Preload default values if provided
+  // Track if we've already initialized to prevent infinite loops
+  const isInitialized = useRef(false);
+
+  // Preload default values if provided (only once)
   useEffect(() => {
-    if (defaultValues && setValue) {
+    if (!isInitialized.current && defaultValues && setValue) {
       if (defaultValues.street) setValue('street', defaultValues.street);
       if (defaultValues.city) setValue('city', defaultValues.city);
       if (defaultValues.state) setValue('state', defaultValues.state);
       if (defaultValues.zipCode) setValue('zipCode', defaultValues.zipCode);
       if (defaultValues.unitNumber) setValue('unitNumber', defaultValues.unitNumber);
+      isInitialized.current = true;
     }
   }, [defaultValues, setValue]);
 
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Street Address */}
+    <View style={styles.container}>
+      {/* Street Address */}
           <Controller
             control={control}
             name="street"
@@ -130,7 +121,7 @@ export function AddressForm({
                 label="Street Address"
                 value={value}
                 onChangeText={onChange}
-                placeholder="123 Main Street"
+                placeholder="Your Street"
                 error={errors.street?.message}
                 required
                 icon="home-outline"
@@ -150,7 +141,7 @@ export function AddressForm({
                   label="Unit / Apt (Optional)"
                   value={value}
                   onChangeText={onChange}
-                  placeholder="Apt 4B"
+                  placeholder="Apt or Suite"
                   icon="business-outline"
                   textContentType="streetAddressLine2"
                 />
@@ -168,7 +159,7 @@ export function AddressForm({
                 label="City"
                 value={value}
                 onChangeText={onChange}
-                placeholder="Baltimore"
+                placeholder="Your City"
                 error={errors.city?.message}
                 required
                 icon="locate-outline"
@@ -226,7 +217,7 @@ export function AddressForm({
                     label="ZIP Code"
                     value={value}
                     onChangeText={onChange}
-                    placeholder="21201"
+                    placeholder="ZIP"
                     error={errors.zipCode?.message}
                     required
                     keyboardType="numeric"
@@ -238,22 +229,12 @@ export function AddressForm({
               />
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 40,
     gap: spacing.base,
   },
   row: {
