@@ -270,7 +270,7 @@ export default function ContractorDashboard() {
                 // Navigate to first scheduled job's change order list
                 // If no scheduled jobs, show info
                 if (scheduledJobs && scheduledJobs.length > 0) {
-                  router.push(`/(contractor)/change-order/list/${scheduledJobs[0].id}`);
+                  router.push(`/(contractor)/change-order/list/${scheduledJobs[0].id}` as any);
                 } else {
                   Alert.alert(
                     'Change Orders',

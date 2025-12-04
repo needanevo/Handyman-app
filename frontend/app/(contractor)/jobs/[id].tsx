@@ -381,7 +381,7 @@ export default function JobDetail() {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Change Orders</Text>
             <TouchableOpacity
-              onPress={() => router.push(`/(contractor)/change-order/list/${job.id}`)}
+              onPress={() => router.push(`/(contractor)/change-order/list/${job.id}` as any)}
             >
               <Text style={styles.viewAllLink}>View All</Text>
             </TouchableOpacity>
@@ -413,7 +413,7 @@ export default function JobDetail() {
 
             <TouchableOpacity
               style={styles.quickAction}
-              onPress={() => router.push(`/(contractor)/mileage/add?jobId=${job.id}`)}
+              onPress={() => router.push(`/(contractor)/mileage/add?jobId=${job.id}` as any)}
             >
               <Text style={styles.quickActionIcon}>🚗</Text>
               <Text style={styles.quickActionText}>Log Mileage</Text>

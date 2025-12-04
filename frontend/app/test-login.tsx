@@ -17,7 +17,7 @@ export default function TestLoginScreen() {
       await login('demo@therealjohnson.com', 'demo123');
       console.log('Login completed successfully');
       Alert.alert('Success', 'Login worked!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed:', error);
       Alert.alert('Error', 'Login failed: ' + error.message);
     } finally {

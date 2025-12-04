@@ -151,7 +151,7 @@ export default function JobRequestStep0() {
                   error={errors.city?.message}
                   required
                   icon="locate-outline"
-                  autoComplete="address-level2"
+                  autoComplete="address-line2"
                 />
               )}
             />
@@ -176,7 +176,7 @@ export default function JobRequestStep0() {
                       required
                       maxLength={2}
                       autoCapitalize="characters"
-                      autoComplete="address-level1"
+                      autoComplete="address-line1"
                     />
                   )}
                 />

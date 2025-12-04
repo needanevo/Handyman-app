@@ -69,7 +69,7 @@ export default function HandymanRegisterStep2() {
           state: data.state,
           zip: data.zip,
         },
-      });
+      } as any);
 
       router.push({
         pathname: '/auth/handyman/register-step3',
@@ -205,7 +205,7 @@ export default function HandymanRegisterStep2() {
                   placeholder="Baltimore"
                   error={errors.city?.message}
                   required
-                  autoComplete="address-level2"
+                  autoComplete="address-line2"
                 />
               )}
             />
@@ -230,7 +230,7 @@ export default function HandymanRegisterStep2() {
                       required
                       maxLength={2}
                       autoCapitalize="characters"
-                      autoComplete="address-level1"
+                      autoComplete="address-line1"
                     />
                   )}
                 />

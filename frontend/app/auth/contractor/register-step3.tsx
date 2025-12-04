@@ -352,7 +352,7 @@ export default function ContractorRegisterStep3() {
               }}
               label=""
               required={true}
-              error={!verifiedAddress && errors.businessStreet?.message}
+              error={!verifiedAddress ? (errors.businessStreet?.message || undefined) : undefined}
             />
 
             {/* Show verified address summary */}

@@ -87,7 +87,7 @@ export default function CustomerDashboard() {
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.primaryActionCard}
-            onPress={() => router.push('/(customer)/job-request')}
+            onPress={() => router.push('/(customer)/job-request' as any)}
             activeOpacity={0.7}
           >
             <View style={styles.primaryActionIcon}>
@@ -159,7 +159,7 @@ export default function CustomerDashboard() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Warranties</Text>
-            <TouchableOpacity onPress={() => router.push('/(customer)/warranty')}>
+            <TouchableOpacity onPress={() => router.push('/(customer)/warranty' as any)}>
               <Text style={styles.sectionLink}>View All</Text>
             </TouchableOpacity>
           </View>
@@ -207,7 +207,7 @@ export default function CustomerDashboard() {
 
             <TouchableOpacity
               style={styles.quickLinkCard}
-              onPress={() => router.push('/(customer)/warranty')}
+              onPress={() => router.push('/(customer)/warranty' as any)}
             >
               <Ionicons name="shield-checkmark-outline" size={32} color={colors.primary.main} />
               <Text style={styles.quickLinkText}>Warranties</Text>

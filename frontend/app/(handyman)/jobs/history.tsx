@@ -22,7 +22,7 @@ export default function JobHistory() {
   const { data: completedJobs, isLoading } = useQuery({
     queryKey: ['handyman-completed-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getCompletedJobs();
+      const response: any = await contractorAPI.getCompletedJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,

@@ -226,7 +226,7 @@ export function AddressAutocomplete({
             value={city}
             onChangeText={setCity}
             editable={!loading}
-            autoComplete="address-level2"
+            autoComplete="address-line2"
             textContentType="addressCity"
           />
         </View>
@@ -241,7 +241,7 @@ export function AddressAutocomplete({
             editable={!loading}
             maxLength={2}
             autoCapitalize="characters"
-            autoComplete="address-level1"
+            autoComplete="address-line1"
             textContentType="addressState"
           />
         </View>
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
+    fontWeight: typography.weights.semibold as any,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
@@ -326,11 +326,10 @@ const styles = StyleSheet.create({
     ...typography.sizes.sm,
     color: colors.neutral[600],
     marginBottom: spacing.md,
-  },
+  } as any,
   textInput: {
     minHeight: 48,
     color: colors.neutral[900],
-    fontSize: 16,
     backgroundColor: colors.background.primary,
     borderWidth: 1,
     borderColor: colors.neutral[300],
@@ -405,7 +404,7 @@ const styles = StyleSheet.create({
   },
   verifyButtonText: {
     ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
+    fontWeight: typography.weights.semibold as any,
     color: 'white',
   },
 });

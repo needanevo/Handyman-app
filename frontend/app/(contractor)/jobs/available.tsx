@@ -35,7 +35,7 @@ export default function AvailableJobs() {
   const { data: jobs, refetch, isLoading, error } = useQuery<Job[]>({
     queryKey: ['contractor-available-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getAvailableJobs();
+      const response = await contractorAPI.getAvailableJobs() as any;
       // Backend returns { jobs: [], count, max_distance_miles, contractor_location }
       const jobsData = response.jobs || [];
 

@@ -31,8 +31,8 @@ export default function CompletedJobsScreen() {
   const { data: jobs, isLoading } = useQuery({
     queryKey: ['contractor-completed-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getCompletedJobs();
-      return response.jobs || [];
+      const response = await contractorAPI.getCompletedJobs() as any;
+      return response.data.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
   });
@@ -99,10 +99,8 @@ export default function CompletedJobsScreen() {
           icon="checkmark-done-outline"
           title="No Completed Jobs"
           description="Finished jobs will appear here for your records"
-          action={{
-            label: 'View Available Jobs',
-            onPress: () => router.push('/(contractor)/jobs/available'),
-          }}
+          actionLabel="View Available Jobs"
+          onAction={() => router.push('/(contractor)/jobs/available')}
         />
       )}
     </SafeAreaView>

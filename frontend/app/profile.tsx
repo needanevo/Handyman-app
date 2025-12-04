@@ -40,7 +40,7 @@ export default function CustomerProfile() {
       } else if (user.role === 'handyman') {
         router.replace('/(handyman)/dashboard');
       } else if (user.role === 'admin') {
-        router.replace('/admin/dashboard');
+        router.replace('/admin/dashboard' as any);
       }
     }
   }, [user, router]);

@@ -36,7 +36,7 @@ export default function AdminStatsScreen() {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get('/admin/stats');
+      const response = await api.get('/admin/stats') as any;
       setStats(response.data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
@@ -101,8 +101,8 @@ export default function AdminStatsScreen() {
               </Text>
               <Text style={styles.statLabel}>Customers</Text>
             </View>
-            <View style={[styles.statCard, { borderLeftColor: colors.info.main }]}>
-              <Text style={[styles.statValue, { color: colors.info.main }]}>
+            <View style={[styles.statCard, { borderLeftColor: colors.secondary.main }]}>
+              <Text style={[styles.statValue, { color: colors.secondary.main }]}>
                 {stats?.total_contractors || 0}
               </Text>
               <Text style={styles.statLabel}>Contractors</Text>

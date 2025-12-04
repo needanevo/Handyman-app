@@ -373,7 +373,7 @@ function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; 
       await queryClient.cancelQueries(['contractor', 'expenses']);
 
       // Snapshot previous value
-      const previousExpenses = queryClient.getQueryData<Expense[]>(['contractor', 'expenses']);
+      const previousExpenses = queryClient.getQueryData(['contractor', 'expenses']) as Expense[] | undefined;
 
       // Optimistically update with temporary expense
       const now = new Date().toISOString();
@@ -391,9 +391,9 @@ function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; 
         updatedAt: now,
       };
 
-      queryClient.setQueryData<Expense[]>(
+      queryClient.setQueryData(
         ['contractor', 'expenses'],
-        (old) => [optimisticExpense, ...(old || [])]
+        (old: any) => [optimisticExpense, ...(old || [])]
       );
 
       return { previousExpenses };
@@ -411,10 +411,10 @@ function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; 
     },
     onSuccess: (data) => {
       // Replace temporary expense with real one from server
-      queryClient.setQueryData<Expense[]>(
+      queryClient.setQueryData(
         ['contractor', 'expenses'],
-        (old) => {
-          const filtered = (old || []).filter((exp) => !exp.id.startsWith('temp-'));
+        (old: any) => {
+          const filtered = (old || []).filter((exp: any) => !exp.id.startsWith('temp-'));
           return [data, ...filtered];
         }
       );

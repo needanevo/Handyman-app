@@ -48,7 +48,7 @@ export default function AdminJobsScreen() {
 
   const fetchJobs = async () => {
     try {
-      const response = await api.get('/admin/jobs');
+      const response = await api.get('/admin/jobs') as any;
       setJobs(response.data.jobs || []);
     } catch (error) {
       console.error('Failed to fetch jobs:', error);

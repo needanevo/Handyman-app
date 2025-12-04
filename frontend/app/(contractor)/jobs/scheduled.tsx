@@ -31,8 +31,8 @@ export default function ScheduledJobsScreen() {
   const { data: jobs, isLoading } = useQuery({
     queryKey: ['contractor-scheduled-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getScheduledJobs();
-      return response.jobs || [];
+      const response = await contractorAPI.getScheduledJobs() as any;
+      return response.data.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
   });
@@ -85,10 +85,8 @@ export default function ScheduledJobsScreen() {
           icon="calendar-outline"
           title="No Scheduled Jobs"
           description="Jobs with confirmed dates will appear here"
-          action={{
-            label: 'View Accepted Jobs',
-            onPress: () => router.push('/(contractor)/jobs/accepted'),
-          }}
+          actionLabel="View Accepted Jobs"
+          onAction={() => router.push('/(contractor)/jobs/accepted')}
         />
       )}
     </SafeAreaView>

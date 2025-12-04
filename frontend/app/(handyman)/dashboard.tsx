@@ -24,7 +24,7 @@ export default function HandymanDashboard() {
   const { data: availableJobs } = useQuery({
     queryKey: ['handyman-available-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getAvailableJobs();
+      const response: any = await contractorAPI.getAvailableJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
@@ -33,7 +33,7 @@ export default function HandymanDashboard() {
   const { data: acceptedJobs } = useQuery({
     queryKey: ['handyman-accepted-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getAcceptedJobs();
+      const response: any = await contractorAPI.getAcceptedJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
@@ -42,7 +42,7 @@ export default function HandymanDashboard() {
   const { data: scheduledJobs } = useQuery({
     queryKey: ['handyman-scheduled-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getScheduledJobs();
+      const response: any = await contractorAPI.getScheduledJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
@@ -51,7 +51,7 @@ export default function HandymanDashboard() {
   const { data: completedJobs } = useQuery({
     queryKey: ['handyman-completed-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getCompletedJobs();
+      const response: any = await contractorAPI.getCompletedJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
@@ -231,7 +231,7 @@ export default function HandymanDashboard() {
             onPress={() => {
               // Navigate to first scheduled job's change order list
               if (scheduledJobs && scheduledJobs.length > 0) {
-                router.push(`/(handyman)/change-order/list/${scheduledJobs[0].id}`);
+                router.push(`/(handyman)/change-order/list/${scheduledJobs[0].id}` as any);
               } else {
                 Alert.alert(
                   'Change Orders',

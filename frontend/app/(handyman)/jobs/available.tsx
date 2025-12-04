@@ -24,7 +24,7 @@ export default function AvailableJobs() {
   const { data: jobs, isLoading } = useQuery({
     queryKey: ['handyman-available-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getAvailableJobs();
+      const response: any = await contractorAPI.getAvailableJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,

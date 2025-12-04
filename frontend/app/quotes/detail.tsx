@@ -115,7 +115,7 @@ export default function QuoteDetailScreen() {
   };
 
   const handleContactAboutQuote = () => {
-    contactMutation.mutate();
+    contactMutation.mutate(undefined);
   };
 
   const handleRequestAdditionalWork = () => {
@@ -392,7 +392,7 @@ export default function QuoteDetailScreen() {
             variant="outline"
             size="large"
             fullWidth
-            style={[styles.actionButton, styles.deleteButton]}
+            style={[styles.actionButton, styles.deleteButton] as any}
             textStyle={styles.deleteButtonText}
             disabled={deleteQuoteMutation.isPending}
           />

@@ -76,7 +76,7 @@ export default function AdminProviderGateScreen() {
 
   const fetchStatus = async () => {
     try {
-      const response = await api.get('/admin/provider-gate/status');
+      const response = await api.get('/admin/provider-gate/status') as any;
       setStatus(response.data);
       setSelectedMode(response.data.allowed_provider_types);
     } catch (error) {
@@ -227,7 +227,7 @@ export default function AdminProviderGateScreen() {
         <Button
           title={saving ? 'Saving...' : 'Save Changes'}
           onPress={handleSave}
-          isLoading={saving}
+          loading={saving}
           disabled={saving || selectedMode === status?.allowed_provider_types}
           size="large"
           fullWidth

@@ -87,7 +87,7 @@ export default function HandymanRegisterStep4() {
           account_number: data.accountNumber,
           verified: false, // Will be verified by Stripe/payment processor
         },
-      });
+      } as any);
 
       // Fix 5.11: Signal registration completion, useEffect will handle redirect
       console.log('Handyman banking setup complete - waiting for hydration');

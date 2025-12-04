@@ -348,7 +348,7 @@ export default function TaxReportsScreen() {
         </Card>
 
         {/* Tax Tips */}
-        <Card style={[styles.card, styles.tipsCard]}>
+        <Card style={[styles.card, styles.tipsCard] as any}>
           <Text style={styles.tipsTitle}>💡 Tax Preparation Tips</Text>
           <View style={styles.tipsList}>
             <Text style={styles.tipItem}>

@@ -161,7 +161,7 @@ export default function JobsListScreen() {
                 : 'Post a job to get started'
             }
             actionLabel="Request a Job"
-            onAction={() => router.push('/(customer)/job-request/step1-photos')}
+            onAction={() => router.push('/(customer)/job-request/step1-photos' as any)}
           />
         ) : (
           <View style={styles.jobsList}>
@@ -237,7 +237,7 @@ export default function JobsListScreen() {
       {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push('/(customer)/job-request/step1-photos')}
+        onPress={() => router.push('/(customer)/job-request/step1-photos' as any)}
       >
         <Ionicons name="add" size={28} color={colors.background.primary} />
       </TouchableOpacity>

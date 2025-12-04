@@ -18,11 +18,11 @@ import { Button } from '../src/components/Button';
 export default function QuotesScreen() {
   const router = useRouter();
   
-  const { 
-    data: quotes, 
-    isLoading, 
+  const {
+    data: quotes,
+    isLoading,
     refetch,
-    isRefreshing 
+    isRefetching
   } = useQuery({
     queryKey: ['quotes'],
     queryFn: () => quotesAPI.getQuotes(),
@@ -84,7 +84,7 @@ export default function QuotesScreen() {
       <ScrollView
         style={styles.content}
         refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />
         }
       >
         {quotes && quotes.length > 0 ? (
@@ -96,7 +96,7 @@ export default function QuotesScreen() {
                 <TouchableOpacity
                   key={quote.id || index}
                   style={styles.quoteCard}
-                  onPress={() => router.push(`/quotes/${quote.id}`)}
+                  onPress={() => router.push(`/quotes/${quote.id}` as any)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.quoteHeader}>

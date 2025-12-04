@@ -46,7 +46,7 @@ export default function AdminUsersScreen() {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/admin/users');
+      const response = await api.get('/admin/users') as any;
       setUsers(response.data.users || []);
     } catch (error) {
       console.error('Failed to fetch users:', error);

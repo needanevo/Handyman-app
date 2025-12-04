@@ -22,7 +22,7 @@ export default function ActiveJobs() {
   const { data: scheduledJobs, isLoading } = useQuery({
     queryKey: ['handyman-scheduled-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getScheduledJobs();
+      const response: any = await contractorAPI.getScheduledJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,

@@ -72,7 +72,7 @@ export default function JobRequestStep4() {
     }
 
     router.push({
-      pathname: '/(customer)/job-request/step5-review',
+      pathname: '/(customer)/job-request/step3-review' as any,
       params: {
         ...params,
         budgetMax: data.budgetMax,
@@ -145,7 +145,6 @@ export default function JobRequestStep4() {
                   keyboardType="numeric"
                   error={errors.budgetMax?.message}
                   required
-                  prefix="$"
                 />
               )}
             />

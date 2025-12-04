@@ -11,6 +11,8 @@ export interface User {
   phone: string;
   addresses: Address[];
   isActive: boolean;
+  registrationCompletedDate?: string;
+  registrationExpirationDate?: string;
   // Contractor-specific fields (optional)
   businessName?: string;
   skills?: string[];
@@ -59,6 +61,9 @@ export interface RegisterData {
   lastName: string;
   phone: string;
   role?: 'customer' | 'technician' | 'admin';
+  businessName?: string;
+  business_address?: any;
+  banking_info?: any;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

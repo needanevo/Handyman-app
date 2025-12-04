@@ -31,8 +31,8 @@ export default function AcceptedJobsScreen() {
   const { data: jobs, isLoading } = useQuery({
     queryKey: ['contractor-accepted-jobs'],
     queryFn: async () => {
-      const response = await contractorAPI.getAcceptedJobs();
-      return response.jobs || [];
+      const response = await contractorAPI.getAcceptedJobs() as any;
+      return response.data.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
   });
@@ -80,10 +80,8 @@ export default function AcceptedJobsScreen() {
           icon="briefcase-outline"
           title="No Accepted Jobs"
           description="Jobs you accept will appear here until you schedule them"
-          action={{
-            label: 'View Available Jobs',
-            onPress: () => router.push('/(contractor)/jobs/available'),
-          }}
+          actionLabel="View Available Jobs"
+          onAction={() => router.push('/(contractor)/jobs/available')}
         />
       )}
     </SafeAreaView>
