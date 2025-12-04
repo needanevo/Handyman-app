@@ -1504,15 +1504,70 @@ async def get_available_jobs(
     }
 
 
+# ==================== ADDRESS REPOSITORY HELPERS ====================
+
+
+def create_address_for_user(user_id: str, address_data: dict) -> Address:
+    """
+    Create a canonical Address document in the addresses collection.
+    Keeps compatibility with embedded user.addresses if needed.
+    """
+    address = Address(
+        user_id=user_id,
+        street=address_data.get("street", "").strip(),
+        unit_number=address_data.get("unit_number") or None,
+        city=address_data.get("city", "").strip(),
+        state=address_data.get("state", "").strip(),
+        zip_code=address_data.get("zip_code", "").strip(),
+        is_default=address_data.get("is_default", False),
+        latitude=address_data.get("latitude"),
+        longitude=address_data.get("longitude"),
+    )
+
+    return address
+
+
+async def get_address_by_id(address_id: str) -> Optional[Address]:
+    """Get address by ID from addresses collection"""
+    doc = await db.addresses.find_one({"id": address_id})
+    if not doc:
+        return None
+    return Address(**doc)
+
+
+async def list_addresses_for_user(user_id: str) -> list:
+    """List all addresses for a user from addresses collection"""
+    docs = await db.addresses.find({"user_id": user_id}).sort("created_at", 1).to_list(100)
+    return [Address(**doc) for doc in docs]
+
+
+async def set_default_address(user_id: str, address_id: str) -> None:
+    """Set an address as default and unset all others"""
+    # Unset all defaults
+    await db.addresses.update_many(
+        {"user_id": user_id},
+        {"$set": {"is_default": False}}
+    )
+    # Set the chosen default
+    await db.addresses.update_one(
+        {"user_id": user_id, "id": address_id},
+        {"$set": {"is_default": True, "updated_at": datetime.utcnow()}}
+    )
+
+
 # ==================== USER PROFILE ROUTES ====================
 
 
 @api_router.post("/profile/addresses")
 async def add_address(
-    address: Address, current_user: User = Depends(get_current_user_dependency)
+    address: EmbeddedAddress, current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Add or update address in user profile.
+
+    Now writes to BOTH:
+    1. addresses collection (canonical source of truth)
+    2. user.addresses array (backward compatibility)
 
     If address.is_default is True:
     - Updates the existing default address (prevents duplicates)
@@ -1533,6 +1588,27 @@ async def add_address(
         except Exception as e:
             logger.warning(f"Geocoding failed: {e}")
 
+    # Create address payload for canonical collection
+    address_payload = {
+        "street": address.street,
+        "unit_number": getattr(address, "unit_number", None),
+        "city": address.city,
+        "state": address.state,
+        "zip_code": address.zip_code,
+        "is_default": address.is_default,
+        "latitude": address.latitude,
+        "longitude": address.longitude,
+    }
+
+    # Create canonical address in addresses collection
+    new_address = create_address_for_user(current_user.id, address_payload)
+    await db.addresses.insert_one(new_address.model_dump())
+
+    # Set as default in addresses collection if needed
+    if new_address.is_default:
+        await set_default_address(current_user.id, new_address.id)
+
+    # Also update embedded user.addresses for backward compatibility
     user = await db.users.find_one({"id": current_user.id})
     existing_addresses = user.get("addresses", [])
 
@@ -1546,34 +1622,48 @@ async def add_address(
         if existing_default:
             # UPDATE existing default address (replace it completely)
             logger.info(f"Updating existing default address for user {current_user.id}")
+            # Use new_address.id to keep IDs in sync
+            address.id = new_address.id
             await db.users.update_one(
                 {"id": current_user.id, "addresses.is_default": True},
                 {"$set": {
                     "addresses.$": address.model_dump()  # Replace the matched address
                 }}
             )
-            return {"message": "Default address updated successfully", "address_id": address.id}
         else:
             # No default exists, add this as the first default
             logger.info(f"Adding first default address for user {current_user.id}")
+            address.id = new_address.id
             await db.users.update_one(
                 {"id": current_user.id},
                 {"$push": {"addresses": address.model_dump()}}
             )
-            return {"message": "Default address added successfully", "address_id": address.id}
     else:
         # Not a default address, just add it
+        address.id = new_address.id
         await db.users.update_one(
             {"id": current_user.id},
             {"$push": {"addresses": address.model_dump()}}
         )
-        return {"message": "Address added successfully", "address_id": address.id}
+
+    return {"message": "Address saved successfully", "address_id": new_address.id}
 
 
 @api_router.get("/profile/addresses", response_model=List[Address])
 async def get_addresses(current_user: User = Depends(get_current_user_dependency)):
-    """Get user addresses"""
-    return current_user.addresses
+    """
+    Get user addresses from canonical addresses collection.
+    Falls back to embedded addresses if collection is empty (for backward compatibility).
+    """
+    # Try to get from addresses collection first
+    addresses = await list_addresses_for_user(current_user.id)
+
+    # Fallback to embedded addresses if collection is empty
+    if not addresses and current_user.addresses:
+        logger.info(f"No addresses in collection for user {current_user.id}, using embedded addresses")
+        return current_user.addresses
+
+    return addresses
 
 
 # ==================== CONTRACTOR PROFILE ROUTES ====================
@@ -3750,6 +3840,11 @@ async def startup_event():
 
         # Phase 4: Growth Summary indexes
         await db.growth_summary.create_index("user_id", unique=True)
+
+        # Addresses collection indexes
+        await db.addresses.create_index("user_id")
+        await db.addresses.create_index([("user_id", 1), ("is_default", 1)])
+        await db.addresses.create_index("id", unique=True)
 
         logger.info("Database indexes created successfully")
     except Exception as e:
