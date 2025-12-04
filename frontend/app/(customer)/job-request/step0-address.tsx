@@ -78,33 +78,21 @@ export default function JobRequestStep0() {
       };
       console.log('[Step0 Debug] Sending to API:', addressData);
 
-      await profileAPI.addAddress(addressData);
-      console.log('[Step0 Debug] Address added successfully');
+      const addAddressResponse = await profileAPI.addAddress(addressData);
+      console.log('[Step0 Debug] Address added successfully, response:', addAddressResponse);
 
-      // Refresh user to get updated addresses with IDs
-      await refreshUser();
-      console.log('[Step0 Debug] User refreshed (first call)');
+      const addressId = addAddressResponse.address_id;
 
-      // After refresh, user.addresses should have the new address with ID
-      // Get the most recent address (should be the one we just added)
-      const updatedUser = await refreshUser();
-      console.log('[Step0 Debug] User refreshed (second call), addresses:', updatedUser?.addresses);
-
-      // Find the address we just added (should be the default one or the last one)
-      const savedAddress = updatedUser?.addresses?.find((addr: any) => addr.isDefault)
-        || updatedUser?.addresses?.[updatedUser.addresses.length - 1];
-
-      console.log('[Step0 Debug] Saved address:', savedAddress);
-
-      if (!savedAddress || !savedAddress.id) {
-        console.error('[Step0 Debug] ERROR: No address ID found!', {
-          savedAddress,
-          allAddresses: updatedUser?.addresses,
-        });
-        throw new Error('Failed to get address ID after saving');
+      if (!addressId) {
+        console.error('[Step0 Debug] ERROR: No address_id in response!', addAddressResponse);
+        throw new Error('Failed to get address ID from server');
       }
 
-      console.log('[Step0 Debug] Address ID found:', savedAddress.id);
+      console.log('[Step0 Debug] Address ID:', addressId);
+
+      // Refresh user to update the local user state with the new address
+      await refreshUser();
+      console.log('[Step0 Debug] User refreshed');
 
       // Construct full address for display
       const fullAddress = `${data.street}${data.unitNumber ? ` ${data.unitNumber}` : ''}, ${data.city}, ${data.state} ${data.zipCode}`;
@@ -113,7 +101,7 @@ export default function JobRequestStep0() {
       router.push({
         pathname: '/(customer)/job-request/step1-category',
         params: {
-          addressId: savedAddress.id,
+          addressId: addressId,
           street: data.street,
           city: data.city,
           state: data.state,
