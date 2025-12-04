@@ -1208,3 +1208,91 @@ Resolved "Maximum update depth exceeded" errors that crashed the app whenever an
 - 4884ea8 (Complete address loop fix across all files)
 
 **Server:** Production backend updated and restarted at 09:32:11 EST
+
+[2025-12-04 18:45] FIX — Complete Address + Job Posting Flow
+
+**Summary:**
+Fixed multiple critical issues blocking job creation end-to-end: infinite loop crashes, broken state picker, missing address IDs, and nginx routing preventing API access. Jobs now post successfully with geocoded addresses.
+
+**Root Causes:**
+1. **Infinite Loop:** defaultValues objects recreated on every render in AddressForm and parent components
+2. **Layout Issue:** No ScrollView in step0-address, buttons covered form fields
+3. **Broken Picker:** Native @react-native-picker/picker not responding to touches on platform
+4. **Address ID Missing:** Frontend ignored address_id in API response, tried unreliably to find it via user refresh
+5. **403 Forbidden:** Nginx not configured to route /api/ requests to backend (port 8001)
+
+**Files Modified:**
+- frontend/src/components/AddressForm.tsx (complete rewrite of state picker + memoization)
+- frontend/app/(customer)/job-request/step0-address.tsx (ScrollView + address_id capture + memoization)
+- frontend/app/(contractor)/profile.tsx (memoized defaultValues)
+- frontend/app/(handyman)/profile/index.tsx (memoized defaultValues)
+- frontend/app/(customer)/profile.tsx (memoized defaultValues)
+- /etc/nginx/sites-available/emergent.conf (added /api/ routing on production server)
+
+**Changes:**
+
+1. **AddressForm Infinite Loop Fix:**
+   - Added useRef(false) to track initialization state
+   - Wrapped defaultValues in useMemo with [user?.addresses] dependency
+   - Prevents setValue from running multiple times
+
+2. **ScrollView Layout Fix:**
+   - Added KeyboardAvoidingView + ScrollView to step0-address
+   - Removed flex: 1 from formSection
+   - Added proper padding/margins so all fields accessible
+
+3. **Custom State Picker:**
+   - Replaced broken native Picker with TouchableOpacity + Modal
+   - Modal slides up from bottom with scrollable state list
+   - Highlights selected state
+   - Proper validation: validate: (value) => value !== '' || 'Please select a state'
+   - Works reliably across all platforms
+
+4. **Address ID Capture:**
+   - Changed from: `await profileAPI.addAddress(addressData);` (ignored response)
+   - To: `const response = await profileAPI.addAddress(addressData); const addressId = response.address_id;`
+   - Uses address_id directly instead of searching refreshed user data
+   - Much more reliable
+
+5. **Nginx Routing Fix (Production Server):**
+   - Added location block:
+     ```nginx
+     location /api/ {
+         proxy_pass http://localhost:8001/api/;
+         proxy_http_version 1.1;
+         proxy_set_header Host $host;
+         proxy_set_header X-Real-IP $remote_addr;
+         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+         proxy_set_header X-Forwarded-Proto $scheme;
+     }
+     ```
+   - Reloaded nginx: `nginx -t && systemctl reload nginx`
+
+**Backend Already Working:**
+- ✅ Geocodes addresses via Google Maps API (server.py:1525-1534)
+- ✅ Saves latitude/longitude with address (server.py:1531-1532)
+- ✅ Returns address_id in response (server.py:1555, 1563, 1570)
+- ✅ Auto-generates UUID for address.id (models/user.py:14)
+
+**Result:**
+✅ No more infinite loop crashes
+✅ All form fields accessible (proper scrolling)
+✅ State picker works reliably (custom modal dropdown)
+✅ Address saves with lat/lng for geofencing
+✅ address_id captured and used correctly
+✅ API requests reach backend (403 resolved)
+✅ Jobs post successfully
+✅ Backend logs show: "POST /api/quotes/request HTTP/1.0" 200 OK
+
+**Known Issue:**
+Jobs post successfully but don't appear in "My Jobs" list yet. Investigating display logic next.
+
+**Commits:** 
+- 709fc8e (AddressForm initial infinite loop fix)
+- 4884ea8 (Complete address loop fix across all files)
+- e2e3967 (Debug logging added)
+- 093203e (ScrollView layout fix)
+- 55d50a6 (Custom modal state picker)
+- 609a99f (Address ID capture + final fixes)
+
+**Server:** Production nginx updated and reloaded
