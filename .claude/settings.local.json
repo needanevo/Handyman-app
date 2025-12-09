@@ -44,7 +44,8 @@
       "Bash(..venvScriptspython.exe -m uvicorn:*)",
       "Bash(dir:*)",
       "Bash(git stash:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(sshpass -p '$1Jennifer$1Joshua' ssh -o StrictHostKeyChecking=no root@172.234.70.157 'cd /srv/handyman-app/Handyman-app-main/backend && cat providers/providers.env | grep MONGODB_URI')"
     ],
     "deny": [],
     "ask": []

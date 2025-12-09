@@ -225,21 +225,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      setIsLoading(true);
-      
+      console.log("Logging out...");
+
       // Clear stored tokens
       await storage.removeItem('accessToken');
       await storage.removeItem('refreshToken');
-      
-      // Clear API token
+
+      // Clear API authorization header
       authAPI.clearAuthToken();
-      
+
       // Clear user state
       setUser(null);
-    } catch (error) {
-      console.error('Logout failed:', error);
-    } finally {
-      setIsLoading(false);
+
+      // Reset hydration state
+      setIsHydrated(false);
+      setTimeout(() => {
+        setIsHydrated(true);
+      }, 50);
+
+      console.log("Logout complete.");
+    } catch (err) {
+      console.error("Logout error:", err);
     }
   };
 

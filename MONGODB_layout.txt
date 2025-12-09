@@ -1,0 +1,65 @@
+For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
+
+Atlas atlas-r2xhtm-shard-0 [primary] test> show dbs
+handyman        2.14 MiB
+sample_mflix  153.68 MiB
+admin         352.00 KiB
+local          11.94 GiB
+Atlas atlas-r2xhtm-shard-0 [primary] test> show collections
+
+Atlas atlas-r2xhtm-shard-0 [primary] test> use handyman
+switched to db handyman
+Atlas atlas-r2xhtm-shard-0 [primary] handyman> show collections
+events
+expenses
+growth_events
+growth_summary
+jobs
+payouts
+photos
+proposals
+quotes
+services
+user_passwords
+users
+Atlas atlas-r2xhtm-shard-0 [primary] handyman>
+
+Atlas atlas-r2xhtm-shard-0 [primary] test> use handyman
+switched to db handyman
+Atlas atlas-r2xhtm-shard-0 [primary] handyman> show collections
+events
+expenses
+growth_events
+growth_summary
+jobs
+payouts
+photos
+proposals
+quotes
+services
+user_passwords
+users
+Atlas atlas-r2xhtm-shard-0 [primary] handyman> use admin
+switched to db admin
+Atlas atlas-r2xhtm-shard-0 [primary] admin> show collections
+
+Atlas atlas-r2xhtm-shard-0 [primary] admin>
+
+use handyman;
+
+// Wipe ALL business logic collections
+db.quotes.deleteMany({});
+db.jobs.deleteMany({});
+db.addresses?.deleteMany({});
+db.proposals.deleteMany({});
+db.payouts.deleteMany({});
+db.events.deleteMany({});
+db.growth_events.deleteMany({});
+db.growth_summary.deleteMany({});
+db.expenses.deleteMany({});
+db.services.deleteMany({}); // optional (if you're regenerating service catalog)
+db.photos.deleteMany({});   // optional (only deletes metadata)
+
+// DO NOT TOUCH USERS
+// db.users.find();
+// db.user_passwords.find();

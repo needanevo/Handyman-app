@@ -5,7 +5,7 @@
  * CUSTOMER-ONLY UI - no contractor/business elements.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
@@ -150,6 +150,13 @@ export default function CustomerProfileScreen() {
     }
     return undefined;
   }, [user?.addresses]);
+
+  // Fix back-stack parallel profile bug
+  useFocusEffect(
+    useCallback(() => {
+      router.setParams({});
+    }, [])
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -297,18 +304,14 @@ export default function CustomerProfileScreen() {
         )}
 
         {/* Logout Button */}
-        {!isEditing && (
-          <View style={styles.actions}>
-            <Button
-              title="Logout"
-              onPress={handleLogout}
-              variant="outline"
-              size="large"
-              icon={<Ionicons name="log-out-outline" size={20} color={colors.error.main} />}
-              style={styles.logoutButton}
-            />
-          </View>
-        )}
+        <TouchableOpacity
+          style={{ marginTop: 30, padding: 15, backgroundColor: '#ff3b30', borderRadius: 8 }}
+          onPress={() => logout().then(() => router.replace('/auth/welcome'))}
+        >
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
+            Log Out
+          </Text>
+        </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -349,11 +352,12 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
+  //scrollView: {
+  //  flex: 1,
+  //},
   scrollContent: {
     paddingBottom: spacing['4xl'],
+    flexGrow: 1,
   },
   photoSection: {
     alignItems: 'center',

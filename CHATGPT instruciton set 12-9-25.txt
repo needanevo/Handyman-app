@@ -1,235 +1,296 @@
+OK, I’ve got your bracket changes and the current CLAUDE_CORE.md in my head. Here’s a clean, grounded pass over what you wrote + what needs to change before we unleash Claude again.
+
+---
+
+## 1. CUSTOMER / HANDYMAN / CONTRACTOR — FEEDBACK ON YOUR BRACKETED CHANGES
+
+I’ll merge your notes into “implementation-ready” behavior and flag the key decisions we still need to lock.
+
+---
+
+### 🟧 CUSTOMER (your edits integrated)
+
+**Can:**
+
+- Add address  
+- Request job (multi-step wizard)  
+- Upload images  
+- Review quotes  
+- Approve / decline **jobs and change orders**  
+- Pay (future)  
+  - ✅ Agree: we don’t need payments wired to backend yet. We can design UI/UX + status states now and attach Stripe/etc later.  
+- View active jobs  
+  - You wrote: “all in their area, actually, ONLY in maps. To show competition”  
+  - This is actually two distinct features:
+    1. **Their own jobs** (My Jobs screen, standard list + optional map)
+    2. **Local job heatmap / competition view** (see how many other open jobs are posted in their area)
+  - We should keep **“My Jobs”** as a clear list for the customer and make the “competition map” a separate view (analytics / exploration). Otherwise UX gets weird.  
+- Message handyman/contractor  
+  - ✅ This HAS to work and has to be role-aware:
+    - Only between matched customer + handyman/contractor
+    - Only after a quote is accepted / job assigned
+    - Logged per job_id, not global  
+- See status timeline  
+  - You’re absolutely right: we need a **fixed job lifecycle** that both contractors and subs immediately recognize.
+  - Example backbone (customizable later):
+    - `REQUESTED`
+    - `INSPECTION_SCHEDULED`
+    - `INSPECTION_COMPLETE`
+    - `QUOTE_SENT`
+    - `QUOTE_ACCEPTED`
+    - `WORK_SCHEDULED`
+    - `IN_PROGRESS`
+    - `CHANGE_ORDER_REQUESTED`
+    - `CHANGE_ORDER_APPROVED`
+    - `WORK_COMPLETE`
+    - `PENDING_PAYMENT`
+    - `CLOSED` (with warranty metadata)
+
+**Cannot:**
+
+- See contractor/handyman identities until matched  
+  - Your note: “Right, so ‘A CONTRACTOR/HANDYMAN WILL DO X job for $YYY.YY’”
+  - Implementation detail:
+    - Pre-match: show “A vetted pro will…” + price
+    - Post-match: reveal name, rating, photo, license/badge, etc.  
+- Post jobs without address  
+  - ✅ Good and already aligned with the address work you did.  
+- Edit certain job fields after approval  
+  - Your note laid out a nice **post-approval flow**, which should be modeled as **actions**, not ad-hoc edits:
+    - Job inspection
+    - Requote
+    - Refusal → returns job to job pool
+    - Change order
+    - Completion schedule (milestones)
+    - Materials purchases
+    - Payouts, warranty, closure
+  - That means:
+    - We NEVER allow direct edit of core job fields after a certain status.
+    - We only allow **new events** (change order objects, schedule objects, etc.) attached to the job.
+
+**Conclusion for CUSTOMER:**
+
+- Your instincts are right: customers don’t “edit jobs,” they **cause events** in a workflow.
+- We should model those as separate endpoints / UI actions later (“request_change_order”, “approve_change_order”, etc.), not inline field edits.
+
+---
+
+### 🟦 HANDYMAN (your edits integrated)
+
+**Can:**
+
+- See **Available Jobs**  
+  - You added: “We may need to add something to the customer quote screen, ‘Will you consider an unlicensed handyman?’… disclosure screen… then they can post a job available to handymen.”
+  - This is a big design decision and I like it:
+    - Add a flag on the quote request: `allow_unlicensed_handyman: boolean`
+    - When `false`: job is **Contractor-only**
+    - When `true`: job is visible to both contractors AND handymen, but:
+      - The customer must pass a **disclosure step**:
+        - “Handymen are not licensed. They may not be permitted for certain types of work. You are responsible for ensuring compliance with local laws and regulations.” (We can later tune language with a lawyer.)
+- Accept job  
+- Schedule job  
+- Complete job  
+- Upload before/after photos  
+- Update status  
+- Chat with customer  
+  - Your note: “only with accepted criteria above and a consistent warning they are dealing with an unlicensed handyman.”
+  - So:
+    - Chat is enabled only when:
+      - Job is assigned to that handyman AND
+      - `allow_unlicensed_handyman = true` OR job is in the “handyman legal category”
+    - We can add a **banner** in the chat UI:
+      - “This provider is a handyman, not a licensed contractor.”  
+- Edit their own skills  
+- Edit business address  
+  - You want “constant encouragement on how to become an LLC.”
+  - That fits naturally into:
+    - Handyman profile screen (banner / CTA)
+    - Growth Center (LLC step)
+    - Possibly some nags if they hit income thresholds.
+
+- Charge **pre-set platform prices only**  
+  - You wrote: “They still should have the ability to start a change order, dont you think? Maybe not. This is one we should discuss.”
+  - This is a key constraint:
+    - If we let handymen start change orders, they are indirectly modifying job scope and cost.
+    - Safer model:
+      - Handyman can **propose** a change → sends a structured “change suggestion” (scope and reason).
+      - Platform (or auto-rules) converts that into a **Change Order** with tightly constrained choices (like adding a line item from a pre-approved list).
+      - Customer must approve.
+    - For **Phase 1**, I’d say:
+      - Handyman cannot create full arbitrary change orders.
+      - They can flag: “Scope change requested” → notifies customer / platform.  
+      - Later we add a more controlled change order flow.
+
+**Cannot:**
+
+- Submit custom quotes  
+- Charge outside platform  
+- See customer phone number (masked)  
+- Access system-level contractor tools  
+- See premium job categories (dangerous / high-liability categories)  
+- Take more than X active jobs at once (configurable)  
+
+**Sees:**
+
+- License warnings  
+- Upsell to LLC / insurance  
+- Growth Center  
+- Limited job categories  
+
+**Conclusion for HANDYMAN:**
+
+- Your “unlicensed handyman consent” idea is strong and must be a **first-class field** on job/quote.
+- Change orders for handymen should be **controlled / limited**, not free-form pricing.
+
+---
+
+### 🟥 CONTRACTOR (your edits integrated)
+
+Your contractor section is already solid. A few notes:
+
+**Can:**
+
+- Everything a handyman can do  
+- Create custom quotes  
+- Modify pricing  
+- See customer phone number  
+- Access premium job categories  
+- Upload licensing documents  
+- Upload insurance  
+- Bypass handyman job limits  
+- Prioritize jobs  
+
+**Cannot:**
+
+- Edit system prices for handyman jobs  
+- Override platform policies  
+
+**Sees:**
+
+- Leads / bids  
+- Workload view  
+- Earnings estimates  
+- Schedule optimization  
+- Filters  
+- Big-job tools  
+
+**Conclusion for CONTRACTOR:**
+
+- No big changes needed here from your brackets.
+- The main work is backend role enforcement + UI gating.
+
+---
+
+## 2. CLAUDE_CORE.md — ONE CRITICAL PROBLEM LINE
+
+Everything in CLAUDE_CORE.md is good **except that last paragraph**:
+
+> At the end of every task, and when you have only 5% of context left, ssh into the server root@172.234.70.157 (ssh key present in current environment) and reboot if necessary. Per \frontend\.env the backend exists on this server and needs to be updated and rebooted any time changes are made. 
+
+This is dangerous for four reasons:
+
+1. **It forces Claude to ssh + reboot way too often.**
+   - That’s the exact opposite of “minimal, controlled” behavior.
+2. **It assumes ssh keys and environment that may not always be present.**
+3. **It assumes every local change should trigger a deployment + reboot.**
+   - That is wrong; we often want local-only development.
+4. **It conflicts with your desire to keep control yourself and not have AI agents touching prod unless you say so.**
+
+We should replace it with something like this (you will edit manually later):
+
+```md
+## 10. Server / Deployment Rules
+
+- Do NOT ssh into any server unless the Manager explicitly gives you:
+  - The exact `ssh` command
+  - The exact commands to run after login
+
+- Do NOT reboot any server unless the Manager explicitly writes:
+  - `ssh ...`
+  - `reboot` (or equivalent)
+
+- Assume changes in this repo are **local development** by default.
+- Only deploy or restart services when the Manager gives you a deployment task.
+
+3. WHAT I’LL DO ONCE YOU SEND CLAUDE_HISTORY + ISSUES
+
+When you paste:
+
+CLAUDE_HISTORY.md
+
+The current issues list (the ones you want solved this week)
+
+Any recent git errors / logs if relevant
+
+I will generate a single, tightly-scoped “work script” for Claude that includes:
+
+A Phase Order:
+
+Phase A: Job flow backend sanity (endpoints + address_id + role guards)
+
+Phase B: Minimum UI fixes for job posting + job visibility for handyman/contractor
+
+Phase C: Messaging backbone (if we touch it this week)
+
+Phase D: Smoke-test + endpoint test harness
+
+For each Phase:
+
+Exact files to open
+
+Exact search patterns
+
+Exact edits in small chunks
+
+Exact commands to run (pytest, curl, or manual mongosh checks)
+
+Exact way to document results in CLAUDE_HISTORY.md
+
+Explicit “DO NOT TOUCH ANYTHING ELSE” language
+
+A hard ban on:
+
+New features
+
+UI polish beyond specific instructions
+
+Architecture refactors
+
+Auto-deploy / auto-ssh behavior
+
+That way:
+
+Every token Claude spends = directly on a line you care about.
+
+No wandering.
+
+No “I took the liberty of…”
+
+You stay in control, and you can follow what it did.
+
+4. NEXT STEP FROM YOU
+
+You already said it:
+
+“Stand By for Claude Hitsory.”
+
+So the next move is:
+
+Paste CLAUDE_HISTORY.md (or at least the recent section)
+
+Paste your issue list for this week (even rough bullets are fine)
+
+After that, I’ll write the full Claude command script you can paste into the top of a session and say:
+
+“Follow this document exactly, no deviation.”
+
+And we’ll aim your remaining Claude budget straight at job flow + endpoint testing, nothing else.
+
 CLAUDE_HISTORY.md
 
 Append-only execution history for Claude Code.
 Use this file ONLY for historical reference.
 Do not load into every task.
-
-[2025-12-09 13:30] PHASE 1.1 FINAL — Profile Restructure, Logout, Routing Stability
-
-**Summary:**
-Completed comprehensive profile restructuring, standardized logout implementation across all roles, fixed routing inconsistencies, and implemented back-stack parallel profile bug fix. All three role profiles now follow consistent directory structure and behavior patterns.
-
-**Requirements Completed:**
-
-1. ✅ Profile Directory Restructure
-   - Moved customer profile.tsx → profile/index.tsx
-   - Moved contractor profile.tsx → profile/index.tsx
-   - Verified handyman already in correct structure
-   - Deleted global /profile route
-
-2. ✅ Profile Routing Fixed (All Roles)
-   - Contractor dashboard now uses /(contractor)/profile
-   - Customer routing verified: /(customer)/profile
-   - Handyman routing verified: /(handyman)/profile
-   - No global /profile references remaining
-
-3. ✅ AuthContext Logout Function Updated
-   - Added console logging for debugging
-   - Proper token cleanup (accessToken + refreshToken)
-   - Clear API authorization header
-   - Reset hydration state with 50ms delay
-   - Improved error handling
-
-4. ✅ Logout Buttons Added to All Profiles
-   - Standardized logout button with inline styles
-   - Red background (#ff3b30) for visual prominence
-   - Direct logout + redirect pattern: logout().then(router.replace('/auth/welcome'))
-   - Consistent across customer, handyman, and contractor profiles
-
-5. ✅ Back-stack Parallel Profile Bug Fix
-   - Added useFocusEffect with router.setParams({}) to all profiles
-   - Imported useCallback and useFocusEffect from expo-router
-   - Prevents duplicate/parallel profile instances
-   - Ensures clean navigation state
-
-**Files Modified:**
-- frontend/app/(customer)/profile.tsx → frontend/app/(customer)/profile/index.tsx
-- frontend/app/(contractor)/profile.tsx → frontend/app/(contractor)/profile/index.tsx
-- frontend/app/(handyman)/profile/index.tsx
-- frontend/app/(contractor)/dashboard.tsx
-- frontend/src/contexts/AuthContext.tsx
-- frontend/app/profile.tsx (deleted)
-
-**Changes:**
-
-1. **Profile Directory Restructure:**
-   - Customer: Moved to profile/index.tsx structure
-   - Contractor: Moved to profile/index.tsx structure
-   - Handyman: Already correct, verified
-   - Global profile.tsx: Deleted to prevent routing conflicts
-
-2. **Contractor Dashboard Routing (dashboard.tsx:179):**
-   - Changed: router.push('/profile')
-   - To: router.push('/(contractor)/profile')
-   - Ensures role-specific profile navigation
-
-3. **AuthContext Logout Function (AuthContext.tsx:226-250):**
-   - Added console logging for debugging
-   - Maintained storage.removeItem for cross-platform compatibility
-   - Added hydration state reset (setIsHydrated false → true after 50ms)
-   - Cleaner error handling with consistent logging
-   - Removes isLoading wrapper for immediate logout experience
-
-4. **Logout Buttons (all profile/index.tsx files):**
-   - Replaced existing logout implementations with standardized version
-   - TouchableOpacity with inline styles (marginTop: 30, padding: 15, backgroundColor: '#ff3b30', borderRadius: 8)
-   - Direct pattern: onPress={() => logout().then(() => router.replace('/auth/welcome'))}
-   - "Log Out" text with white color, center alignment, bold weight
-   - Customer profile: Lines 306-314
-   - Handyman profile: Lines 374-382
-   - Contractor profile: Lines 601-609
-
-5. **Back-stack Fix (all profile/index.tsx files):**
-   - Added useCallback and useFocusEffect imports
-   - Implemented: useFocusEffect(useCallback(() => { router.setParams({}); }, []))
-   - Customer profile: Lines 8, 21, 154-159
-   - Handyman profile: Lines 1, 14, 169-174
-   - Contractor profile: Lines 8, 22, 235-240
-   - Prevents parallel profile navigation bug
-
-**Testing Requirements Met:**
-- All profiles follow consistent directory structure ✓
-- All profiles use role-specific routing ✓
-- Logout buttons present in all three profiles ✓
-- Logout redirects to /auth/welcome ✓
-- router.replace prevents back navigation to authenticated screens ✓
-- useFocusEffect prevents parallel profile instances ✓
-- No global /profile route exists ✓
-
-**Branch:** dev
-
----
-
-[2025-12-09 09:15] PHASE 1.1 COMPLETE — Logout Added for All Roles
-
-**Summary:**
-Added working logout functionality for handyman/technician role. Verified that customer and contractor profiles already had complete logout implementations with proper token clearing, state reset, and redirect to welcome screen.
-
-**Requirements Completed:**
-1. ✅ Logout implementation in AuthContext (already complete)
-   - Removes access token and refresh token from storage
-   - Clears user object from state
-   - Sets isAuthenticated = false automatically
-   - Clears API client authorization header via authAPI.clearAuthToken()
-
-2. ✅ Logout redirects to /auth/welcome for all roles
-   - Customer profile: Already had handleLogout with redirect
-   - Contractor profile: Already had handleLogout with redirect
-   - Handyman profile: Added handleLogout with redirect (NEW)
-
-3. ✅ Logout button added to all profile screens
-   - Customer profile: Already had prominent logout button
-   - Contractor profile: Already had prominent logout button
-   - Handyman profile: Added logout button in Quick Actions section (NEW)
-
-4. ✅ Navigation properly replaces route (router.replace)
-   - Back button cannot return to authenticated screens
-   - Navigation history cleared by using router.replace()
-
-**Files Modified:**
-- frontend/app/(handyman)/profile/index.tsx
-
-**Changes:**
-
-1. **handyman profile index.tsx (frontend/app/(handyman)/profile/index.tsx:32,124-149,371-377,559-566)**
-   - Added `logout` to useAuth destructuring (line 32)
-   - Created handleLogout function (lines 124-149):
-     - Shows confirmation Alert with "Are you sure you want to logout?"
-     - Calls logout() from AuthContext
-     - Uses router.replace('/auth/welcome') to prevent back navigation
-     - Handles errors gracefully, still navigates even if logout fails
-   - Added logout button in Quick Actions section (lines 371-377):
-     - Prominent red-styled button with log-out icon
-     - Positioned after Settings button
-     - Only visible when not editing profile
-   - Added logout button styles (lines 559-566):
-     - logoutButton: Red border and light red background
-     - logoutText: Red text with semibold weight
-
-**Existing Implementations Verified:**
-- AuthContext.tsx logout function already complete (lines 226-244)
-- Customer profile already had full logout implementation
-- Contractor profile already had full logout implementation
-- All profiles use router.replace('/auth/welcome') for proper redirect
-- All profiles show confirmation alert before logging out
-- Token clearing and state reset working correctly in AuthContext
-
-**Testing:**
-- Handyman profile logout button added and styled
-- All three roles now have consistent logout behavior
-- router.replace ensures back button doesn't return to authenticated screens
-- Logout confirmation prevents accidental logouts
-
-**Commit:** d319bd5
-**Branch:** dev
-
----
-
-[2025-12-09 08:30] PHASE 1 COMPLETE — Auth, Redirect, Login Gate, Liability Modal
-
-**Summary:**
-Implemented Phase 1 authentication behaviors: role-based redirects after login, redirect parameter handling for login gating, liability modal for job posting, and backend auth test endpoint. Auth hydration and token persistence were verified as already implemented correctly.
-
-**Requirements Completed:**
-1. ✅ Role-based redirect after successful login (already implemented)
-2. ✅ Login redirect parameter handling for auth-gated flows
-3. ✅ Auth hydration prevents null-user flicker (verified existing implementation)
-4. ✅ Token persistence on refresh (verified existing implementation)
-5. ✅ Block unauthenticated job posting (customer layout guard already in place)
-6. ✅ Liability modal with checkbox requirement before job submission
-7. ✅ Backend auth requirement for job creation (Depends already in place)
-8. ✅ Backend auth test endpoint at /auth/test
-
-**Files Modified:**
-- frontend/app/auth/login.tsx
-- frontend/app/(customer)/job-request/step3-review.tsx
-- backend/server.py
-
-**Changes:**
-
-1. **login.tsx (frontend/app/auth/login.tsx:14,21,30-36,56)**
-   - Added useLocalSearchParams import to read URL parameters
-   - Added redirect parameter handling in login success useEffect
-   - If redirect parameter exists, user is sent to that path after login
-   - Fallback to role-based dashboard redirect if no redirect parameter
-   - Enables flow: unauthenticated user → tries to post job → redirected to /login?redirect=/job-request/review → after login → returns to job flow
-
-2. **step3-review.tsx (frontend/app/(customer)/job-request/step3-review.tsx:9-10,30-31,58-61,279,294-350)**
-   - Added Modal and TouchableOpacity imports
-   - Added state for showLiabilityModal and liabilityAgreed
-   - Created handlePostJobClick() to show modal before submission
-   - Modified "Post Job" button to call handlePostJobClick instead of handleSubmit
-   - Implemented liability modal with:
-     - Required text: "We hold your payment securely and release it only when you confirm job or milestone completion. Service providers on this platform work independently and are solely responsible for their own work, materials, and performance. We do not supervise, guarantee, or certify any job."
-     - Checkbox "I understand and agree"
-     - Continue button disabled until checkbox is checked
-     - Cancel button to close modal
-   - Added modal styles: modalOverlay, modalContent, modalHeader, modalTitle, modalBody, modalText, checkboxContainer, checkbox, checkboxChecked, checkboxLabel, modalActions
-
-3. **server.py (backend/server.py:313-325)**
-   - Added GET /auth/test endpoint
-   - Requires authentication via get_current_user_dependency
-   - Returns: { "auth": true, "user_id": current_user.id, "role": current_user.role }
-   - Useful for testing authentication status from frontend
-
-**Existing Implementations Verified:**
-- Role-based redirect logic already existed in login.tsx (lines 29-47)
-- Auth hydration with isHydrated flag already in AuthContext.tsx
-- Token persistence via checkAuthState() already in AuthContext.tsx
-- Backend auth requirement already on quote creation endpoint (Depends(get_current_user_dependency))
-- Customer layout guard already blocks unauthenticated access
-
-**Testing:**
-- Python backend compiles successfully with no syntax errors
-- Frontend TypeScript files have expected module resolution (React Native config)
-- Auth test endpoint ready for integration testing
-- Liability modal will display before job submission
-- Login redirect parameter will route users back to intended destination
-
-**Commit:** a9f417b
-**Branch:** dev
-
----
 
 [2025-12-04 16:30] FIX — Job Creation 422 Error + AI Quote Setup
 
@@ -1801,4 +1862,5 @@ Previously, quotes and jobs could be created with arbitrary address data or refe
 
 **Commit:** 3f4a3ad
 **Branch:** dev
+
 

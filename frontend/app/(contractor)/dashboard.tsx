@@ -176,7 +176,7 @@ export default function ContractorDashboard() {
           
           <TouchableOpacity
             style={styles.profileButton}
-            onPress={() => router.push('/profile')}
+            onPress={() => router.push('/(contractor)/profile')}
           >
             <Text style={styles.profileIcon}>👤</Text>
           </TouchableOpacity>

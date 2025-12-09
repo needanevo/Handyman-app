@@ -5,7 +5,7 @@
  * Includes navigation to registration steps for updating information.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -231,6 +231,13 @@ export default function ContractorProfile() {
     }
     return undefined;
   }, [user?.addresses]);
+
+  // Fix back-stack parallel profile bug
+  useFocusEffect(
+    useCallback(() => {
+      router.setParams({});
+    }, [])
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -595,17 +602,18 @@ export default function ContractorProfile() {
               style={styles.actionButton}
             />
 
-            <Button
-              title="Logout"
-              onPress={handleLogout}
-              variant="outline"
-              size="large"
-              fullWidth
-              icon={<Ionicons name="log-out-outline" size={20} color={colors.error.main} />}
-              style={styles.logoutButton}
-            />
           </View>
         )}
+
+        {/* Logout Button */}
+        <TouchableOpacity
+          style={{ marginTop: 30, padding: 15, backgroundColor: '#ff3b30', borderRadius: 8 }}
+          onPress={() => logout().then(() => router.replace('/auth/welcome'))}
+        >
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
+            Log Out
+          </Text>
+        </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

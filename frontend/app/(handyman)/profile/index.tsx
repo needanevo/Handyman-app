@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
@@ -165,6 +165,13 @@ export default function HandymanProfile() {
     }
     return undefined;
   }, [user?.addresses]);
+
+  // Fix back-stack parallel profile bug
+  useFocusEffect(
+    useCallback(() => {
+      router.setParams({});
+    }, [])
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -368,15 +375,18 @@ export default function HandymanProfile() {
               <Ionicons name="arrow-forward" size={16} color={colors.neutral[600]} />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.actionButton, styles.logoutButton]}
-              onPress={handleLogout}
-            >
-              <Ionicons name="log-out" size={20} color={colors.error.main} />
-              <Text style={[styles.actionText, styles.logoutText]}>Logout</Text>
-            </TouchableOpacity>
           </View>
         )}
+
+        {/* Logout Button */}
+        <TouchableOpacity
+          style={{ marginTop: 30, padding: 15, backgroundColor: '#ff3b30', borderRadius: 8 }}
+          onPress={() => logout().then(() => router.replace('/auth/welcome'))}
+        >
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
+            Log Out
+          </Text>
+        </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
