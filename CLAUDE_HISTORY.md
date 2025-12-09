@@ -65,6 +65,7 @@ Implemented Phase 1 authentication behaviors: role-based redirects after login, 
 - Liability modal will display before job submission
 - Login redirect parameter will route users back to intended destination
 
+**Commit:** a9f417b
 **Branch:** dev
 
 ---
