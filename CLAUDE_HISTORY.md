@@ -1826,3 +1826,55 @@ Removed commented-out `scrollView` style and unused `scrollContent` style from c
 **Commit:** 6009f17
 **Branch:** dev
 
+────────────────────────────────────────
+
+## [2025-12-09 15:30] PHASE 1.1.b — Global LogoutButton component + unified usage + navigation fixes
+
+**Files Changed:**
+- `frontend/src/components/LogoutButton.tsx` (created)
+- `frontend/app/(customer)/profile/index.tsx`
+- `frontend/app/(handyman)/profile/index.tsx`
+- `frontend/app/(contractor)/profile/index.tsx`
+- `CLAUDE_HISTORY.md`
+
+**Changes:**
+
+**Step 1 - Created Global LogoutButton Component:**
+Created new reusable LogoutButton component (`frontend/src/components/LogoutButton.tsx`) that encapsulates the original pre-Phase 1.1 logout button styling and behavior:
+- Uses Button component with variant="outline", size="large", fullWidth
+- Icon: "log-out-outline" in error.main color
+- Border color: colors.error.main
+- Includes Alert.alert confirmation dialog ("Are you sure you want to logout?")
+- On confirmation: calls logout() then router.replace('/auth/welcome')
+- Handles logout errors gracefully with console.error
+
+**Step 2 - Unified Logout Across All Roles:**
+Replaced inline logout buttons in all three profile screens with the global `<LogoutButton />` component:
+- **Customer profile**: Removed inline TouchableOpacity logout button, added LogoutButton import
+- **Handyman profile**: Removed handleLogout function, removed logoutButton/logoutText styles, replaced inline logout with LogoutButton
+- **Contractor profile**: Removed handleLogout function, removed logoutButton style, replaced inline logout with LogoutButton
+
+**Step 3 - Navigation Stability:**
+Verified useFocusEffect hook present in all three profiles to prevent back-stack parallel profile bugs (already implemented in Phase 1.1).
+
+**Step 4 - Consistency Achieved:**
+All three user roles (Customer, Handyman, Contractor) now display identical logout button with:
+- Same visual styling (outline button with error color)
+- Same confirmation dialog behavior
+- Same logout flow (AuthContext.logout → /auth/welcome)
+- No role-specific overrides or variations
+
+**TypeScript Verification:**
+✅ All three profile files pass TypeScript checks
+✅ LogoutButton component compiles without errors
+✅ No import or type errors
+
+**Benefits:**
+- Single source of truth for logout button styling and behavior
+- Easier to maintain and update logout functionality
+- Consistent UX across all user roles
+- Reduced code duplication (removed ~50 lines of redundant code)
+
+**Commit:** 65bbe57
+**Branch:** dev
+
