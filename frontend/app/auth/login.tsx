@@ -11,13 +11,14 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,6 +26,14 @@ export default function LoginScreen() {
   useEffect(() => {
     if (isAuthenticated && user) {
       console.log('User authenticated, role:', user.role);
+
+      // Check for redirect parameter first
+      const redirectPath = params.redirect as string;
+      if (redirectPath) {
+        console.log('Redirecting to requested path:', redirectPath);
+        router.replace(redirectPath);
+        return;
+      }
 
       // Role-based routing - explicit routing for each role
       if (user.role === 'technician') {
@@ -44,7 +53,7 @@ export default function LoginScreen() {
         router.replace('/home');
       }
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, params.redirect]);
 
   // Cross-platform alert helper
   const showAlert = (title: string, message: string) => {

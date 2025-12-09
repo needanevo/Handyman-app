@@ -310,6 +310,21 @@ async def get_current_user_info(
         )
 
 
+@api_router.get("/auth/test")
+async def test_auth(
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Test auth endpoint to verify authentication status.
+    Returns auth status, user_id, and role.
+    """
+    return {
+        "auth": True,
+        "user_id": current_user.id,
+        "role": current_user.role
+    }
+
+
 @api_router.post("/auth/refresh", response_model=Token)
 async def refresh_token(refresh: dict = Body(...)):
     """

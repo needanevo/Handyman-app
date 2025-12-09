@@ -6,6 +6,8 @@ import {
   ScrollView,
   Image,
   Alert,
+  Modal,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -25,6 +27,8 @@ export default function JobRequestStep3() {
   const [isGeneratingQuote, setIsGeneratingQuote] = useState(true);
   const [quote, setQuote] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showLiabilityModal, setShowLiabilityModal] = useState(false);
+  const [liabilityAgreed, setLiabilityAgreed] = useState(false);
 
   const photos = params.photos ? JSON.parse(params.photos as string) : [];
 
@@ -51,8 +55,14 @@ export default function JobRequestStep3() {
 
   const { user } = useAuth();
 
+  const handlePostJobClick = () => {
+    // Show liability modal before posting
+    setShowLiabilityModal(true);
+  };
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    setShowLiabilityModal(false);
 
     try {
       // Format data according to backend QuoteRequest model
@@ -266,7 +276,7 @@ export default function JobRequestStep3() {
         <View style={styles.actions}>
           <Button
             title="Post Job"
-            onPress={handleSubmit}
+            onPress={handlePostJobClick}
             loading={isSubmitting}
             size="large"
             fullWidth
@@ -280,6 +290,64 @@ export default function JobRequestStep3() {
           />
         </View>
       </ScrollView>
+
+      {/* Liability Modal */}
+      <Modal
+        visible={showLiabilityModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowLiabilityModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="shield-checkmark-outline" size={40} color={colors.primary.main} />
+              <Text style={styles.modalTitle}>Important Notice</Text>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalText}>
+                We hold your payment securely and release it only when you confirm job or milestone completion.
+                {'\n\n'}
+                Service providers on this platform work independently and are solely responsible for their own work, materials, and performance.
+                {'\n\n'}
+                We do not supervise, guarantee, or certify any job.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.checkboxContainer}
+                onPress={() => setLiabilityAgreed(!liabilityAgreed)}
+              >
+                <View style={[styles.checkbox, liabilityAgreed && styles.checkboxChecked]}>
+                  {liabilityAgreed && <Ionicons name="checkmark" size={20} color="#fff" />}
+                </View>
+                <Text style={styles.checkboxLabel}>I understand and agree</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalActions}>
+              <Button
+                title="Continue"
+                onPress={handleSubmit}
+                disabled={!liabilityAgreed}
+                loading={isSubmitting}
+                size="large"
+                fullWidth
+              />
+              <Button
+                title="Cancel"
+                onPress={() => {
+                  setShowLiabilityModal(false);
+                  setLiabilityAgreed(false);
+                }}
+                variant="outline"
+                size="medium"
+                fullWidth
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -500,6 +568,68 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actions: {
+    gap: spacing.md,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  modalContent: {
+    backgroundColor: colors.background.primary,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 500,
+    ...shadows.lg,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: {
+    ...typography.sizes.xl,
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  modalBody: {
+    marginBottom: spacing.xl,
+  },
+  modalText: {
+    ...typography.sizes.base,
+    color: colors.neutral[700],
+    lineHeight: 24,
+    marginBottom: spacing.lg,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: colors.neutral[300],
+    borderRadius: borderRadius.sm,
+    marginRight: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary.main,
+    borderColor: colors.primary.main,
+  },
+  checkboxLabel: {
+    ...typography.sizes.base,
+    color: colors.neutral[900],
+    fontWeight: typography.weights.medium,
+  },
+  modalActions: {
     gap: spacing.md,
   },
 });
