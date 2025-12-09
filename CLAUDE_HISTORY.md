@@ -1823,6 +1823,6 @@ Removed commented-out `scrollView` style and unused `scrollContent` style from c
 **TypeScript Verification:**
 ✅ Both customer and contractor profiles pass TypeScript checks with no errors
 
-**Commit:** [to be added after push]
+**Commit:** 6009f17
 **Branch:** dev
 
