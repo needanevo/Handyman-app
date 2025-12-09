@@ -21,12 +21,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { Card } from '../../src/components/Card';
-import { Button } from '../../src/components/Button';
-import { AddressForm } from '../../src/components/AddressForm';
-import { profileAPI } from '../../src/services/api';
+import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
+import { useAuth } from '../../../src/contexts/AuthContext';
+import { Card } from '../../../src/components/Card';
+import { Button } from '../../../src/components/Button';
+import { AddressForm } from '../../../src/components/AddressForm';
+import { profileAPI } from '../../../src/services/api';
 
 interface AddressFormData {
   street: string;
@@ -184,8 +184,7 @@ export default function CustomerProfileScreen() {
         style={styles.keyboardView}
       >
         <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -351,13 +350,6 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
-  },
-  //scrollView: {
-  //  flex: 1,
-  //},
-  scrollContent: {
-    paddingBottom: spacing['4xl'],
-    flexGrow: 1,
   },
   photoSection: {
     alignItems: 'center',

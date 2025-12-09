@@ -1803,3 +1803,26 @@ Previously, quotes and jobs could be created with arbitrary address data or refe
 **Commit:** 3f4a3ad
 **Branch:** dev
 
+────────────────────────────────────────
+
+## [2025-12-09 14:45] PHASE 1.1 PATCH — Revert contractor style change, simplify customer profile ScrollView
+
+**Files Changed:**
+- `frontend/app/(contractor)/profile/index.tsx`
+- `frontend/app/(customer)/profile/index.tsx`
+- `CLAUDE_HISTORY.md`
+
+**Changes:**
+
+**Section A - Revert Unauthorized Contractor Change:**
+Reverted the unauthorized `keyboardView` style definition added in commit d60a5ae to contractor profile. Kept the import path fixes (../../../src) which were correct.
+
+**Section B - Customer Profile ScrollView Cleanup:**
+Removed commented-out `scrollView` style and unused `scrollContent` style from customer profile. Updated ScrollView JSX to use inline `style={{ flex: 1 }}` instead of StyleSheet reference. This simplifies the code and removes unnecessary StyleSheet definitions.
+
+**TypeScript Verification:**
+✅ Both customer and contractor profiles pass TypeScript checks with no errors
+
+**Commit:** [to be added after push]
+**Branch:** dev
+
