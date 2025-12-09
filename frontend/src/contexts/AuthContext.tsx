@@ -2,6 +2,14 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authAPI } from '../services/api';
 import { storage } from '../utils/storage';
 
+export interface LocationVerification {
+  status: 'unverified' | 'verified' | 'mismatch';
+  deviceLat?: number;
+  deviceLon?: number;
+  verifiedAt?: string;
+  autoVerifyEnabled: boolean;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -13,6 +21,8 @@ export interface User {
   isActive: boolean;
   registrationCompletedDate?: string;
   registrationExpirationDate?: string;
+  // Customer-specific fields
+  verification?: LocationVerification;
   // Contractor-specific fields (optional)
   businessName?: string;
   skills?: string[];
@@ -206,6 +216,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } : {
         ...baseUser,
         // Customer-only: No contractor fields included
+        // Customer-specific: verification field
+        verification: userData.verification ? {
+          status: userData.verification.status,
+          deviceLat: userData.verification.device_lat,
+          deviceLon: userData.verification.device_lon,
+          verifiedAt: userData.verification.verified_at,
+          autoVerifyEnabled: userData.verification.auto_verify_enabled ?? true,
+        } : undefined,
       };
 
       console.log('Transformed user data (role-safe):', transformedUser);

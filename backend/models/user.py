@@ -20,6 +20,14 @@ class Address(BaseModel):
     longitude: Optional[float] = None
     is_default: bool = False
 
+class LocationVerification(BaseModel):
+    """Customer location verification status"""
+    status: str = "unverified"  # "unverified" | "verified" | "mismatch"
+    device_lat: Optional[float] = None
+    device_lon: Optional[float] = None
+    verified_at: Optional[datetime] = None
+    auto_verify_enabled: bool = True
+
 class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
@@ -36,6 +44,7 @@ class User(BaseModel):
     # Customer specific fields
     customer_notes: Optional[str] = None
     tags: List[str] = []  # VIP, repeat, warranty, etc.
+    verification: Optional[LocationVerification] = None  # Customer location verification
     
     # Technician/Handyman specific fields (shared by both)
     business_name: Optional[str] = None  # Business/company name

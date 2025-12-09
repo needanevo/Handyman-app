@@ -368,6 +368,144 @@ async def refresh_token(refresh: dict = Body(...)):
         raise HTTPException(401, "Invalid refresh token")
 
 
+# ==================== CUSTOMER LOCATION VERIFICATION ROUTES ====================
+
+
+@api_router.post("/customers/verify-location")
+async def verify_customer_location(
+    verification_data: dict = Body(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Verify customer location against their profile address.
+
+    Compares device GPS coordinates to address coordinates.
+    Updates verification status: "verified", "unverified", or "mismatch".
+
+    Required: device_lat, device_lon
+    """
+    # Only customers can verify their location
+    if current_user.role != UserRole.CUSTOMER:
+        raise HTTPException(
+            status_code=403,
+            detail="Only customers can verify location"
+        )
+
+    device_lat = verification_data.get("device_lat")
+    device_lon = verification_data.get("device_lon")
+
+    if not device_lat or not device_lon:
+        raise HTTPException(
+            status_code=400,
+            detail="device_lat and device_lon are required"
+        )
+
+    # Get user's default address
+    user_doc = await db.users.find_one({"id": current_user.id})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    addresses = user_doc.get("addresses", [])
+    default_address = next((addr for addr in addresses if addr.get("is_default")), None)
+
+    # Determine verification status
+    status_value = "unverified"
+
+    if default_address:
+        address_lat = default_address.get("latitude")
+        address_lon = default_address.get("longitude")
+
+        if address_lat and address_lon:
+            # Calculate distance (simple Euclidean distance for now)
+            # For production, use Haversine formula for accurate distance
+            lat_diff = abs(float(device_lat) - float(address_lat))
+            lon_diff = abs(float(device_lon) - float(address_lon))
+
+            # ~0.01 degrees ≈ ~1km tolerance
+            # Adjust threshold as needed
+            TOLERANCE = 0.05  # ~5km tolerance
+
+            if lat_diff <= TOLERANCE and lon_diff <= TOLERANCE:
+                status_value = "verified"
+            else:
+                status_value = "mismatch"
+        else:
+            # Address has no coordinates - cannot verify
+            status_value = "unverified"
+    else:
+        # No default address - cannot verify
+        status_value = "unverified"
+
+    # Create or update verification object
+    verification = {
+        "status": status_value,
+        "device_lat": float(device_lat),
+        "device_lon": float(device_lon),
+        "verified_at": datetime.utcnow() if status_value == "verified" else None,
+        "auto_verify_enabled": user_doc.get("verification", {}).get("auto_verify_enabled", True)
+    }
+
+    # Update user document
+    await db.users.update_one(
+        {"id": current_user.id},
+        {"$set": {"verification": verification, "updated_at": datetime.utcnow()}}
+    )
+
+    return {
+        "success": True,
+        "verification": verification
+    }
+
+
+@api_router.patch("/customers/verification-preferences")
+async def update_verification_preferences(
+    preferences: dict = Body(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Update customer location verification preferences.
+
+    Allows toggling auto_verify_enabled on/off.
+    """
+    # Only customers can update verification preferences
+    if current_user.role != UserRole.CUSTOMER:
+        raise HTTPException(
+            status_code=403,
+            detail="Only customers can update verification preferences"
+        )
+
+    auto_verify_enabled = preferences.get("auto_verify_enabled")
+
+    if auto_verify_enabled is None:
+        raise HTTPException(
+            status_code=400,
+            detail="auto_verify_enabled is required"
+        )
+
+    # Get existing verification or create default
+    user_doc = await db.users.find_one({"id": current_user.id})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    verification = user_doc.get("verification", {
+        "status": "unverified",
+        "auto_verify_enabled": True
+    })
+
+    verification["auto_verify_enabled"] = bool(auto_verify_enabled)
+
+    # Update user document
+    await db.users.update_one(
+        {"id": current_user.id},
+        {"$set": {"verification": verification, "updated_at": datetime.utcnow()}}
+    )
+
+    return {
+        "success": True,
+        "verification": verification
+    }
+
+
 # ==================== SERVICE CATALOG ROUTES ====================
 
 
@@ -1090,6 +1228,17 @@ async def create_job(
     4. Sends notifications (email + SMS to homeowner, email to admin)
     5. Returns job_id, status, estimated_total, created_at
     """
+    # PHASE 3: Location verification gate for customers
+    if current_user.role == UserRole.CUSTOMER:
+        user_doc = await db.users.find_one({"id": current_user.id})
+        verification = user_doc.get("verification") if user_doc else None
+
+        if not verification or verification.get("status") != "verified":
+            raise HTTPException(
+                status_code=400,
+                detail="location_not_verified"
+            )
+
     # Get service for pricing calculation
     service = await db.services.find_one({"category": job_data.service_category})
     if not service:

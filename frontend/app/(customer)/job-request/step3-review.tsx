@@ -94,6 +94,27 @@ export default function JobRequestStep3() {
       );
     } catch (error: any) {
       console.error('Job submission error:', error);
+
+      // PHASE 3: Handle location verification error
+      if (error.response?.data?.detail === 'location_not_verified') {
+        Alert.alert(
+          'Location Verification Required',
+          'Please verify your location in your profile before posting a job. This helps protect both you and your service provider.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+            {
+              text: 'Go to My Profile',
+              onPress: () => router.push('/(customer)/profile'),
+            },
+          ]
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
       const errorMessage = error.response?.data?.detail || 'Failed to post job. Please try again.';
       Alert.alert('Error', errorMessage);
       setIsSubmitting(false);

@@ -1,4 +1,4 @@
-from .user import User, UserCreate, UserLogin, Token, TokenData, UserRole, Address as EmbeddedAddress
+from .user import User, UserCreate, UserLogin, Token, TokenData, UserRole, Address as EmbeddedAddress, LocationVerification
 from .address import Address
 from .service import Service, ServiceCreate, ServiceCategory, PricingModel, AddOn
 from .quote import Quote, QuoteRequest, QuoteResponse, QuoteStatus, QuoteItem
@@ -17,7 +17,7 @@ from .warranty import WarrantyRequest, WarrantyRequestCreate, WarrantyDecision, 
 from .change_order import ChangeOrder, ChangeOrderCreate, ChangeOrderDecision, ChangeOrderStatus
 
 __all__ = [
-    "User", "UserCreate", "UserLogin", "Token", "TokenData", "UserRole", "Address", "EmbeddedAddress",
+    "User", "UserCreate", "UserLogin", "Token", "TokenData", "UserRole", "Address", "EmbeddedAddress", "LocationVerification",
     "Service", "ServiceCreate", "ServiceCategory", "PricingModel", "AddOn",
     "Quote", "QuoteRequest", "QuoteResponse", "QuoteStatus", "QuoteItem",
     "Job", "JobStatus", "JobCreateRequest", "JobStatusUpdate", "JobUpdate", "JobCreateResponse", "ContractorTypePreference", "JobAddress",

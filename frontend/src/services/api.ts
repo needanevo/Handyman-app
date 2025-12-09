@@ -202,11 +202,25 @@ export const quotesAPI = {
 
 // Profile API
 export const profileAPI = {
-  addAddress: (address: any) => 
+  addAddress: (address: any) =>
     apiClient.post<any>('/profile/addresses', address),
-  
-  getAddresses: () => 
+
+  getAddresses: () =>
     apiClient.get<any[]>('/profile/addresses'),
+};
+
+// Customer Verification API
+export const verificationAPI = {
+  verifyLocation: (deviceLat: number, deviceLon: number) =>
+    apiClient.post<{ success: boolean; verification: any }>('/customers/verify-location', {
+      device_lat: deviceLat,
+      device_lon: deviceLon,
+    }),
+
+  updatePreferences: (autoVerifyEnabled: boolean) =>
+    apiClient.patch<{ success: boolean; verification: any }>('/customers/verification-preferences', {
+      auto_verify_enabled: autoVerifyEnabled,
+    }),
 };
 
 // Contractor API

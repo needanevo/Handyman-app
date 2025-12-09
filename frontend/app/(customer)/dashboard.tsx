@@ -5,7 +5,7 @@
  * CUSTOMER-ONLY UI - no contractor/business elements.
  */
 
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,17 +14,69 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Card } from '../../src/components/Card';
-import { jobsAPI } from '../../src/services/api';
+import { jobsAPI, verificationAPI } from '../../src/services/api';
 
 export default function CustomerDashboard() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const autoVerifyAttempted = useRef(false);
+
+  // Auto-verification on focus (PHASE 3)
+  useFocusEffect(
+    useCallback(() => {
+      const autoVerifyLocation = async () => {
+        // Only for customers
+        if (user?.role !== 'customer') return;
+
+        // Only if auto-verify is enabled
+        if (!user?.verification?.autoVerifyEnabled) return;
+
+        // Only if not already verified
+        if (user?.verification?.status === 'verified') return;
+
+        // Prevent multiple attempts per session
+        if (autoVerifyAttempted.current) return;
+        autoVerifyAttempted.current = true;
+
+        try {
+          // Request permission
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') return;
+
+          // Get location
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+
+          // Verify
+          await verificationAPI.verifyLocation(
+            location.coords.latitude,
+            location.coords.longitude
+          );
+
+          // Refresh user
+          await refreshUser();
+        } catch (error) {
+          console.log('Auto-verification failed (silent):', error);
+          // Silent fail - don't bother user
+        }
+      };
+
+      autoVerifyLocation();
+
+      // Reset flag on unmount
+      return () => {
+        autoVerifyAttempted.current = false;
+      };
+    }, [user?.role, user?.verification?.autoVerifyEnabled, user?.verification?.status])
+  );
 
   // Fetch real jobs using the SAME query key as jobs list screen
   // This ensures unified cache across dashboard and job list
