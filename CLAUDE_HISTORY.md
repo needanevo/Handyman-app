@@ -1878,3 +1878,161 @@ All three user roles (Customer, Handyman, Contractor) now display identical logo
 **Commit:** 65bbe57
 **Branch:** dev
 
+────────────────────────────────────────
+
+## [2025-12-09 16:45] PHASE 3 — Customer Identity & Location Verification Foundation
+
+**Files Changed:**
+- **Backend:**
+  - `backend/models/user.py` - Added LocationVerification model
+  - `backend/models/__init__.py` - Exported LocationVerification
+  - `backend/server.py` - Added verification endpoints + job gate
+- **Frontend:**
+  - `frontend/src/contexts/AuthContext.tsx` - Added verification to User interface
+  - `frontend/src/services/api.ts` - Added verificationAPI
+  - `frontend/app/(customer)/profile/index.tsx` - Complete location verification UI
+  - `frontend/app/(customer)/dashboard.tsx` - Auto-verification on focus
+  - `frontend/app/(customer)/job-request/step3-review.tsx` - Location gate error handling
+- `CLAUDE_HISTORY.md`
+
+**Section 1 - Backend Customer Verification Model:**
+Created `LocationVerification` nested model in User:
+- `status`: "unverified" | "verified" | "mismatch"
+- `device_lat`, `device_lon`: Device GPS coordinates (optional)
+- `verified_at`: Timestamp of successful verification (optional)
+- `auto_verify_enabled`: Boolean flag (default true)
+
+Added `verification` field to User model (customer-specific, optional).
+
+**Section 2 - Backend Verification Endpoints:**
+- **POST /customers/verify-location**
+  - Accepts `device_lat`, `device_lon`
+  - Compares device location to user's default address coordinates
+  - Updates verification status: verified (within 5km tolerance), mismatch (outside tolerance), or unverified (no address coordinates)
+  - Returns updated verification object
+  - Role-gated: customers only (403 for non-customers)
+
+- **PATCH /customers/verification-preferences**
+  - Accepts `auto_verify_enabled` boolean
+  - Updates user's auto-verification preference
+  - Role-gated: customers only
+
+**Section 3 - Backend Job Creation Gate:**
+Added location verification check to `POST /jobs` endpoint:
+- If customer role AND (no verification OR status != "verified")
+- Returns 400 with `detail: "location_not_verified"`
+- Prevents unverified customers from posting jobs
+
+**Section 4 - Frontend User Type Updates:**
+Added `LocationVerification` interface to AuthContext:
+```typescript
+interface LocationVerification {
+  status: 'unverified' | 'verified' | 'mismatch';
+  deviceLat?: number;
+  deviceLon?: number;
+  verifiedAt?: string;
+  autoVerifyEnabled: boolean;
+}
+```
+Added `verification?: LocationVerification` to User interface (customer-specific).
+
+Updated `refreshUser()` to transform backend verification data (snake_case → camelCase) for customer users only.
+
+**Section 5 - Customer Profile UI:**
+Comprehensive location verification section added to customer profile:
+
+**Profile Photo Section:**
+- Name displayed in bold beneath photo (profileName style)
+- Editable photo placeholder retained
+
+**Basic Information:**
+- Phone formatted display: existing implementation
+- Email and name fields: unchanged
+
+**Location Verification Section (new):**
+- **Status Display:**
+  - Color-coded status indicator (green=verified, yellow=mismatch, gray=unverified)
+  - Icon: checkmark-circle | alert-circle | help-circle
+  - Caption explaining current state
+- **"Verify My Location" Button:**
+  - Requests location permission
+  - Gets device GPS coordinates
+  - Calls POST /customers/verify-location
+  - Shows success/mismatch/failure alert
+  - Refreshes user context
+  - Disabled with loading spinner while verifying
+- **"Update My Address Instead" Button:**
+  - Only shown when status = "mismatch"
+  - Enables editing mode to update address
+- **Auto-Verify Toggle:**
+  - Switch component with label: "Automatically verify my location when I use the app"
+  - Calls PATCH /customers/verification-preferences
+  - Persists preference to backend + refreshes user
+
+**Section 6 - Auto-Verification in Workflows:**
+Added auto-verification logic using `useFocusEffect` to:
+- `frontend/app/(customer)/dashboard.tsx`
+- `frontend/app/(customer)/profile/index.tsx`
+
+**Auto-Verification Behavior:**
+- Only runs for role = "customer"
+- Only if `autoVerifyEnabled = true`
+- Only if status != "verified"
+- Uses `useRef` flag to prevent duplicate attempts per focus
+- Requests permission silently (no alert if denied)
+- Gets device location with balanced accuracy
+- Calls POST /customers/verify-location
+- Refreshes user context on success
+- Fails silently (logs to console, doesn't alert user)
+- Resets attempt flag on unmount
+
+**Section 7 - Job Posting Blocking UX:**
+Updated `frontend/app/(customer)/job-request/step3-review.tsx`:
+- Added error handler for `location_not_verified` detail
+- Shows Alert with custom title and message:
+  - Title: "Location Verification Required"
+  - Message: "Please verify your location in your profile before posting a job. This helps protect both you and your service provider."
+  - Buttons: "Cancel" | "Go to My Profile" (navigates to profile)
+
+**Testing Requirements (Section 8):**
+**Backend Manual Tests:**
+- ✅ POST /customers/verify-location with device coords
+- ✅ PATCH /customers/verification-preferences toggle
+- ✅ POST /jobs when unverified → 400 with location_not_verified
+- ⏳ POST /jobs when verified → normal flow (user testing)
+
+**Frontend Manual Tests:**
+AS CUSTOMER:
+- ⏳ Profile UI displays verification status correctly
+- ⏳ "Verify My Location" button requests permission and updates status
+- ⏳ Auto-verify toggle persists preference
+- ⏳ Auto-verify triggers on dashboard/profile focus
+- ⏳ Job posting blocks with modal when unverified
+- ⏳ Modal "Go to My Profile" button navigates correctly
+- ⏳ Profile photo editable
+- ⏳ Name in bold under photo
+- ⏳ Phone formatted correctly
+
+AS HANDYMAN/CONTRACTOR:
+- ⏳ No verification UI in profiles
+- ⏳ No auto-verification attempts
+- ⏳ Normal functionality unaffected
+
+**Key Design Decisions:**
+1. **5km tolerance**: Simple Euclidean distance check (~0.05 degree tolerance). Production should use Haversine formula for accurate great-circle distance.
+2. **Auto-verify default**: `auto_verify_enabled` defaults to `true` for better UX. Users can opt-out via toggle.
+3. **Silent auto-verification**: No alerts on failure to avoid spamming users. Manual verification button provides explicit feedback.
+4. **Single attempt per focus**: `useRef` flag prevents duplicate verification requests during same screen focus session.
+5. **Role-safe data**: Verification field only included for customer users in AuthContext transformation.
+6. **No QR yet**: QR identity verification reserved for future Phase 11.
+
+**Benefits:**
+- Protects customers and service providers with location verification
+- Simple, intuitive UI for verification status and control
+- Automatic verification reduces friction (opt-in by default)
+- Clear blocking UX prevents unverified job posting
+- Foundation ready for future identity verification (Phase 11)
+
+**Commit:** 591192b
+**Branch:** dev
+
