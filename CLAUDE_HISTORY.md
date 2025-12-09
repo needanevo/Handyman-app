@@ -64,6 +64,7 @@ Added working logout functionality for handyman/technician role. Verified that c
 - router.replace ensures back button doesn't return to authenticated screens
 - Logout confirmation prevents accidental logouts
 
+**Commit:** d319bd5
 **Branch:** dev
 
 ---
