@@ -28,6 +28,7 @@ import { useAuth } from '../../../src/contexts/AuthContext';
 import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
 import { AddressForm } from '../../../src/components/AddressForm';
+import { LogoutButton } from '../../../src/components/LogoutButton';
 import { contractorAPI, profileAPI } from '../../../src/services/api';
 
 interface AddressFormData {
@@ -96,27 +97,6 @@ export default function ContractorProfile() {
     setValue('state', user?.addresses?.[0]?.state || '');
     setValue('zipCode', user?.addresses?.[0]?.zipCode || '');
     setIsEditing(false);
-  };
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/auth/welcome');
-          },
-        },
-      ]
-    );
   };
 
   const handleEditRegistration = () => {
@@ -606,14 +586,9 @@ export default function ContractorProfile() {
         )}
 
         {/* Logout Button */}
-        <TouchableOpacity
-          style={{ marginTop: 30, padding: 15, backgroundColor: '#ff3b30', borderRadius: 8 }}
-          onPress={() => logout().then(() => router.replace('/auth/welcome'))}
-        >
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
-            Log Out
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.section}>
+          <LogoutButton />
+        </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -818,9 +793,6 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     marginBottom: spacing.md,
-  },
-  logoutButton: {
-    borderColor: colors.error.main,
   },
   emptyState: {
     alignItems: 'center',

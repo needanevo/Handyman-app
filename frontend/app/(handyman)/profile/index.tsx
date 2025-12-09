@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { AddressForm } from '../../../src/components/AddressForm';
+import { LogoutButton } from '../../../src/components/LogoutButton';
 import { profileAPI } from '../../../src/services/api';
 
 interface AddressFormData {
@@ -119,33 +120,6 @@ export default function HandymanProfile() {
     setValue('zipCode', user?.addresses?.[0]?.zipCode || '');
     setSkills(mockProfile.skills);
     setIsEditing(false);
-  };
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              router.replace('/auth/welcome');
-            } catch (error) {
-              console.error('Logout failed:', error);
-              // Still navigate even if logout fails
-              router.replace('/auth/welcome');
-            }
-          },
-        },
-      ]
-    );
   };
 
   const saveProfile = () => {
@@ -379,14 +353,9 @@ export default function HandymanProfile() {
         )}
 
         {/* Logout Button */}
-        <TouchableOpacity
-          style={{ marginTop: 30, padding: 15, backgroundColor: '#ff3b30', borderRadius: 8 }}
-          onPress={() => logout().then(() => router.replace('/auth/welcome'))}
-        >
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
-            Log Out
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.actions}>
+          <LogoutButton />
+        </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -566,12 +535,8 @@ const styles = StyleSheet.create({
     color: colors.neutral[700],
     flex: 1,
   },
-  logoutButton: {
-    borderColor: colors.error.light,
-    backgroundColor: colors.error.lightest,
-  },
-  logoutText: {
-    color: colors.error.main,
-    fontWeight: typography.weights.semibold,
+  actions: {
+    paddingHorizontal: spacing.base,
+    marginTop: spacing.xl,
   },
 });
