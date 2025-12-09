@@ -29,7 +29,7 @@ interface AddressFormData {
 
 export default function HandymanProfile() {
   const router = useRouter();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -119,6 +119,33 @@ export default function HandymanProfile() {
     setValue('zipCode', user?.addresses?.[0]?.zipCode || '');
     setSkills(mockProfile.skills);
     setIsEditing(false);
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              router.replace('/auth/welcome');
+            } catch (error) {
+              console.error('Logout failed:', error);
+              // Still navigate even if logout fails
+              router.replace('/auth/welcome');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const saveProfile = () => {
@@ -340,6 +367,14 @@ export default function HandymanProfile() {
               <Text style={styles.actionText}>Settings & Notifications</Text>
               <Ionicons name="arrow-forward" size={16} color={colors.neutral[600]} />
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.logoutButton]}
+              onPress={handleLogout}
+            >
+              <Ionicons name="log-out" size={20} color={colors.error.main} />
+              <Text style={[styles.actionText, styles.logoutText]}>Logout</Text>
+            </TouchableOpacity>
           </View>
         )}
         </ScrollView>
@@ -520,5 +555,13 @@ const styles = StyleSheet.create({
     ...typography.sizes.base,
     color: colors.neutral[700],
     flex: 1,
+  },
+  logoutButton: {
+    borderColor: colors.error.light,
+    backgroundColor: colors.error.lightest,
+  },
+  logoutText: {
+    color: colors.error.main,
+    fontWeight: typography.weights.semibold,
   },
 });
