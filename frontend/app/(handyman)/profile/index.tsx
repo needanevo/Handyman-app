@@ -535,6 +535,39 @@ const styles = StyleSheet.create({
     color: colors.neutral[700],
     flex: 1,
   },
+  keyboardView: {
+    flex: 1,
+  },
+  emptyState: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  emptyText: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
+    marginBottom: spacing.xs,
+  },
+  emptySubtext: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    opacity: 0.6,
+  },
+  addressFormContainer: {
+    paddingVertical: spacing.base,
+  },
+  saveButton: {
+    backgroundColor: colors.primary.main,
+    padding: spacing.base,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    ...typography.sizes.base,
+    color: colors.background.primary,
+    fontWeight: typography.weights.bold,
+    textAlign: 'center',
+  },
   actions: {
     paddingHorizontal: spacing.base,
     marginTop: spacing.xl,

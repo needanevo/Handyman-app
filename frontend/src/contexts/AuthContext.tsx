@@ -74,6 +74,13 @@ export interface RegisterData {
   businessName?: string;
   business_address?: any;
   banking_info?: any;
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    unitNumber?: string;
+  };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

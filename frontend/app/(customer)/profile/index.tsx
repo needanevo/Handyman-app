@@ -668,6 +668,18 @@ const styles = StyleSheet.create({
   statusTextMismatch: {
     color: colors.warning.main,
   },
+  statusVerified: {
+    backgroundColor: colors.success.light,
+    borderColor: colors.success.main,
+  },
+  statusMismatch: {
+    backgroundColor: colors.warning.light,
+    borderColor: colors.warning.main,
+  },
+  statusUnverified: {
+    backgroundColor: colors.neutral[100],
+    borderColor: colors.neutral[300],
+  },
   statusCaption: {
     ...typography.sizes.sm,
     color: colors.neutral[600],

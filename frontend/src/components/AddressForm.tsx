@@ -87,9 +87,9 @@ interface AddressFormData {
 }
 
 interface AddressFormProps {
-  control: Control<AddressFormData>;
-  errors: FieldErrors<AddressFormData>;
-  setValue?: (name: keyof AddressFormData, value: string) => void;
+  control: Control<any>;
+  errors: FieldErrors<any>;
+  setValue?: (name: string, value: string) => void;
   defaultValues?: Partial<AddressFormData>;
   showUnitNumber?: boolean;
 }
@@ -141,7 +141,7 @@ export function AddressForm({
                 value={value}
                 onChangeText={onChange}
                 placeholder="Your Street"
-                error={errors.street?.message}
+                error={errors.street?.message as string}
                 required
                 icon="home-outline"
                 autoComplete="street-address"
@@ -179,10 +179,9 @@ export function AddressForm({
                 value={value}
                 onChangeText={onChange}
                 placeholder="Your City"
-                error={errors.city?.message}
+                error={errors.city?.message as string}
                 required
                 icon="locate-outline"
-                autoComplete="address-level2"
                 textContentType="addressCity"
               />
             )}
@@ -272,7 +271,7 @@ export function AddressForm({
                 }}
               />
               {errors.state && (
-                <Text style={styles.errorText}>{errors.state.message}</Text>
+                <Text style={styles.errorText}>{(errors.state as any)?.message}</Text>
               )}
             </View>
 
@@ -291,7 +290,7 @@ export function AddressForm({
                     value={value}
                     onChangeText={onChange}
                     placeholder="ZIP"
-                    error={errors.zipCode?.message}
+                    error={errors.zipCode?.message as string}
                     required
                     keyboardType="numeric"
                     maxLength={5}

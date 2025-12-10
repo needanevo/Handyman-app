@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { Alert } from 'react-native';
 import { Button } from '../Button';
-import { authAPI } from '../../services/api';
+import apiClient from '../../services/api';
 
 interface Address {
   street: string;
@@ -37,7 +37,7 @@ export function VerifyAddressButton({
 
     try {
       // Call backend verification endpoint
-      const response = await authAPI.post('/address/verify', {
+      const response = await apiClient.post<{ success: boolean; message?: string }>('/address/verify', {
         street: address.street,
         city: address.city,
         state: address.state,
