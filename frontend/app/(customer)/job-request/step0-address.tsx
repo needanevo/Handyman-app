@@ -206,7 +206,7 @@ export default function JobRequestStep0() {
             <AddressForm
               control={control}
               errors={errors}
-              setValue={setValue}
+              setValue={setValue as any}
               defaultValues={defaultValues}
               showUnitNumber={true}
             />

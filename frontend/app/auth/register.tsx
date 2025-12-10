@@ -62,7 +62,7 @@ export default function RegisterScreen() {
 
     // Explicit role-based redirect - customers go to quote first
     if (user.role === 'customer') {
-      router.replace('/(customer)/quote/start');
+      router.replace('/(customer)/quote/start' as any);
     } else if (user.role === 'technician') {
       router.replace('/(contractor)/dashboard');
     } else if (user.role === 'handyman') {

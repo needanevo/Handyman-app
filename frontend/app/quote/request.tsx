@@ -527,7 +527,7 @@ export default function JobRequestScreen() {
               <AddressForm
                 control={control}
                 errors={errors}
-                setValue={setValue}
+                setValue={setValue as any}
                 defaultValues={
                   user?.addresses && user.addresses.length > 0
                     ? {

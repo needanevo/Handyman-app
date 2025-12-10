@@ -37,7 +37,7 @@ export function VerifyAddressButton({
 
     try {
       // Call backend verification endpoint
-      const response = await apiClient.post<{ success: boolean; message?: string }>('/address/verify', {
+      const response: any = await apiClient.post('/address/verify', {
         street: address.street,
         city: address.city,
         state: address.state,

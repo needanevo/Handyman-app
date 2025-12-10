@@ -31,7 +31,7 @@ export default function LoginScreen() {
       const redirectPath = params.redirect as string;
       if (redirectPath) {
         console.log('Redirecting to requested path:', redirectPath);
-        router.replace(redirectPath);
+        router.replace(redirectPath as any);
         return;
       }
 

@@ -272,7 +272,7 @@ export default function HandymanProfile() {
                 <AddressForm
                   control={control}
                   errors={errors}
-                  setValue={setValue}
+                  setValue={setValue as any}
                   defaultValues={defaultValues}
                   showUnitNumber={false}
                 />
