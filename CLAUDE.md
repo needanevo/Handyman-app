@@ -145,7 +145,31 @@ For every completed fix or feature:
   - One short paragraph of what changed
 
 `CLAUDE_HISTORY.md` is **append-only**. Do not rewrite old entries.
-At the end of every task, and when you have only 5% of context left, ssh into the server root@172.234.70.157 (ssh key present in current environment) and reboot if necessary. Per \frontend\.env the backend exists on this server and needs to be updated and rebooted any time changes are made. 
+## 10. Backend Runtime & Server Rules
+
+   - All backend runtime and integration testing is done **on the server**, not on the Manager’s local machine.
+   - The canonical backend environment is the remote server at `172.234.70.157` behind Nginx/PM2.
+   - You MUST treat the server backend as the source of truth for all feature work and manual testing.
+
+   You MUST NOT:
+   - Tell the Manager to run `uvicorn`, `fastapi`, or any backend server locally on Windows unless the Manager explicitly orders it.
+   - Tell the Manager to change `EXPO_PUBLIC_API_BASE_URL` (or any frontend API base URL) to `localhost` or a local port unless the Manager explicitly orders it.
+   - Assume a local venv/bin layout (Linux/macOS) on the Manager’s machine. On Windows, do not give any Python/venv activation or `uvicorn` commands unless the Manager explicitly asks for them.
+
+   Backend change & deploy rules:
+   - All backend code edits still happen in this repo under `backend/**` as usual.
+   - After completing backend changes:
+     - Commit and push to `dev` per the Git Rules section.
+     - If and only if the Manager explicitly instructs, ssh into `root@172.234.70.157` using the existing SSH key and run the **exact deploy or restart commands the Manager provides** (for example: `cd /srv/app && ./deploy_dev.sh` or a specific `pm2` reload).
+   - You MUST NOT reboot the server on your own initiative.
+     - Never run `reboot`, `shutdown`, or equivalent.
+     - Never stop or restart services unless the Manager gives the exact command.
+
+   Ambiguity rule:
+   - If there is any uncertainty about whether to use local vs server backend, you MUST assume:
+     - Backend = server at `172.234.70.157`
+     - Frontend = talks to that server
+   - If a change would require altering this assumption, stop and ask the Manager.
 
 ---
 

@@ -20,6 +20,7 @@ import { Controller, Control, FieldErrors } from 'react-hook-form';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
 import { Input } from './Input';
 import { Picker } from '@react-native-picker/picker';
+import { UseFormSetValue } from "react-hook-form";
 
 // U.S. States list
 const US_STATES = [
@@ -89,7 +90,7 @@ interface AddressFormData {
 interface AddressFormProps {
   control: Control<any>;
   errors: FieldErrors<any>;
-  setValue?: (name: string, value: string) => void;
+  setValue?: UseFormSetValue<AddressFormData>;
   defaultValues?: Partial<AddressFormData>;
   showUnitNumber?: boolean;
 }

@@ -17,7 +17,7 @@
 2. **Start Backend:**
    ```bash
    cd backend
-   ../venv/Scripts/python.exe -m uvicorn main:app --reload
+   ../venv/Scripts/python.exe -m uvicorn server:app --reload
    ```
 
 3. **Clear App Data:** Delete app and reinstall to test fresh registration flows
@@ -152,31 +152,33 @@
 
 ---
 
-## Test Suite 4: Address Verification
+## Test Suite 4: Address Editing
 
-### TC-4.1: Address Verification Button (Customer Profile)
+### TC-4.1: Customer Profile Address Editing
 **Route:** `/customer/profile`
 
 **Prerequisites:** Logged in as customer with address on file
 
 **Steps:**
 1. Open customer profile
-2. Locate address display section
-3. Tap "Verify Address" button
-4. Wait for verification response
+2. Tap "Edit" button in header
+3. Verify address form appears with current address populated
+4. Modify address fields (street, city, state, ZIP)
+5. Tap "Save Changes" button
 
 **Expected Results:**
-- ✅ Button displays
-- ✅ Button shows loading state during verification
-- ✅ API call to `/address/verify` succeeds
-- ✅ Success/failure alert displays
-- ✅ Verification status updates in profile
+- ✅ Edit mode activates
+- ✅ Address form displays with current values
+- ✅ All address fields are editable
+- ✅ Save button works
+- ✅ Address updates in database
+- ✅ Profile returns to view mode with updated address
 
 **Actual Results:** _______________________________________________
 
 ---
 
-### TC-4.2: Address Verification (Handyman Profile)
+### TC-4.2: Address Editing (Handyman Profile)
 **Route:** `/handyman/profile` (after editing address)
 
 **Prerequisites:** Logged in as handyman
