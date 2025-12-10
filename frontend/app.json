@@ -19,6 +19,7 @@
       }
     },
     "android": {
+      "package": "com.therealjohnson.handyman",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#EFE8DE"

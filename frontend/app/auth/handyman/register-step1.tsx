@@ -50,6 +50,7 @@ export default function HandymanRegisterStep1() {
     setIsLoading(true);
 
     try {
+      console.log('[Step1] Submitting registration...');
       const response = await authAPI.register({
         firstName: data.firstName,
         lastName: data.lastName,
@@ -61,8 +62,10 @@ export default function HandymanRegisterStep1() {
         marketingOptIn: false,
       });
 
+      console.log('[Step1] Registration successful, logging in...', response);
       await login(response.access_token, response.refresh_token);
 
+      console.log('[Step1] Login successful, navigating to step 2...');
       router.push({
         pathname: '/auth/handyman/register-step2',
         params: {
@@ -71,8 +74,11 @@ export default function HandymanRegisterStep1() {
         },
       });
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.error('[Step1] Registration error:', error);
+      console.error('[Step1] Error response:', error.response?.data);
+      console.error('[Step1] Error message:', error.message);
       alert(error.response?.data?.detail || 'Registration failed. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };

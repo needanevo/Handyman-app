@@ -13,11 +13,21 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
+
+// Only import MapView on native platforms
+let MapView: any, Circle: any, Marker: any, PROVIDER_GOOGLE: any;
+if (Platform.OS !== 'web') {
+  const Maps = require('react-native-maps');
+  MapView = Maps.default;
+  Circle = Maps.Circle;
+  Marker = Maps.Marker;
+  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+}
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { useAuth } from '../../../src/contexts/AuthContext';
 
@@ -30,6 +40,28 @@ export default function ContractorGeofenceMap() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [region, setRegion] = useState<any>(null);
+
+  // Show web not supported message
+  if (Platform.OS === 'web') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Service Area Map</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="phone-portrait-outline" size={64} color={colors.neutral[400]} />
+          <Text style={styles.loadingText}>Maps are only available on mobile devices.</Text>
+          <Text style={[styles.loadingText, { fontSize: 14, color: colors.neutral[500] }]}>
+            Please use the mobile app to view your service area.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   useEffect(() => {
     loadMap();

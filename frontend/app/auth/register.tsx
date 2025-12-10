@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Button } from '../../src/components/Button';
 import { Ionicons } from '@expo/vector-icons';
+import { AddressForm } from '../../src/components/AddressForm';
 import { useForm, Controller } from 'react-hook-form';
 
 interface RegisterForm {
@@ -23,6 +24,11 @@ interface RegisterForm {
   phone: string;
   password: string;
   confirmPassword: string;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  unitNumber?: string;
 }
 
 export default function RegisterScreen() {
@@ -54,9 +60,9 @@ export default function RegisterScreen() {
 
     console.log('Registration hydrated - redirecting to dashboard for role:', user.role);
 
-    // Explicit role-based redirect
+    // Explicit role-based redirect - customers go to quote first
     if (user.role === 'customer') {
-      router.replace('/(customer)/dashboard');
+      router.replace('/(customer)/quote/start');
     } else if (user.role === 'technician') {
       router.replace('/(contractor)/dashboard');
     } else if (user.role === 'handyman') {
@@ -84,6 +90,13 @@ export default function RegisterScreen() {
         phone: data.phone,
         password: data.password,
         role: 'customer',
+        address: {
+          street: data.street,
+          city: data.city,
+          state: data.state,
+          zipCode: data.zipCode,
+          unitNumber: data.unitNumber,
+        },
       });
 
       // Fix 5.11: Signal registration success, useEffect will handle redirect
@@ -228,6 +241,16 @@ export default function RegisterScreen() {
               {errors.phone && (
                 <Text style={styles.errorText}>{errors.phone.message}</Text>
               )}
+            </View>
+
+            {/* Address Fields */}
+            <View style={styles.addressSection}>
+              <Text style={styles.sectionTitle}>Service Address</Text>
+              <AddressForm
+                control={control}
+                errors={errors}
+                showUnitNumber={true}
+              />
             </View>
 
             <View style={styles.inputGroup}>
@@ -387,5 +410,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#7F8C8D',
     marginRight: 8,
+  },
+  addressSection: {
+    marginVertical: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 16,
   },
 });

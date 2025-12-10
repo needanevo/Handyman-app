@@ -1763,6 +1763,57 @@ async def set_default_address(user_id: str, address_id: str) -> None:
 
 # ==================== USER PROFILE ROUTES ====================
 
+@api_router.post("/address/verify")
+async def verify_address(address_data: dict):
+    """
+    Verify address using geocoding API
+    Issue #37 fix - Address verification endpoint
+    """
+    try:
+        # Extract address fields
+        street = address_data.get("street")
+        city = address_data.get("city")
+        state = address_data.get("state")
+        zip_code = address_data.get("zip_code")
+
+        if not all([street, city, state, zip_code]):
+            return {"success": False, "message": "Missing required address fields"}
+
+        # Use maps provider if available
+        if maps_provider:
+            try:
+                full_address = f"{street}, {city}, {state} {zip_code}"
+                geocode_result = await maps_provider.geocode(full_address)
+
+                if geocode_result and geocode_result.get("latitude") and geocode_result.get("longitude"):
+                    return {
+                        "success": True,
+                        "message": "Address verified successfully",
+                        "latitude": geocode_result["latitude"],
+                        "longitude": geocode_result["longitude"]
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": "Address could not be verified. Please check your input."
+                    }
+            except Exception as e:
+                logger.error(f"Address verification error: {e}")
+                return {
+                    "success": False,
+                    "message": f"Verification service error: {str(e)}"
+                }
+        else:
+            return {
+                "success": False,
+                "message": "Address verification service not configured"
+            }
+    except Exception as e:
+        logger.error(f"Address verification failed: {e}")
+        return {
+            "success": False,
+            "message": f"Verification failed: {str(e)}"
+        }
 
 @api_router.post("/profile/addresses")
 async def add_address(
