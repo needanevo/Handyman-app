@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -53,7 +54,7 @@ export default function HandymanRegisterStep2() {
 
   const onSubmit = async (data: Step2Form) => {
     if (selectedSkills.length === 0) {
-      alert('Please select at least one skill');
+      Alert.alert('Error', 'Please select at least one skill');
       return;
     }
 
@@ -71,16 +72,14 @@ export default function HandymanRegisterStep2() {
         },
       } as any);
 
-      router.push({
-        pathname: '/auth/handyman/register-step3',
-        params: {
-          ...params,
-          skills: selectedSkills.join(','),
-        },
-      });
-    } catch (error) {
-      console.error('Update error:', error);
-      alert('Failed to save information. Please try again.');
+      router.push('/auth/handyman/register-step3');
+    } catch (error: any) {
+      console.error('[Step2] Update error:', error);
+      console.error('[Step2] Error response:', error?.response?.data);
+      console.error('[Step2] Error message:', error?.message);
+
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to save information. Please try again.';
+      Alert.alert('Update Error', errorMessage);
       setIsLoading(false);
     }
   };

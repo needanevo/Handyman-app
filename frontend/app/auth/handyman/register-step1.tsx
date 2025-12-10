@@ -6,6 +6,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -22,10 +23,12 @@ interface Step1Form {
   lastName: string;
   email: string;
   phone: string;
-  businessName: string;
   password: string;
   confirmPassword: string;
 }
+
+// Helper to normalize phone input (remove non-digits)
+const normalizePhone = (value: string) => value.replace(/\D/g, '');
 
 export default function HandymanRegisterStep1() {
   const router = useRouter();
@@ -43,7 +46,7 @@ export default function HandymanRegisterStep1() {
 
   const onSubmit = async (data: Step1Form) => {
     if (data.password !== data.confirmPassword) {
-      alert('Passwords do not match');
+      Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
@@ -55,10 +58,9 @@ export default function HandymanRegisterStep1() {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
-        phone: data.phone,
+        phone: normalizePhone(data.phone),
         password: data.password,
         role: 'handyman',
-        businessName: data.businessName,
         marketingOptIn: false,
       });
 
@@ -66,18 +68,14 @@ export default function HandymanRegisterStep1() {
       await login(response.access_token, response.refresh_token);
 
       console.log('[Step1] Login successful, navigating to step 2...');
-      router.push({
-        pathname: '/auth/handyman/register-step2',
-        params: {
-          firstName: data.firstName,
-          businessName: data.businessName,
-        },
-      });
+      router.push('/auth/handyman/register-step2');
     } catch (error: any) {
       console.error('[Step1] Registration error:', error);
       console.error('[Step1] Error response:', error.response?.data);
       console.error('[Step1] Error message:', error.message);
-      alert(error.response?.data?.detail || 'Registration failed. Please try again.');
+
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Registration failed. Please try again.';
+      Alert.alert('Registration Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -189,41 +187,24 @@ export default function HandymanRegisterStep1() {
               name="phone"
               rules={{
                 required: 'Phone required',
-                pattern: { value: /^\d{10}$/, message: '10 digits required' },
+                validate: (value) => {
+                  const normalized = normalizePhone(value);
+                  return normalized.length === 10 || '10 digits required';
+                },
               }}
               render={({ field: { onChange, value } }) => (
                 <Input
                   label="Phone"
                   value={value}
                   onChangeText={onChange}
-                  placeholder="4105551234"
+                  placeholder="(410) 555-1234"
                   keyboardType="phone-pad"
                   error={errors.phone?.message}
                   required
                   icon="call-outline"
-                  helpText="10 digits, no spaces or dashes"
+                  helpText="Accepts digits, dashes, spaces, parentheses"
                   autoComplete="tel"
                   textContentType="telephoneNumber"
-                />
-              )}
-            />
-
-            <Controller
-              control={control}
-              name="businessName"
-              rules={{ required: 'Business name required' }}
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Business Name"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="John's Handyman Services"
-                  error={errors.businessName?.message}
-                  required
-                  icon="business-outline"
-                  helpText="What customers will see"
-                  autoComplete="organization"
-                  textContentType="organizationName"
                 />
               )}
             />
