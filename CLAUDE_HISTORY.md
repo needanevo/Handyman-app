@@ -2157,3 +2157,97 @@ AS HANDYMAN/CONTRACTOR:
 **Commit:** ad6f12c
 **Branch:** dev
 
+
+[2025-12-10 15:00] Fix — Handyman Registration Routing
+
+**Summary:**
+Fixed login screen routing to direct users to role selection instead of directly to customer registration. This ensures handyman users can access their registration flow (`/auth/handyman/register-step1`) instead of being incorrectly routed to customer registration.
+
+**Problem:**
+Login screen's "Sign Up" link was hardcoded to `/auth/register` (customer registration), bypassing role selection entirely. This prevented handyman users from accessing their registration flow.
+
+**Solution:**
+Changed login screen "Sign Up" link from `/auth/register` to `/auth/role-selection`, allowing users to choose customer, contractor, or handyman registration paths.
+
+**Files Modified:**
+- frontend/app/auth/login.tsx (line 165)
+
+**Routing Flow (Verified):**
+1. Login → "Sign Up" → `/auth/role-selection` ✓
+2. Role Selection → Handyman → `/auth/handyman/onboarding-intro` ✓
+3. Onboarding → Continue → `/auth/handyman/register-step1` ✓
+4. Step 1 → Continue → `/auth/handyman/register-step2` ✓
+
+**Impact:**
+✅ Handyman users can now access their registration flow
+✅ Role selection enforced for all new signups
+✅ Customer flow unchanged (`/auth/register`)
+✅ Contractor flow unchanged (`/auth/contractor/onboarding-intro`)
+
+**Commit:** 1f5f9b0
+**Branch:** dev
+
+
+[2025-12-10 15:30] Feature — Real-Time Phone Number Formatting
+
+**Summary:**
+Added real-time phone number formatting to all phone input fields across the application. Phone numbers now format automatically as users type, displaying in the format `(410) 555-1234` for improved user experience and data consistency.
+
+**Problem:**
+Phone input fields accepted various formats but didn't provide visual feedback to users about the expected format, leading to inconsistent data entry and poor UX.
+
+**Solution:**
+1. Created reusable `formatPhone()` helper function that formats phone numbers as users type
+2. Updated all phone Controller components to use the formatting helper
+3. Format applied to value display and onChange handler for real-time formatting
+4. Backend normalization (`normalizePhone()`) remains in place for API submission
+
+**Files Modified:**
+- frontend/app/auth/register.tsx (customer registration)
+- frontend/app/auth/handyman/register-step1.tsx (handyman registration)
+- frontend/app/(customer)/profile/edit.tsx (customer profile editing)
+
+**Implementation Details:**
+```typescript
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+};
+
+// Applied to Controller:
+render={({ field: { onChange, onBlur, value } }) => (
+  <Input
+    value={formatPhone(value || "")}
+    onChangeText={(text) => onChange(formatPhone(text))}
+    onBlur={onBlur}
+    placeholder="(410) 555-1234"
+    keyboardType="phone-pad"
+  />
+)}
+```
+
+**Formatting Behavior:**
+- Input: `4` → Display: `4`
+- Input: `410` → Display: `410`
+- Input: `4105` → Display: `(410) 5`
+- Input: `4105551` → Display: `(410) 555-1`
+- Input: `4105551234` → Display: `(410) 555-1234`
+
+**Impact:**
+✅ Improved user experience with real-time formatting feedback
+✅ Consistent phone number display across all input fields
+✅ Automatic formatting reduces user confusion about expected format
+✅ Backend normalization ensures clean data storage (digits only)
+✅ Three registration/profile screens updated
+
+**Note:**
+frontend/app/(handyman)/profile/index.tsx was checked but skipped as phone number is displayed as read-only text (not editable input field).
+
+**Commits:**
+- a0279c7 (register.tsx)
+- da1192b (handyman/register-step1.tsx)
+- 6569ad4 (profile/edit.tsx)
+
+**Branch:** dev
