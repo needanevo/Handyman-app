@@ -30,6 +30,13 @@ interface ProfileForm {
   phone: string;
 }
 
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+};
+
 export default function CustomerProfileEdit() {
   const router = useRouter();
   const { user, refreshUser } = useAuth();
@@ -186,13 +193,15 @@ export default function CustomerProfileEdit() {
             control={control}
             name="phone"
             rules={{ required: 'Phone is required' }}
-            render={({ field: { onChange, value } }) => (
+            render={({ field: { onChange, onBlur, value } }) => (
               <Input
                 label="Phone"
-                value={value}
-                onChangeText={onChange}
+                value={formatPhone(value || "")}
+                onChangeText={(text) => onChange(formatPhone(text))}
+                onBlur={onBlur}
                 error={errors.phone?.message}
                 keyboardType="phone-pad"
+                placeholder="(410) 555-1234"
                 required
               />
             )}
