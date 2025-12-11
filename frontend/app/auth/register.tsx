@@ -31,6 +31,13 @@ interface RegisterForm {
   unitNumber?: string;
 }
 
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+};
+
 export default function RegisterScreen() {
   const { register, isHydrated, isAuthenticated, user } = useAuth();
   const router = useRouter();
@@ -226,13 +233,14 @@ export default function RegisterScreen() {
                 control={control}
                 name="phone"
                 rules={{ required: 'Phone number is required' }}
-                render={({ field: { onChange, value } }) => (
+                render={({ field: { onChange, onBlur, value } }) => (
                   <TextInput
                     style={[styles.input, errors.phone && styles.inputError]}
-                    onChangeText={onChange}
-                    value={value}
-                    placeholder="(555) 123-4567"
+                    placeholder="(410) 555-1234"
                     keyboardType="phone-pad"
+                    value={formatPhone(value || "")}
+                    onChangeText={(text) => onChange(formatPhone(text))}
+                    onBlur={onBlur}
                     autoComplete="tel"
                     textContentType="telephoneNumber"
                   />
