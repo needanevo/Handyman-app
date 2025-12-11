@@ -2249,5 +2249,18 @@ frontend/app/(handyman)/profile/index.tsx was checked but skipped as phone numbe
 - a0279c7 (register.tsx)
 - da1192b (handyman/register-step1.tsx)
 - 6569ad4 (profile/edit.tsx)
+- bc814a2 (contractor/register-step1.tsx)
 
 **Branch:** dev
+
+**Update [2025-12-10 15:45]:**
+Comprehensive codebase search revealed one additional file requiring phone formatting:
+- frontend/app/auth/contractor/register-step1.tsx (contractor registration)
+
+Applied same formatPhone() helper and Controller pattern. All phone input fields across entire frontend now have real-time formatting.
+
+**Complete Coverage:**
+✅ Customer registration (register.tsx)
+✅ Handyman registration (handyman/register-step1.tsx)
+✅ Contractor registration (contractor/register-step1.tsx)
+✅ Customer profile editing (customer/profile/edit.tsx)
