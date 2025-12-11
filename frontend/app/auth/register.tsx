@@ -67,9 +67,9 @@ export default function RegisterScreen() {
 
     console.log('Registration hydrated - redirecting to dashboard for role:', user.role);
 
-    // Explicit role-based redirect - customers go to quote first
+    // Explicit role-based redirect
     if (user.role === 'customer') {
-      router.replace('/(customer)/quote/start' as any);
+      router.replace('/(customer)/dashboard');
     } else if (user.role === 'technician') {
       router.replace('/(contractor)/dashboard');
     } else if (user.role === 'handyman') {
