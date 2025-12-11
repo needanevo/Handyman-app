@@ -28,6 +28,13 @@ interface Step1Form {
   confirmPassword: string;
 }
 
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+};
+
 export default function ContractorRegisterStep1() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -237,12 +244,13 @@ export default function ContractorRegisterStep1() {
               control={control}
               name="phone"
               rules={{ required: 'Phone number is required' }}
-              render={({ field: { onChange, value } }) => (
+              render={({ field: { onChange, onBlur, value } }) => (
                 <Input
                   label="Phone Number"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="(555) 123-4567"
+                  value={formatPhone(value || "")}
+                  onChangeText={(text) => onChange(formatPhone(text))}
+                  onBlur={onBlur}
+                  placeholder="(410) 555-1234"
                   keyboardType="phone-pad"
                   autoComplete="tel"
                   textContentType="telephoneNumber"
