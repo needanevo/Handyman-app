@@ -26,6 +26,7 @@ import { useAuth } from '../../../src/contexts/AuthContext';
 import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
 import { AddressForm } from '../../../src/components/AddressForm';
+import { LogoutButton } from '../../../src/components/LogoutButton';
 import { profileAPI } from '../../../src/services/api';
 
 interface AddressFormData {
@@ -304,14 +305,9 @@ export default function CustomerProfileScreen() {
         )}
 
         {/* Logout Button */}
-        <TouchableOpacity
-          style={{ marginTop: 30, padding: 15, backgroundColor: '#ff3b30', borderRadius: 8 }}
-          onPress={() => logout().then(() => router.replace('/auth/welcome'))}
-        >
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
-            Log Out
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.logoutSection}>
+          <LogoutButton />
+        </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -447,7 +443,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     marginTop: spacing.xl,
   },
-  logoutButton: {
-    borderColor: colors.error.main,
+  logoutSection: {
+    paddingHorizontal: spacing.base,
+    marginTop: spacing.xl,
   },
 });
