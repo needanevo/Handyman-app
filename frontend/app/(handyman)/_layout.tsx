@@ -24,10 +24,16 @@ export default function HandymanLayout() {
       return;
     }
 
-    // Role guard: only technicians and handymen can access handyman routes
+    // Role guard: ONLY handymen can access handyman routes
     if (user?.role === 'customer') {
       // Redirect customers to customer dashboard
       router.replace('/(customer)/dashboard');
+      return;
+    }
+
+    if (user?.role === 'technician') {
+      // Redirect contractors to contractor dashboard
+      router.replace('/(contractor)/dashboard');
       return;
     }
 
@@ -37,8 +43,8 @@ export default function HandymanLayout() {
       return;
     }
 
-    // If role is not technician or handyman, redirect to welcome
-    if (user?.role !== 'technician' && user?.role !== 'handyman') {
+    // If role is not handyman, redirect to welcome
+    if (user?.role !== 'handyman') {
       router.replace('/auth/welcome');
       return;
     }
@@ -50,7 +56,7 @@ export default function HandymanLayout() {
   }
 
   // Show loading state while redirecting non-handymen
-  if (!isAuthenticated || (user?.role !== 'technician' && user?.role !== 'handyman')) {
+  if (!isAuthenticated || user?.role !== 'handyman') {
     return <LoadingSpinner fullScreen />;
   }
 
