@@ -111,9 +111,18 @@ export default function ContractorRegisterStep1() {
       }
     } catch (error: any) {
       console.error('Registration error:', error);
+      console.error('Error response:', error.response);
+      console.error('Error data:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error headers:', error.response?.headers);
+
+      const errorMessage = error.response?.data?.detail
+        || JSON.stringify(error.response?.data)
+        || 'Please try again';
+
       Alert.alert(
         'Registration Failed',
-        error.response?.data?.detail || 'Please try again'
+        errorMessage
       );
     } finally {
       setIsLoading(false);
