@@ -31,7 +31,7 @@ export default function HandymanLayout() {
       return;
     }
 
-    if (user?.role === 'technician') {
+    if (user?.role === 'contractor') {
       // Redirect contractors to contractor dashboard
       router.replace('/(contractor)/dashboard');
       return;

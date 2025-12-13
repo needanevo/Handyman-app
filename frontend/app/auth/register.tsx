@@ -70,7 +70,7 @@ export default function RegisterScreen() {
     // Explicit role-based redirect
     if (user.role === 'customer') {
       router.replace('/(customer)/dashboard');
-    } else if (user.role === 'technician') {
+    } else if (user.role === 'contractor') {
       router.replace('/(contractor)/dashboard');
     } else if (user.role === 'handyman') {
       router.replace('/(handyman)/dashboard');

@@ -25,7 +25,7 @@ export default function Index() {
           console.log('Navigating to customer dashboard');
           router.replace('/(customer)/dashboard');
           break;
-        case 'technician':
+        case 'contractor':
           console.log('Navigating to contractor dashboard');
           router.replace('/(contractor)/dashboard');
           break;

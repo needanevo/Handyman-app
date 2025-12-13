@@ -25,7 +25,7 @@ export default function CustomerLayout() {
     }
 
     // Role guard: only customers can access customer routes
-    if (user?.role === 'technician' || user?.role === 'handyman') {
+    if (user?.role === 'contractor' || user?.role === 'handyman') {
       // Redirect contractors/handymen to contractor dashboard
       router.replace('/(contractor)/dashboard');
       return;
@@ -37,7 +37,7 @@ export default function CustomerLayout() {
       return;
     }
 
-    // If role is not customer, technician, handyman, or admin, redirect to welcome
+    // If role is not customer, contractor, handyman, or admin, redirect to welcome
     if (user?.role !== 'customer') {
       router.replace('/auth/welcome');
       return;

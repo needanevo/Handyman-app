@@ -15,7 +15,7 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'customer' | 'technician' | 'admin' | 'handyman';
+  role: 'customer' | 'contractor' | 'admin' | 'handyman';
   phone: string;
   addresses: Address[];
   isActive: boolean;
@@ -70,7 +70,7 @@ export interface RegisterData {
   firstName: string;
   lastName: string;
   phone: string;
-  role?: 'customer' | 'technician' | 'admin';
+  role?: 'customer' | 'contractor' | 'admin';
   businessName?: string;
   business_address?: any;
   banking_info?: any;
@@ -189,7 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Validate role is one of the allowed roles
-      const validRoles = ['customer', 'technician', 'handyman', 'admin'];
+      const validRoles = ['customer', 'contractor', 'handyman', 'admin'];
       if (!validRoles.includes(userData.role)) {
         console.error('Invalid role received from /auth/me:', userData.role);
         throw new Error(`Invalid user role: ${userData.role}`);
@@ -222,11 +222,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isActive: userData.is_active,
       };
 
-      // Only include contractor/handyman fields if role is technician or handyman
+      // Only include contractor/handyman fields if role is contractor or handyman
       // This prevents field bleeding into customer accounts
-      const transformedUser: User = (userData.role === 'technician' || userData.role === 'handyman') ? {
+      const transformedUser: User = (userData.role === 'contractor' || userData.role === 'handyman') ? {
         ...baseUser,
-        // Contractor/Handyman-specific fields (only for technician/handyman roles)
+        // Contractor/Handyman-specific fields (only for contractor/handyman roles)
         businessName: userData.business_name,
         skills: userData.skills,
         yearsExperience: userData.years_experience,

@@ -36,7 +36,7 @@ export default function LoginScreen() {
       }
 
       // Role-based routing - explicit routing for each role
-      if (user.role === 'technician') {
+      if (user.role === 'contractor') {
         console.log('Contractor detected, redirecting to contractor dashboard...');
         router.replace('/(contractor)/dashboard');
       } else if (user.role === 'handyman') {

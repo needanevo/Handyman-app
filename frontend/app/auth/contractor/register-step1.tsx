@@ -88,7 +88,7 @@ export default function ContractorRegisterStep1() {
           firstName: data.firstName,
           lastName: data.lastName,
           phone: data.phone,
-          role: 'technician',
+          role: 'contractor',
           businessName: data.businessName,
         });
 

@@ -48,7 +48,7 @@ export default function ContractorRegisterStep4() {
     console.log('Contractor registration hydrated - redirecting to dashboard for role:', user.role);
 
     // Explicit role-based redirect
-    if (user.role === 'technician') {
+    if (user.role === 'contractor') {
       router.replace('/(contractor)/dashboard');
     } else if (user.role === 'handyman') {
       router.replace('/(handyman)/dashboard');
