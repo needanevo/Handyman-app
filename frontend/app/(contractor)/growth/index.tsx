@@ -138,7 +138,7 @@ export default function GrowthCenter() {
           {/* LLC Card */}
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => router.push('/(handyman)/growth/llc')}
+            onPress={() => router.push('/(contractor)/growth/llc')}
           >
             <View style={styles.actionIcon}>
               <Ionicons name="briefcase" size={32} color="#FFA500" />
@@ -159,7 +159,7 @@ export default function GrowthCenter() {
           {/* License Card */}
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => router.push('/(handyman)/growth/license')}
+            onPress={() => router.push('/(contractor)/growth/license')}
           >
             <View style={styles.actionIcon}>
               <Ionicons name="ribbon" size={32} color="#FFA500" />
@@ -180,7 +180,7 @@ export default function GrowthCenter() {
           {/* Insurance Card */}
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => router.push('/(handyman)/growth/insurance')}
+            onPress={() => router.push('/(contractor)/growth/insurance')}
           >
             <View style={styles.actionIcon}>
               <Ionicons name="shield-checkmark" size={32} color="#FFA500" />

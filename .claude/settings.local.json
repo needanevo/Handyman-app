@@ -50,7 +50,10 @@
       "Bash(npx expo start:*)",
       "Bash(..venvScriptspython.exe -m py_compile main.py routers/auth.py models/*.py)",
       "Bash(taskkill:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(grep:*)",
+      "Bash(git restore:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

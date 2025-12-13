@@ -11,9 +11,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { quotesAPI } from '../src/services/api';
-import { LoadingSpinner } from '../src/components/LoadingSpinner';
-import { Button } from '../src/components/Button';
+import { quotesAPI } from '../../../src/services/api';
+import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
+import { Button } from '../../../src/components/Button';
 
 export default function QuotesScreen() {
   const router = useRouter();
@@ -76,7 +76,7 @@ export default function QuotesScreen() {
           <Ionicons name="arrow-back" size={24} color="#2C3E50" />
         </TouchableOpacity>
         <Text style={styles.title}>My Quotes</Text>
-        <TouchableOpacity onPress={() => router.push('/quote/request')} style={styles.addButton}>
+        <TouchableOpacity onPress={() => router.push('/(customer)/job-request/step0-address')} style={styles.addButton}>
           <Ionicons name="add" size={24} color="#FF6B35" />
         </TouchableOpacity>
       </View>
@@ -96,7 +96,7 @@ export default function QuotesScreen() {
                 <TouchableOpacity
                   key={quote.id || index}
                   style={styles.quoteCard}
-                  onPress={() => router.push(`/quotes/${quote.id}` as any)}
+                  onPress={() => router.push(`/(customer)/quotes/${quote.id}` as any)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.quoteHeader}>
@@ -146,7 +146,7 @@ export default function QuotesScreen() {
             </Text>
             <Button
               title="Request Quote"
-              onPress={() => router.push('/quote/request')}
+              onPress={() => router.push('/(customer)/job-request/step0-address')}
               size="large"
               icon={<Ionicons name="add-circle-outline" size={20} color="#fff" />}
             />

@@ -25,11 +25,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
-import { Card } from '../../src/components/Card';
-import { Button } from '../../src/components/Button';
-import { LoadingSpinner } from '../../src/components/LoadingSpinner';
-import { quotesAPI } from '../../src/services/api';
+import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
+import { Card } from '../../../src/components/Card';
+import { Button } from '../../../src/components/Button';
+import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
+import { quotesAPI } from '../../../src/services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -53,7 +53,7 @@ export default function QuoteDetailScreen() {
       Alert.alert(
         'Success',
         'Your quote request has been deleted.',
-        [{ text: 'OK', onPress: () => router.replace('/home') }]
+        [{ text: 'OK', onPress: () => router.back() }]
       );
     },
     onError: (error: any) => {
@@ -121,7 +121,7 @@ export default function QuoteDetailScreen() {
   const handleRequestAdditionalWork = () => {
     // Navigate to quote request with pre-filled address
     router.push({
-      pathname: '/quote/request',
+      pathname: '/(customer)/job-request/step0-address',
       params: {
         originalQuoteId: id,
         addressId: quote?.address_id || '',

@@ -219,7 +219,7 @@ export default function JobsListScreen() {
                 padding="base"
                 onPress={() => {
                   if (job.itemType === 'quote') {
-                    router.push(`/(customer)/quote-detail/${job.id}` as any);
+                    router.push(`/(customer)/quotes/${job.id}` as any);
                   } else {
                     router.push(`/(customer)/job-detail/${job.id}`);
                   }
