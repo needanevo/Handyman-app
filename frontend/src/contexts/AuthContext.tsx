@@ -182,6 +182,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userData = await authAPI.getCurrentUser();
       console.log('Raw user data from API:', userData);
 
+      // Validate required fields
+      if (!userData || !userData.id || !userData.email || !userData.role) {
+        console.error('Invalid user data from /auth/me - missing required fields:', userData);
+        throw new Error('Incomplete user data received from server');
+      }
+
+      // Validate role is one of the allowed roles
+      const validRoles = ['customer', 'technician', 'handyman', 'admin'];
+      if (!validRoles.includes(userData.role)) {
+        console.error('Invalid role received from /auth/me:', userData.role);
+        throw new Error(`Invalid user role: ${userData.role}`);
+      }
+
+      // Warning: Check for addresses (optional but recommended for customers)
+      if (userData.role === 'customer' && (!userData.addresses || userData.addresses.length === 0)) {
+        console.warn('Customer account has no addresses - this may cause issues with job requests');
+      }
+
       // Transform backend data (snake_case) to frontend format (camelCase)
       // ROLE-SAFE: Only include fields appropriate for the user's role
       const baseUser = {
@@ -239,12 +257,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     } catch (error: any) {
       console.error('Failed to refresh user:', error);
-      // Only logout on 401 (unauthorized) - not on 403 or other errors
+
+      // Handle different error types
       if (error.response?.status === 401) {
+        // Auth token invalid - logout and don't rethrow
         console.log('Auth token invalid (401), logging out');
         await logout();
+        return; // Graceful exit after logout
       }
-      throw error;
+
+      // If it's a validation error (our checks above), rethrow it
+      if (error.message?.includes('Incomplete user data') || error.message?.includes('Invalid user role')) {
+        console.error('Critical validation error - rethrowing');
+        throw error;
+      }
+
+      // For network errors or other API errors, log but don't crash
+      // This allows the app to continue functioning in degraded mode
+      if (error.response) {
+        console.error(`API error (${error.response.status}): Failed to fetch user data`);
+      } else if (error.request) {
+        console.error('Network error: Unable to reach server');
+      } else {
+        console.error('Unexpected error during user refresh:', error.message);
+      }
+
+      // Don't rethrow - let app continue with current state
+      // User will remain in their current auth state (logged in or logged out)
     }
   };
 

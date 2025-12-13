@@ -49,8 +49,8 @@ export default function LoginScreen() {
         console.log('Admin detected, redirecting to admin dashboard...');
         router.replace('/admin');
       } else {
-        console.log('Unknown role, redirecting to home...');
-        router.replace('/home');
+        console.log('Unknown role, redirecting to welcome...');
+        router.replace('/auth/welcome');
       }
     }
   }, [isAuthenticated, user, params.redirect]);
