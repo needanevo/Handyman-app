@@ -74,9 +74,22 @@ export default function ContractorRegisterStep4() {
       // Refresh user context to get updated portfolio
       await refreshUser();
 
-      // Fix 5.11: Signal registration completion, useEffect will handle redirect
-      console.log('Contractor portfolio setup complete - waiting for hydration');
-      setRegistrationComplete(true);
+      // Show address verification warning
+      Alert.alert(
+        'Registration Complete!',
+        'Your business address is not verified. You have 10 days to verify it before your registration is revoked.\n\nYou can start receiving jobs immediately, but address verification is required to maintain access.',
+        [
+          {
+            text: 'Got It',
+            onPress: () => {
+              // Fix 5.11: Signal registration completion, useEffect will handle redirect
+              console.log('Contractor portfolio setup complete - waiting for hydration');
+              setRegistrationComplete(true);
+            }
+          }
+        ],
+        { cancelable: false }
+      );
     } catch (error: any) {
       console.error('Failed to save portfolio:', error);
       Alert.alert(

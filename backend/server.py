@@ -167,6 +167,16 @@ async def register_user(user_data: UserCreate):
         # Generate user_id FIRST before creating the User object
         user_id = str(uuid.uuid4())
 
+        # Initialize verification tracking for providers
+        verification_fields = {}
+        if user_data.role in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+            now = datetime.utcnow()
+            verification_fields = {
+                "address_verification_status": "pending",
+                "address_verification_started_at": now,
+                "address_verification_deadline": now + timedelta(days=10)
+            }
+
         user = User(
             id=user_id,  # ← Explicitly set the ID
             email=user_data.email,
@@ -177,12 +187,19 @@ async def register_user(user_data: UserCreate):
             marketing_opt_in=user_data.marketingOptIn,
             business_name=user_data.businessName if user_data.businessName else None,
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
+            **verification_fields
         )
 
         user_doc = user.model_dump()
         user_doc["created_at"] = user_doc["created_at"].isoformat()
         user_doc["updated_at"] = user_doc["updated_at"].isoformat()
+
+        # Serialize verification datetime fields if present
+        if user_doc.get("address_verification_started_at"):
+            user_doc["address_verification_started_at"] = user_doc["address_verification_started_at"].isoformat()
+        if user_doc.get("address_verification_deadline"):
+            user_doc["address_verification_deadline"] = user_doc["address_verification_deadline"].isoformat()
 
         await db.users.insert_one(user_doc)
         await auth_handler.create_user_password(user_id, user_data.password)

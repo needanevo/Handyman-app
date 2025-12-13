@@ -130,6 +130,23 @@ export default function ContractorDashboard() {
     return num.toLocaleString('en-US');
   };
 
+  // Calculate days remaining for address verification
+  const getVerificationDaysRemaining = () => {
+    if (!user?.addressVerificationDeadline) return null;
+    const deadline = new Date(user.addressVerificationDeadline);
+    const now = new Date();
+    const diffTime = deadline.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const showVerificationBanner =
+    user?.addressVerificationStatus &&
+    user.addressVerificationStatus !== 'verified';
+
+  const daysRemaining = showVerificationBanner ? getVerificationDaysRemaining() : null;
+  const isUrgent = daysRemaining !== null && daysRemaining <= 3;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -139,6 +156,35 @@ export default function ContractorDashboard() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
+        {/* Address Verification Banner */}
+        {showVerificationBanner && daysRemaining !== null && (
+          <TouchableOpacity
+            style={[
+              styles.verificationBanner,
+              isUrgent && styles.verificationBannerUrgent
+            ]}
+            onPress={() => {
+              Alert.alert(
+                'Address Verification Required',
+                'Please verify your business address to maintain access to the platform. Contact support for assistance.',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
+            <Text style={styles.verificationIcon}>⚠️</Text>
+            <View style={styles.verificationContent}>
+              <Text style={[styles.verificationTitle, isUrgent && styles.verificationTitleUrgent]}>
+                Address Verification Required
+              </Text>
+              <Text style={[styles.verificationText, isUrgent && styles.verificationTextUrgent]}>
+                {daysRemaining > 0
+                  ? `${daysRemaining} day${daysRemaining > 1 ? 's' : ''} remaining to verify your business address`
+                  : 'Address verification deadline has passed'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
                 {/* Unlock Hint #1 */}
         {!growthCenterUnlocked && unlock1 && !unlock2 && (
           <View style={styles.unlockHint}>
@@ -728,5 +774,43 @@ const styles = StyleSheet.create({
   growthButtonIcon: {
     ...(typography.sizes.xl as any),
     color: colors.primary.main,
+  },
+  verificationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.warning.lightest,
+    borderColor: colors.warning.main,
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    gap: spacing.md,
+  },
+  verificationBannerUrgent: {
+    backgroundColor: colors.error.lightest,
+    borderColor: colors.error.main,
+  },
+  verificationIcon: {
+    fontSize: 28,
+  },
+  verificationContent: {
+    flex: 1,
+  },
+  verificationTitle: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.warning.dark,
+    marginBottom: spacing.xs / 2,
+  },
+  verificationTitleUrgent: {
+    color: colors.error.dark,
+  },
+  verificationText: {
+    ...typography.sizes.sm,
+    color: colors.warning.dark,
+    lineHeight: 18,
+  },
+  verificationTextUrgent: {
+    color: colors.error.dark,
   },
 });

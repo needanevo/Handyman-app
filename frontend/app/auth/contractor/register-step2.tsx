@@ -24,6 +24,7 @@ export default function ContractorRegisterStep2() {
   const params = useLocalSearchParams();
   const { user, refreshUser } = useAuth();
 
+  const [profilePhoto, setProfilePhoto] = useState<string[]>([]);
   const [driversLicense, setDriversLicense] = useState<string[]>([]);
   const [businessLicenses, setBusinessLicenses] = useState<string[]>([]);
   const [insurance, setInsurance] = useState<string[]>([]);
@@ -31,6 +32,9 @@ export default function ContractorRegisterStep2() {
 
   // Pre-fill existing documents when editing
   useEffect(() => {
+    if (user?.profilePhoto) {
+      setProfilePhoto([user.profilePhoto]);
+    }
     if (user?.documents) {
       if (user.documents.license) {
         setDriversLicense([user.documents.license]);
@@ -45,13 +49,21 @@ export default function ContractorRegisterStep2() {
   }, [user]);
 
   const onContinue = async () => {
+    if (profilePhoto.length === 0) {
+      Alert.alert('Required', 'Please take a profile photo to continue');
+      return;
+    }
+
     if (driversLicense.length === 0) {
       Alert.alert('Required', "Please upload your driver's license");
       return;
     }
 
-    try {
+    try{
       setIsLoading(true);
+
+      // Note: Profile photo is already saved via PhotoUploader customUpload
+      // which calls uploadProfilePhoto and updates user.profile_photo in DB
 
       // Save documents to database
       await contractorAPI.updateDocuments({
@@ -157,6 +169,20 @@ export default function ContractorRegisterStep2() {
 
           {/* Form */}
           <View style={styles.form}>
+            <PhotoUploader
+              photos={profilePhoto}
+              onPhotosChange={setProfilePhoto}
+              maxPhotos={1}
+              label="Profile Photo"
+              helpText="Take a clear photo of yourself (camera only)"
+              required
+              aspectRatio={[1, 1]}  // Square aspect ratio for profile photos
+              cameraOnly={true}
+              customUpload={(file) => contractorAPI.uploadProfilePhoto(file)}
+            />
+
+            <View style={styles.divider} />
+
             <PhotoUploader
               photos={driversLicense}
               onPhotosChange={setDriversLicense}

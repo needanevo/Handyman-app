@@ -72,6 +72,11 @@ class User(BaseModel):
     upgrade_to_technician_date: Optional[datetime] = None  # When handyman became licensed
     registration_completed_date: Optional[datetime] = None
     registration_status: Optional[str] = "ACTIVE"  # ACTIVE, PENDING, SUSPENDED
+
+    # Address verification tracking (for contractors/handymen)
+    address_verification_status: Optional[str] = "pending"  # "pending" | "verified" | "failed"
+    address_verification_started_at: Optional[datetime] = None
+    address_verification_deadline: Optional[datetime] = None
     
 class UserCreate(BaseModel):
     email: EmailStr

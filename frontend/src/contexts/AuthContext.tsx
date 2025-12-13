@@ -41,6 +41,10 @@ export interface User {
     paymentsReceived?: number;
   };
   tier?: 'beginner' | 'verified' | 'contractor' | 'master' | null;
+  // Address verification tracking
+  addressVerificationStatus?: 'pending' | 'verified' | 'failed';
+  addressVerificationStartedAt?: string;
+  addressVerificationDeadline?: string;
 }
 
 export interface Address {
@@ -240,6 +244,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         portfolioPhotos: userData.portfolio_photos,
         profilePhoto: userData.profile_photo,
         tier: (userData as any).tier ?? null,
+        // Address verification tracking
+        addressVerificationStatus: (userData as any).address_verification_status,
+        addressVerificationStartedAt: (userData as any).address_verification_started_at,
+        addressVerificationDeadline: (userData as any).address_verification_deadline,
       } : {
         ...baseUser,
         // Customer-only: No contractor fields included
