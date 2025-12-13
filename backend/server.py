@@ -28,6 +28,7 @@ from models import (
     Token,
     UserRole,
     Address,
+    EmbeddedAddress,
     Service,
     ServiceCreate,
     ServiceCategory,
