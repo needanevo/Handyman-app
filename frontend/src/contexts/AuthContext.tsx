@@ -40,6 +40,7 @@ export interface User {
     averageRating?: number;
     paymentsReceived?: number;
   };
+  tier?: 'beginner' | 'verified' | 'contractor' | 'master' | null;
 }
 
 export interface Address {
@@ -238,6 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } : undefined,
         portfolioPhotos: userData.portfolio_photos,
         profilePhoto: userData.profile_photo,
+        tier: (userData as any).tier ?? null,
       } : {
         ...baseUser,
         // Customer-only: No contractor fields included

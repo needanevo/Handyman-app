@@ -85,7 +85,11 @@ export default function JobHistory() {
         {/* Job History List */}
         <View style={styles.historyList}>
           {completedJobs && completedJobs.length > 0 ? completedJobs.map((job: any) => (
-            <View key={job.id} style={styles.historyCard}>
+            <TouchableOpacity
+              key={job.id}
+              style={styles.historyCard}
+              onPress={() => router.push(`/(handyman)/jobs/${job.id}` as any)}
+            >
               <View style={styles.historyHeader}>
                 <View style={styles.categoryBadge}>
                   <Text style={styles.categoryText}>{job.category}</Text>
@@ -118,7 +122,7 @@ export default function JobHistory() {
                 <Text style={styles.payoutLabel}>Payout</Text>
                 <Text style={styles.payoutAmount}>${job.payout}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           )) : (
             <View style={styles.emptyHistoryState}>
               <Ionicons name="time-outline" size={64} color={colors.neutral[400]} />

@@ -75,6 +75,16 @@ export default function HandymanDashboard() {
           <View>
             <Text style={styles.greeting}>Welcome back,</Text>
             <Text style={styles.userName}>{user?.firstName || 'Handyman'}</Text>
+            {user?.tier && (
+              <View style={styles.tierBadge}>
+                <Text style={styles.tierBadgeText}>
+                  {user.tier === 'beginner' && 'Beginner Handyman'}
+                  {user.tier === 'verified' && 'Verified Business Handyman'}
+                  {user.tier === 'contractor' && 'Licensed Contractor'}
+                  {user.tier === 'master' && 'Master Contractor'}
+                </Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity
             style={styles.profileButton}
@@ -325,6 +335,19 @@ const styles = StyleSheet.create({
     ...typography.sizes['2xl'],
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
+  },
+  tierBadge: {
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs / 2,
+    backgroundColor: '#FFA50020',
+    borderRadius: borderRadius.sm,
+    alignSelf: 'flex-start',
+  },
+  tierBadgeText: {
+    ...typography.sizes.xs,
+    color: '#FFA500',
+    fontWeight: typography.weights.semibold,
   },
   profileButton: {
     padding: spacing.xs,
