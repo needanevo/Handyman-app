@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -7,7 +7,7 @@ import uuid
 class UserRole(str, Enum):
     CUSTOMER = "customer"
     HANDYMAN = "handyman"  # Unlicensed, starting business
-    TECHNICIAN = "technician"  # Licensed contractor
+    CONTRACTOR = "contractor"  # Licensed contractor (formerly "technician")
     ADMIN = "admin"
 
 class Address(BaseModel):
@@ -82,6 +82,14 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.CUSTOMER
     marketingOptIn: bool = False
     businessName: Optional[str] = None  # For contractors
+
+    @field_validator('role', mode='before')
+    @classmethod
+    def normalize_role(cls, v):
+        """Normalize legacy 'technician' to 'contractor' for backward compatibility"""
+        if isinstance(v, str) and v.lower() == "technician":
+            return "contractor"
+        return v
 
 class UserLogin(BaseModel):
     email: EmailStr

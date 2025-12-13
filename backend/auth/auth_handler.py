@@ -208,7 +208,11 @@ def require_admin():
     return require_role(UserRole.ADMIN)
 
 def require_technician_or_admin():
-    return require_role(UserRole.TECHNICIAN, UserRole.ADMIN)
+    """Legacy function name for backward compatibility. Use require_contractor_or_admin() instead."""
+    return require_role(UserRole.CONTRACTOR, UserRole.ADMIN)
+
+def require_contractor_or_admin():
+    return require_role(UserRole.CONTRACTOR, UserRole.ADMIN)
 
 def require_customer_or_admin():
     return require_role(UserRole.CUSTOMER, UserRole.ADMIN)

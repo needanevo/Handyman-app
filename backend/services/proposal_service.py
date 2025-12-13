@@ -51,7 +51,7 @@ class ProposalService:
             ProposalError: If validation fails
         """
         # Validate contractor role
-        if contractor_role not in [UserRole.HANDYMAN, UserRole.TECHNICIAN]:
+        if contractor_role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
             raise ProposalError("Only handymen and contractors can submit proposals")
 
         # Get job and validate it's published

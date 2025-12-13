@@ -1350,7 +1350,7 @@ async def get_job(
 
     # Check authorization
     if (current_user.role == UserRole.CUSTOMER and job["customer_id"] != current_user.id) or \
-       (current_user.role == UserRole.TECHNICIAN and job.get("contractor_id") != current_user.id):
+       (current_user.role == UserRole.CONTRACTOR and job.get("contractor_id") != current_user.id):
         raise HTTPException(403, detail="Not authorized to view this job")
 
     return Job(**job)
@@ -1367,7 +1367,7 @@ async def list_jobs(
     # Filter by user role
     if current_user.role == UserRole.CUSTOMER:
         query["customer_id"] = current_user.id
-    elif current_user.role == UserRole.TECHNICIAN:
+    elif current_user.role == UserRole.CONTRACTOR:
         query["contractor_id"] = current_user.id
     # Admins see all jobs
 
@@ -1419,7 +1419,7 @@ async def update_job(
     if current_user.role == UserRole.CUSTOMER:
         raise HTTPException(403, detail="Customers cannot update jobs")
 
-    if current_user.role == UserRole.TECHNICIAN and job.get("contractor_id") != current_user.id:
+    if current_user.role == UserRole.CONTRACTOR and job.get("contractor_id") != current_user.id:
         raise HTTPException(403, detail="Not authorized to update this job")
 
     # Build update dict (only include non-None fields)
@@ -1447,7 +1447,7 @@ async def get_contractor_dashboard_stats(
     Returns job counts, revenue, expenses, and mileage data.
     """
     # Only contractors can access this endpoint
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access dashboard stats")
 
     # Get current month start and end dates
@@ -1625,7 +1625,7 @@ async def get_available_jobs(
     and are within 50 miles of contractor's business address.
     """
     # Only contractors can access this endpoint
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access available jobs")
 
     # Get contractor's business address
@@ -1942,7 +1942,7 @@ async def update_contractor_documents(
         "insurance": "https://..."  # Insurance certificate (single URL)
     }
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can update documents")
 
     # Validate document URLs
@@ -1985,7 +1985,7 @@ async def update_contractor_portfolio(
         "portfolio_photos": ["https://...", "https://...", ...]
     }
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can update portfolio")
 
     # Validate photo URLs
@@ -2029,7 +2029,7 @@ async def update_contractor_profile(
         "business_name": "John's Handyman Services"
     }
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can update profile")
 
     # Build update dict with only provided fields
@@ -2071,7 +2071,7 @@ async def upload_contractor_document(
     Upload contractor document (license, insurance, business license)
     Saves to: contractors/{contractor_id}/profile/{document_type}_{filename}
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload documents")
 
     try:
@@ -2126,7 +2126,7 @@ async def upload_contractor_portfolio_photo(
     Upload contractor portfolio photo
     Saves to: contractors/{contractor_id}/portfolio/{filename}
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload portfolio photos")
 
     try:
@@ -2174,7 +2174,7 @@ async def upload_contractor_profile_photo(
     Saves to: contractors/{contractor_id}/profile/profile_{uuid}.{ext}
     Updates user.profile_photo field in database
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload profile photos")
 
     try:
@@ -2231,7 +2231,7 @@ async def upload_contractor_job_photo(
     Upload contractor job photo (progress, completion, etc.)
     Saves to: contractors/{contractor_id}/jobs/{job_id}/{filename}
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload job photos")
 
     try:
@@ -2283,7 +2283,7 @@ async def get_contractor_expenses(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get all expenses for the contractor, optionally filtered by job_id."""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access expenses")
 
     query = {"contractor_id": current_user.id}
@@ -2305,7 +2305,7 @@ async def create_expense(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Create a new expense for the contractor."""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can create expenses")
 
     # Create expense document
@@ -2338,7 +2338,7 @@ async def delete_expense(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Delete an expense."""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can delete expenses")
 
     result = await db.expenses.delete_one({
@@ -2359,7 +2359,7 @@ async def upload_expense_receipt(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Upload receipt photo for an expense"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload receipts")
 
     # Verify expense belongs to this contractor
@@ -2417,7 +2417,7 @@ async def get_accepted_contractor_jobs(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get jobs accepted by this contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     jobs = await db.jobs.find({
@@ -2435,7 +2435,7 @@ async def get_scheduled_contractor_jobs(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get scheduled jobs for this contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     jobs = await db.jobs.find({
@@ -2455,7 +2455,7 @@ async def get_completed_contractor_jobs(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get completed jobs for this contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     query = {
@@ -2479,7 +2479,7 @@ async def get_contractor_job(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get specific job details for contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
@@ -2496,7 +2496,7 @@ async def accept_contractor_job(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Accept/claim a job"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can accept jobs")
 
     # Find the job
@@ -2534,7 +2534,7 @@ async def update_contractor_job_status(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Update job status"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can update job status")
 
     # Verify job belongs to this contractor
@@ -2583,7 +2583,7 @@ async def create_contractor_job_photo(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Upload a photo for a job with metadata"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload job photos")
 
     # Verify job belongs to this contractor
@@ -2647,7 +2647,7 @@ async def get_contractor_job_photos(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get photos for a job"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access job photos")
 
     # Verify job belongs to this contractor
@@ -2673,7 +2673,7 @@ async def delete_contractor_job_photo(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Delete a job photo"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can delete job photos")
 
     result = await db.job_photos.delete_one({
@@ -2696,7 +2696,7 @@ async def update_contractor_job_photo(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Update photo caption/notes"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can update job photos")
 
     # Verify photo exists and belongs to this contractor
@@ -2736,7 +2736,7 @@ async def get_contractor_mileage_logs(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get mileage logs for contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access mileage logs")
 
     query = {"contractor_id": current_user.id}
@@ -2760,7 +2760,7 @@ async def create_mileage_log(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Create a new mileage log"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can create mileage logs")
 
     log_doc = {
@@ -2791,7 +2791,7 @@ async def delete_mileage_log(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Delete a mileage log"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can delete mileage logs")
 
     result = await db.mileage_logs.delete_one({
@@ -2815,7 +2815,7 @@ async def start_time_log(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Start time tracking for a job"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can start time logs")
 
     # Verify job belongs to this contractor
@@ -2860,7 +2860,7 @@ async def stop_time_log(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Stop time tracking for a job"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can stop time logs")
 
     # Find the active time log
@@ -2906,7 +2906,7 @@ async def get_time_logs(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get all time logs for a job"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access time logs")
 
     # Verify job belongs to this contractor
@@ -2934,7 +2934,7 @@ async def get_monthly_report(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get monthly report for contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access reports")
 
     # Query jobs for the month
@@ -3000,7 +3000,7 @@ async def get_yearly_report(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get yearly report for contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access reports")
 
     start_date = f"{year}-01-01"
@@ -3078,7 +3078,7 @@ async def get_tax_report(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get tax report for contractor (for informational purposes only)"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access reports")
 
     # Get completed jobs
@@ -3139,7 +3139,7 @@ async def export_tax_report_pdf(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Export tax report as PDF (stub - returns JSON for now)"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access reports")
 
     # For now, return the same data as the JSON endpoint
@@ -3210,7 +3210,7 @@ async def approve_warranty_request(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Approve a warranty request (contractor or admin only)"""
-    if current_user.role not in [UserRole.TECHNICIAN, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.ADMIN]:
         raise HTTPException(403, detail="Only contractors or admins can approve warranties")
 
     # Find warranty request
@@ -3219,7 +3219,7 @@ async def approve_warranty_request(
         raise HTTPException(404, detail="Warranty request not found")
 
     # If contractor, verify it's their job
-    if current_user.role == UserRole.TECHNICIAN:
+    if current_user.role == UserRole.CONTRACTOR:
         if warranty.get("contractor_id") != current_user.id:
             raise HTTPException(403, detail="Not your job")
 
@@ -3256,7 +3256,7 @@ async def deny_warranty_request(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Deny a warranty request (contractor or admin only)"""
-    if current_user.role not in [UserRole.TECHNICIAN, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.ADMIN]:
         raise HTTPException(403, detail="Only contractors or admins can deny warranties")
 
     # Find warranty request
@@ -3265,7 +3265,7 @@ async def deny_warranty_request(
         raise HTTPException(404, detail="Warranty request not found")
 
     # If contractor, verify it's their job
-    if current_user.role == UserRole.TECHNICIAN:
+    if current_user.role == UserRole.CONTRACTOR:
         if warranty.get("contractor_id") != current_user.id:
             raise HTTPException(403, detail="Not your job")
 
@@ -3333,7 +3333,7 @@ async def create_change_order(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Create a change order for a job (contractor only)"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can create change orders")
 
     # Verify job exists and belongs to this contractor
@@ -3607,7 +3607,7 @@ async def admin_get_system_stats(
     # Count users by role
     total_users = await db.users.count_documents({})
     customers = await db.users.count_documents({"role": UserRole.CUSTOMER})
-    contractors = await db.users.count_documents({"role": UserRole.TECHNICIAN})
+    contractors = await db.users.count_documents({"role": UserRole.CONTRACTOR})
 
     # Count jobs by status
     total_jobs = await db.jobs.count_documents({})
@@ -3787,7 +3787,7 @@ async def update_job_status(
     if current_user.role == UserRole.CUSTOMER:
         if job.customer_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not your job")
-    elif current_user.role in [UserRole.HANDYMAN, UserRole.TECHNICIAN]:
+    elif current_user.role in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
         if job.assigned_contractor_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not assigned to you")
 

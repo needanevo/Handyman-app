@@ -7,7 +7,7 @@ Usage:
 This script will create:
 - Email: contractor@test.com
 - Password: TestContractor123!
-- Role: TECHNICIAN
+- Role: CONTRACTOR
 - Status: Active with complete registration
 """
 
@@ -37,7 +37,7 @@ TEST_CONTRACTOR = {
     'first_name': 'John',
     'last_name': 'Contractor',
     'phone': '555-0123',
-    'role': 'technician',  # Must be lowercase to match UserRole enum
+    'role': 'contractor',  # Must be lowercase to match UserRole enum
     'business_name': "John's Handyman Services",
     'skills': ['Drywall', 'Painting', 'Electrical', 'Plumbing', 'Carpentry'],
     'service_areas': ['21201', '21202', '21203', '21224', '21231'],
