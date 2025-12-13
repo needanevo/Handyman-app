@@ -82,15 +82,22 @@ export default function ContractorRegisterStep1() {
 
         // Register the user immediately with basic info
         // The register function from AuthContext handles token storage and user fetch
-        await register({
+        const registrationPayload = {
           email: data.email,
           password: data.password,
           firstName: data.firstName,
           lastName: data.lastName,
           phone: data.phone,
-          role: 'contractor',
-          businessName: data.businessName,
-        });
+          role: 'contractor' as const,
+          marketingOptIn: false,
+          businessName: data.businessName || undefined,
+        };
+
+        console.log('=== CONTRACTOR REGISTRATION PAYLOAD ===');
+        console.log(JSON.stringify(registrationPayload, null, 2));
+        console.log('=======================================');
+
+        await register(registrationPayload);
 
         // Navigate to next step (now authenticated for photo uploads)
         router.push({
