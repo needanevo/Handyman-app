@@ -7,8 +7,8 @@ export function isHandymanOnboardingComplete(user: User | null): boolean {
   if (!user || user.role !== 'handyman') return false;
 
   // Check if required fields are present
-  const hasSkills = user.skills && user.skills.length > 0;
-  const hasAddress = user.addresses && user.addresses.length > 0;
+  const hasSkills = !!(user.skills && user.skills.length > 0);
+  const hasAddress = !!(user.addresses && user.addresses.length > 0);
   const hasExperience = user.yearsExperience !== undefined && user.yearsExperience !== null;
   const hasIntent = user.providerIntent !== undefined && user.providerIntent !== null;
 
@@ -23,9 +23,9 @@ export function isContractorOnboardingComplete(user: User | null): boolean {
 
   // Check if required fields are present
   const hasBusinessName = !!user.businessName;
-  const hasDocuments = user.documents && (user.documents.license || user.documents.businessLicense);
-  const hasSkills = user.skills && user.skills.length > 0;
-  const hasAddress = user.addresses && user.addresses.length > 0;
+  const hasDocuments = !!(user.documents && (user.documents.license || user.documents.businessLicense));
+  const hasSkills = !!(user.skills && user.skills.length > 0);
+  const hasAddress = !!(user.addresses && user.addresses.length > 0);
   const hasExperience = user.yearsExperience !== undefined && user.yearsExperience !== null;
   const hasIntent = user.providerIntent !== undefined && user.providerIntent !== null;
 
