@@ -93,7 +93,7 @@ export default function ContractorRegisterStep3() {
     defaultValues: {
       skills: initialSelectedSkills,
       specialties: user?.specialties || [],
-      yearsExperience: user?.yearsExperience?.toString() || '',
+      yearsExperience: (user?.yearsExperience !== undefined && user?.yearsExperience !== null) ? String(user.yearsExperience) : '',
       businessStreet: user?.addresses?.[0]?.street || '',
       businessCity: user?.addresses?.[0]?.city || '',
       businessState: user?.addresses?.[0]?.state || '',
@@ -140,8 +140,8 @@ export default function ContractorRegisterStep3() {
   }, [user?.addresses, setValue]);
 
   React.useEffect(() => {
-    if (user?.yearsExperience !== undefined) {
-      setValue('yearsExperience', user.yearsExperience.toString());
+    if (user?.yearsExperience !== undefined && user.yearsExperience !== null) {
+      setValue('yearsExperience', String(user.yearsExperience));
     }
   }, [user?.yearsExperience, setValue]);
 
