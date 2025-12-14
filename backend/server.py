@@ -20,6 +20,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta, date
 import uuid
 from utils.provider_completeness import compute_provider_completeness
+from utils.provider_status import compute_new_status
 
 # Import models
 from models import (
@@ -2096,14 +2097,32 @@ async def update_contractor_profile(
         {"$set": update_fields}
     )
 
-    # Recompute provider_completeness after update
+    # Recompute provider_completeness and provider_status after update
     updated_user = await db.users.find_one({"id": current_user.id})
     if updated_user:
+        # Compute new completeness
         completeness = compute_provider_completeness(updated_user)
+
+        # Compute new status based on completeness and other factors
+        new_status = compute_new_status(
+            current_status=updated_user.get("provider_status", "draft"),
+            completeness=completeness,
+            address_verification_status=updated_user.get("address_verification_status", "pending"),
+            address_verification_deadline=updated_user.get("address_verification_deadline")
+        )
+
+        # Update both completeness and status
         await db.users.update_one(
             {"id": current_user.id},
-            {"$set": {"provider_completeness": completeness}}
+            {"$set": {
+                "provider_completeness": completeness,
+                "provider_status": new_status
+            }}
         )
+
+        # Log status transitions
+        if new_status != updated_user.get("provider_status"):
+            logger.info(f"Provider status transition for {current_user.id}: {updated_user.get('provider_status')} → {new_status}")
 
     if result.modified_count > 0:
         logger.info(f"Updated profile for contractor {current_user.id}: {list(update_fields.keys())}")
