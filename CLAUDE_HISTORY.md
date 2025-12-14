@@ -2314,3 +2314,103 @@ Failed to verify route existence before claiming fix was complete. Should have t
 
 **Commit:** 6e02f6b
 **Branch:** dev
+
+────────────────────────────────────────
+
+## [2025-12-14 15:45] PHASE 5B-2 COMPLETE — Provider Completeness, Status Gating & Trust System
+
+**Summary:**
+Implemented provider completeness computation, automated status transitions, address verification deadline enforcement, job acceptance gating, dashboard trust banners, and inactivity auto-cleanup. This phase establishes the trust and verification layer for provider profiles.
+
+**Files Modified:**
+- `backend/utils/provider_completeness.py` (created)
+- `backend/utils/provider_status.py` (created)
+- `backend/utils/provider_cleanup.py` (created)
+- `backend/server.py`
+- `frontend/src/components/TrustBanner.tsx` (created)
+- `frontend/src/utils/onboardingState.ts`
+- `frontend/app/(handyman)/dashboard.tsx`
+- `frontend/app/(contractor)/dashboard.tsx`
+
+**Changes:**
+
+**Task 1 — Provider Completeness Computation (Commit: 49cafb1):**
+- Created `backend/utils/provider_completeness.py` with role-specific scoring
+- Handyman scoring: basic info (20%), skills (25%), address (20%), experience (15%), intent (10%), type (10%)
+- Contractor scoring: basic info (15%), business name (10%), documents (25%), skills (15%), address (15%), experience (10%), intent (5%), type (5%)
+- Integrated into `/contractors/profile` endpoint to recompute on profile updates
+- Integrated into `/auth/me` endpoint to compute fresh completeness on every call
+- Returns `provider_completeness` as integer 0-100%
+
+**Task 2 — Provider Status Transitions (Commit: b55d919):**
+- Created `backend/utils/provider_status.py` with transition logic
+- Implements draft → active (80% threshold), active → restricted, restricted → active transitions
+- `should_transition_to_active()`: Checks 80% completeness requirement
+- `should_transition_to_restricted()`: Checks deadline exceeded or violations
+- `should_transition_to_active_from_restricted()`: Checks violation resolution
+- `compute_new_status()`: Main transition logic using current state and completeness
+- Integrated into profile update endpoint to auto-transition on profile changes
+
+**Task 3 — Address Verification Deadline Enforcement (Commit: 57f6284):**
+- Updated `/auth/me` endpoint to check deadline and auto-update status
+- Updated login endpoint to check deadline on authentication
+- Status transitions to "restricted" when deadline exceeded
+- Deadline comparison uses `datetime.fromisoformat()` with UTC comparison
+- Enforced on every auth check for real-time deadline enforcement
+
+**Task 4 — Gate Job Acceptance (Commit: 69c320d):**
+- Added `provider_status` guards to `/contractor/jobs/{job_id}/accept` endpoint
+- Added guards to `/jobs/{job_id}/proposals` endpoint
+- Returns 403 with structured error containing:
+  - `error`: "Provider not active"
+  - `provider_status`: current status value
+  - `message`: User-friendly explanation
+- Only providers with status="active" can accept jobs or submit proposals
+
+**Task 5 — Dashboard Trust Banners (Commit: 5033802):**
+- Created `frontend/src/components/TrustBanner.tsx` component
+- Three banner variants:
+  - **Draft**: Orange warning banner with completeness % and "Resume Setup" action
+  - **Restricted**: Red error banner with verification deadline warning and "Verify Address" action
+  - **Submitted**: Blue info banner with "Verification Pending" status (no action)
+- No banner shown when status = "active"
+- Integrated into handyman dashboard (app/(handyman)/dashboard.tsx)
+- Integrated into contractor dashboard (app/(contractor)/dashboard.tsx)
+- Banners link to appropriate onboarding steps or profile sections
+
+**Task 6 — Inactivity Auto-Cleanup (Commit: 6cfbe1d):**
+- Created `backend/utils/provider_cleanup.py` with non-destructive cleanup
+- `cleanup_inactive_providers()`: Marks providers restricted for 30+ days as inactive
+- Uses 30-day threshold (INACTIVITY_THRESHOLD_DAYS = 30)
+- Non-destructive: Only updates `is_active` flag, adds `inactivity_reason` and `marked_inactive_at`
+- Returns detailed statistics: candidates_found, marked_inactive, threshold_days, details
+- `restore_provider_activity()`: Recovery function to undo cleanup
+- Restores `is_active=True` and removes inactivity fields
+- Query uses `provider_status_changed_at` or falls back to `updated_at`
+- Detailed logging for audit trail
+
+**Task 6 Bonus Fix — TypeScript Boolean Type Errors:**
+- Fixed TypeScript errors in `frontend/src/utils/onboardingState.ts`
+- Added `!!` coercion to `hasSkills`, `hasAddress`, `hasDocuments` checks (lines 10-11, 26-28)
+- Prevents "Type 'boolean | undefined' is not assignable to type 'boolean'" errors
+- Ensures all boolean checks return explicit `true` or `false` values
+
+**Impact:**
+✅ Provider completeness auto-computed on profile updates and auth checks
+✅ Automated status transitions (draft→active at 80%, active→restricted on violations)
+✅ Address verification deadline enforced in real-time on login and /auth/me
+✅ Job acceptance blocked for non-active providers (restricted, draft, submitted)
+✅ Trust banners guide providers through onboarding and verification
+✅ Inactivity cleanup marks long-term restricted providers inactive (non-destructive)
+✅ Recovery function available to restore provider activity
+✅ TypeScript compilation passes with no errors
+
+**Commits:**
+- 49cafb1 - Task 1: Provider Completeness Computation
+- b55d919 - Task 2: Provider Status Transitions
+- 57f6284 - Task 3: Address Verification Deadline
+- 69c320d - Task 4: Gate Job Acceptance
+- 5033802 - Task 5: Dashboard Trust Banners
+- 6cfbe1d - Task 6: Inactivity Auto-Cleanup + TS fixes
+
+**Branch:** dev2
