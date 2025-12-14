@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta, date
 import uuid
+from utils.provider_completeness import compute_provider_completeness
 
 # Import models
 from models import (
@@ -297,6 +298,11 @@ async def get_current_user_info(
     """
     try:
         user_dict = current_user.model_dump()
+
+        # Compute fresh provider_completeness for providers
+        if current_user.role in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
+            completeness = compute_provider_completeness(user_dict)
+            user_dict['provider_completeness'] = completeness
 
         # Define contractor/handyman-specific fields to filter
         contractor_fields = [
@@ -2089,6 +2095,15 @@ async def update_contractor_profile(
         {"id": current_user.id},
         {"$set": update_fields}
     )
+
+    # Recompute provider_completeness after update
+    updated_user = await db.users.find_one({"id": current_user.id})
+    if updated_user:
+        completeness = compute_provider_completeness(updated_user)
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"provider_completeness": completeness}}
+        )
 
     if result.modified_count > 0:
         logger.info(f"Updated profile for contractor {current_user.id}: {list(update_fields.keys())}")
