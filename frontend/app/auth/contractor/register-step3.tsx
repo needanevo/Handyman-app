@@ -45,6 +45,12 @@ const SPECIALTY_CATEGORIES = [
   'Emergency Services',
 ];
 
+const PROVIDER_INTENTS = [
+  { value: 'not_hiring', label: 'Working Solo', description: 'I work alone and handle jobs myself' },
+  { value: 'hiring', label: 'Building a Team', description: 'I\'m hiring or plan to hire helpers' },
+  { value: 'mentoring', label: 'Mentoring Others', description: 'I teach and mentor new contractors' },
+];
+
 interface Step3Form {
   skills: string[];
   specialties: string[];
@@ -74,6 +80,7 @@ export default function ContractorRegisterStep3() {
 
   const [selectedSkills, setSelectedSkills] = useState<string[]>(initialSelectedSkills);
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(user?.specialties || []);
+  const [selectedIntent, setSelectedIntent] = useState<string>(user?.providerIntent || 'not_hiring');
   const [verifiedAddress, setVerifiedAddress] = useState<AddressComponents | null>(null);
 
   const {
@@ -164,11 +171,12 @@ export default function ContractorRegisterStep3() {
         addressSaved = true;
         console.log('✅ Address saved successfully');
 
-        // Step 2: Save contractor profile (skills, specialties, experience, business name)
+        // Step 2: Save contractor profile (skills, specialties, experience, business name, provider intent)
         await contractorAPI.updateProfile({
           skills: allSkills,
           specialties: selectedSpecialties,
           years_experience: parseInt(data.yearsExperience) || 0,
+          provider_intent: selectedIntent,
           ...(businessName && { business_name: businessName }),
         });
         profileSaved = true;
@@ -378,6 +386,37 @@ export default function ContractorRegisterStep3() {
                   {selectedSpecialties.includes(specialty) && (
                     <Ionicons name="checkmark-circle" size={18} color={colors.primary.main} />
                   )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Provider Intent */}
+            <Text style={styles.label}>Business Intent</Text>
+            <Text style={styles.helpText}>Tell us about your business goals</Text>
+            <View style={styles.intentGrid}>
+              {PROVIDER_INTENTS.map((intent) => (
+                <TouchableOpacity
+                  key={intent.value}
+                  style={[
+                    styles.intentCard,
+                    selectedIntent === intent.value && styles.intentCardSelected,
+                  ]}
+                  onPress={() => setSelectedIntent(intent.value)}
+                >
+                  <View style={styles.intentHeader}>
+                    <Text
+                      style={[
+                        styles.intentLabel,
+                        selectedIntent === intent.value && styles.intentLabelSelected,
+                      ]}
+                    >
+                      {intent.label}
+                    </Text>
+                    {selectedIntent === intent.value && (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.primary.main} />
+                    )}
+                  </View>
+                  <Text style={styles.intentDescription}>{intent.description}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -592,6 +631,40 @@ const styles = StyleSheet.create({
   },
   halfWidth: {
     flex: 1,
+  },
+  intentGrid: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  intentCard: {
+    padding: spacing.base,
+    backgroundColor: colors.background.secondary,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.neutral[200],
+  },
+  intentCardSelected: {
+    backgroundColor: colors.primary.lightest,
+    borderColor: colors.primary.main,
+  },
+  intentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  intentLabel: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
+  },
+  intentLabelSelected: {
+    color: colors.primary.main,
+  },
+  intentDescription: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    lineHeight: 20,
   },
   actions: {
     gap: spacing.md,

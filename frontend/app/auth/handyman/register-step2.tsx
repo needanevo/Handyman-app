@@ -32,10 +32,17 @@ const serviceCategories = [
   'Windows & Doors', 'Other',
 ];
 
+const PROVIDER_INTENTS = [
+  { value: 'not_hiring', label: 'Working Solo', description: 'I work alone and handle jobs myself' },
+  { value: 'hiring', label: 'Building a Team', description: 'I\'m hiring or plan to hire helpers' },
+  { value: 'mentoring', label: 'Mentoring Others', description: 'I teach and mentor new handymen' },
+];
+
 export default function HandymanRegisterStep2() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedIntent, setSelectedIntent] = useState<string>('not_hiring');
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -64,6 +71,7 @@ export default function HandymanRegisterStep2() {
       await contractorAPI.updateProfile({
         skills: selectedSkills,
         years_experience: parseInt(data.yearsExperience),
+        provider_intent: selectedIntent,
         business_address: {
           street: data.businessAddress,
           city: data.city,
@@ -169,6 +177,38 @@ export default function HandymanRegisterStep2() {
                 />
               )}
             />
+
+            <Text style={styles.sectionLabel}>Business Intent</Text>
+            <Text style={styles.sectionHelp}>
+              Tell us about your business goals
+            </Text>
+            <View style={styles.intentGrid}>
+              {PROVIDER_INTENTS.map((intent) => (
+                <TouchableOpacity
+                  key={intent.value}
+                  style={[
+                    styles.intentCard,
+                    selectedIntent === intent.value && styles.intentCardSelected,
+                  ]}
+                  onPress={() => setSelectedIntent(intent.value)}
+                >
+                  <View style={styles.intentHeader}>
+                    <Text
+                      style={[
+                        styles.intentLabel,
+                        selectedIntent === intent.value && styles.intentLabelSelected,
+                      ]}
+                    >
+                      {intent.label}
+                    </Text>
+                    {selectedIntent === intent.value && (
+                      <Ionicons name="checkmark-circle" size={20} color="#FFA500" />
+                    )}
+                  </View>
+                  <Text style={styles.intentDescription}>{intent.description}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <Text style={styles.sectionLabel}>Business Address</Text>
             <Text style={styles.sectionHelp}>
@@ -381,6 +421,40 @@ const styles = StyleSheet.create({
   skillChipTextSelected: {
     color: '#FFA500',
     fontWeight: typography.weights.semibold,
+  },
+  intentGrid: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  intentCard: {
+    padding: spacing.base,
+    backgroundColor: colors.background.secondary,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.neutral[200],
+  },
+  intentCardSelected: {
+    backgroundColor: '#FFA50020',
+    borderColor: '#FFA500',
+  },
+  intentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  intentLabel: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
+  },
+  intentLabelSelected: {
+    color: '#FFA500',
+  },
+  intentDescription: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    lineHeight: 20,
   },
   formSection: {
     gap: spacing.base,

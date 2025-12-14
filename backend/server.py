@@ -2062,6 +2062,8 @@ async def update_contractor_profile(
         update_fields["years_experience"] = profile_data["years_experience"]
     if "business_name" in profile_data:
         update_fields["business_name"] = profile_data["business_name"]
+    if "provider_intent" in profile_data:
+        update_fields["provider_intent"] = profile_data["provider_intent"]
 
     # Handle business_address by adding to addresses array
     if "business_address" in profile_data:

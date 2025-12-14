@@ -409,6 +409,7 @@ export const contractorAPI = {
     specialties?: string[];
     years_experience?: number;
     business_name?: string;
+    provider_intent?: string;
   }) => apiClient.patch<any>('/contractors/profile', profile_data),
 
   // Contractor photo uploads (new proper folder structure)
