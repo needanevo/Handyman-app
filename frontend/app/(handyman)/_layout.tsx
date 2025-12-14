@@ -9,6 +9,7 @@ import React, { useEffect } from 'react';
 import { Slot, useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { LoadingSpinner } from '../../src/components';
+import { getHandymanOnboardingStep } from '../../src/utils/onboardingState';
 
 export default function HandymanLayout() {
   const { user, isHydrated, isAuthenticated } = useAuth();
@@ -46,6 +47,14 @@ export default function HandymanLayout() {
     // If role is not handyman, redirect to welcome
     if (user?.role !== 'handyman') {
       router.replace('/auth/welcome');
+      return;
+    }
+
+    // Onboarding guard: Check if onboarding is incomplete
+    const nextStep = getHandymanOnboardingStep(user);
+    if (nextStep && user.providerStatus === 'draft') {
+      // Redirect to next incomplete step
+      router.replace(nextStep as any);
       return;
     }
   }, [user, isHydrated, isAuthenticated, router]);

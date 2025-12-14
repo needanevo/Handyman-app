@@ -9,6 +9,7 @@ import React, { useEffect } from 'react';
 import { Slot, useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { LoadingSpinner } from '../../src/components';
+import { getContractorOnboardingStep } from '../../src/utils/onboardingState';
 
 export default function ContractorLayout() {
   const { user, isHydrated, isAuthenticated } = useAuth();
@@ -46,6 +47,14 @@ export default function ContractorLayout() {
     // If role is not contractor, redirect to welcome
     if (user?.role !== 'contractor') {
       router.replace('/auth/welcome');
+      return;
+    }
+
+    // Onboarding guard: Check if onboarding is incomplete
+    const nextStep = getContractorOnboardingStep(user);
+    if (nextStep && user.providerStatus === 'draft') {
+      // Redirect to next incomplete step
+      router.replace(nextStep as any);
       return;
     }
   }, [user, isHydrated, isAuthenticated, router]);
