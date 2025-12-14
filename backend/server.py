@@ -233,6 +233,24 @@ async def login_user(login_data: UserLogin):
         if not user:
             raise HTTPException(401, detail="That email or password didn't match. Please try again or use Forgot Password.")
 
+        # Check and update provider status on login (deadline enforcement)
+        if user.role in ["handyman", "contractor"]:
+            user_dict = user.model_dump()
+            completeness = compute_provider_completeness(user_dict)
+            new_status = compute_new_status(
+                current_status=user_dict.get("provider_status", "draft"),
+                completeness=completeness,
+                address_verification_status=user_dict.get("address_verification_status", "pending"),
+                address_verification_deadline=user_dict.get("address_verification_deadline")
+            )
+
+            # Update status if changed
+            if new_status != user_dict.get("provider_status"):
+                await db.users.update_one(
+                    {"id": user.id},
+                    {"$set": {"provider_status": new_status}}
+                )
+                logger.info(f"Provider status updated on login for {user.id}: {user_dict.get('provider_status')} → {new_status}")
 
         access_token = auth_handler.create_access_token(
             data={"user_id": user.id, "email": user.email, "role": user.role}
@@ -300,10 +318,27 @@ async def get_current_user_info(
     try:
         user_dict = current_user.model_dump()
 
-        # Compute fresh provider_completeness for providers
+        # Compute fresh provider_completeness and check status for providers
         if current_user.role in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
             completeness = compute_provider_completeness(user_dict)
             user_dict['provider_completeness'] = completeness
+
+            # Check and update provider_status (including deadline enforcement)
+            new_status = compute_new_status(
+                current_status=user_dict.get("provider_status", "draft"),
+                completeness=completeness,
+                address_verification_status=user_dict.get("address_verification_status", "pending"),
+                address_verification_deadline=user_dict.get("address_verification_deadline")
+            )
+
+            # If status changed, update in database and return dict
+            if new_status != user_dict.get("provider_status"):
+                await db.users.update_one(
+                    {"id": current_user.id},
+                    {"$set": {"provider_status": new_status}}
+                )
+                user_dict['provider_status'] = new_status
+                logger.info(f"Provider status updated for {current_user.id}: {user_dict.get('provider_status')} → {new_status}")
 
         # Define contractor/handyman-specific fields to filter
         contractor_fields = [
