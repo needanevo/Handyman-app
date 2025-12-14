@@ -32,6 +32,14 @@ export default function ContractorDashboard() {
   const router = useRouter();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Console warning for unverified addresses (Phase 5)
+  React.useEffect(() => {
+    if (user?.addressVerificationStatus && user.addressVerificationStatus !== 'verified') {
+      console.warn('Address not verified — compliance countdown active');
+    }
+  }, [user?.addressVerificationStatus]);
+
     // Hidden Growth Center unlock logic
   const jobsCompleted = user?.stats?.completedJobs || 0;
   const avgRating = user?.stats?.averageRating || 0;
