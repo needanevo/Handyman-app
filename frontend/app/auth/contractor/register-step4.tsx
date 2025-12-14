@@ -21,10 +21,9 @@ import { useAuth } from '../../../src/contexts/AuthContext';
 export default function ContractorRegisterStep4() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { user, refreshUser, isHydrated, isAuthenticated } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [portfolioPhotos, setPortfolioPhotos] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [registrationComplete, setRegistrationComplete] = useState(false);
 
   // Pre-fill existing portfolio photos when editing
   useEffect(() => {
@@ -32,35 +31,6 @@ export default function ContractorRegisterStep4() {
       setPortfolioPhotos(user.portfolioPhotos);
     }
   }, [user]);
-
-  // Fix 5.11: Explicit redirect after registration completion
-  useEffect(() => {
-    if (!registrationComplete) return;
-    if (!isHydrated) {
-      console.log('Contractor registration complete - waiting for hydration...');
-      return;
-    }
-    if (!isAuthenticated || !user || !user.role) {
-      console.log('Contractor registration complete - waiting for user auth...');
-      return;
-    }
-
-    console.log('Contractor registration hydrated - redirecting to dashboard for role:', user.role);
-
-    // Explicit role-based redirect
-    if (user.role === 'contractor') {
-      router.replace('/(contractor)/dashboard');
-    } else if (user.role === 'handyman') {
-      router.replace('/(handyman)/dashboard');
-    } else if (user.role === 'customer') {
-      router.replace('/(customer)/dashboard');
-    } else if (user.role === 'admin') {
-      router.replace('/admin');
-    } else {
-      // Unknown role - go to welcome
-      router.replace('/auth/welcome');
-    }
-  }, [registrationComplete, isHydrated, isAuthenticated, user, router]);
 
   const onSubmit = async () => {
     try {
@@ -72,30 +42,22 @@ export default function ContractorRegisterStep4() {
       }
 
       // Refresh user context to get updated portfolio
-      await refreshUser();
+      try {
+        await refreshUser();
+      } catch (refreshError) {
+        console.warn('Failed to refresh user after save, continuing anyway:', refreshError);
+        // Don't block navigation if refresh fails - data is already saved to backend
+      }
 
-      // Show address verification warning
-      Alert.alert(
-        'Registration Complete!',
-        'Your business address is not verified. You have 10 days to verify it before your registration is revoked.\n\nYou can start receiving jobs immediately, but address verification is required to maintain access.',
-        [
-          {
-            text: 'Got It',
-            onPress: () => {
-              // Fix 5.11: Signal registration completion, useEffect will handle redirect
-              console.log('Contractor portfolio setup complete - waiting for hydration');
-              setRegistrationComplete(true);
-            }
-          }
-        ],
-        { cancelable: false }
-      );
+      // Navigate to Step 5 (Review)
+      router.push('/auth/contractor/register-step5');
     } catch (error: any) {
       console.error('Failed to save portfolio:', error);
       Alert.alert(
         'Error',
         error.response?.data?.detail || 'Failed to save portfolio photos. Please try again.'
       );
+    } finally {
       setIsLoading(false);
     }
   };

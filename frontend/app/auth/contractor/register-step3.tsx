@@ -102,6 +102,49 @@ export default function ContractorRegisterStep3() {
     },
   });
 
+  // Sync state with user context when it changes (ensures persistence)
+  React.useEffect(() => {
+    if (user) {
+      const userSkills = user.skills || [];
+      const standardSkills = userSkills.filter(skill => SERVICE_CATEGORIES.includes(skill));
+      const customSkills = userSkills.filter(skill => !SERVICE_CATEGORIES.includes(skill) && skill !== 'Other');
+      const initialSelectedSkills = customSkills.length > 0 ? [...standardSkills, 'Other'] : standardSkills;
+
+      setSelectedSkills(initialSelectedSkills);
+      setValue('skills', initialSelectedSkills);
+      setValue('customSkills', customSkills.join(', '));
+    }
+  }, [user?.skills, setValue]);
+
+  React.useEffect(() => {
+    if (user?.specialties) {
+      setSelectedSpecialties(user.specialties);
+      setValue('specialties', user.specialties);
+    }
+  }, [user?.specialties, setValue]);
+
+  React.useEffect(() => {
+    if (user?.providerIntent) {
+      setSelectedIntent(user.providerIntent);
+    }
+  }, [user?.providerIntent]);
+
+  React.useEffect(() => {
+    if (user?.addresses && user.addresses.length > 0) {
+      const address = user.addresses[0];
+      setValue('businessStreet', address.street || '');
+      setValue('businessCity', address.city || '');
+      setValue('businessState', address.state || '');
+      setValue('businessZip', address.zipCode || '');
+    }
+  }, [user?.addresses, setValue]);
+
+  React.useEffect(() => {
+    if (user?.yearsExperience !== undefined) {
+      setValue('yearsExperience', user.yearsExperience.toString());
+    }
+  }, [user?.yearsExperience, setValue]);
+
   // Watch for "Other" selection to show custom skills input
   const skills = watch('skills');
 
@@ -212,7 +255,12 @@ export default function ContractorRegisterStep3() {
       }
 
       // Refresh user context to get updated profile
-      await refreshUser();
+      try {
+        await refreshUser();
+      } catch (refreshError) {
+        console.warn('Failed to refresh user after save, continuing anyway:', refreshError);
+        // Don't block navigation if refresh fails - data is already saved to backend
+      }
 
       // Navigate to next step
       router.push({
