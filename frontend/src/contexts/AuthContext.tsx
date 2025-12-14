@@ -45,6 +45,11 @@ export interface User {
   addressVerificationStatus?: 'pending' | 'verified' | 'failed';
   addressVerificationStartedAt?: string;
   addressVerificationDeadline?: string;
+  // Provider identity & status (Phase 5B)
+  providerType?: 'individual' | 'business';
+  providerIntent?: 'not_hiring' | 'hiring' | 'mentoring';
+  providerStatus?: 'draft' | 'submitted' | 'active' | 'restricted';
+  providerCompleteness?: number;  // Percentage 0-100
 }
 
 export interface Address {
@@ -248,6 +253,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         addressVerificationStatus: (userData as any).address_verification_status,
         addressVerificationStartedAt: (userData as any).address_verification_started_at,
         addressVerificationDeadline: (userData as any).address_verification_deadline,
+        // Provider identity & status (Phase 5B)
+        providerType: (userData as any).provider_type,
+        providerIntent: (userData as any).provider_intent,
+        providerStatus: (userData as any).provider_status,
+        providerCompleteness: (userData as any).provider_completeness,
       } : {
         ...baseUser,
         // Customer-only: No contractor fields included

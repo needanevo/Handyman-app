@@ -77,6 +77,12 @@ class User(BaseModel):
     address_verification_status: Optional[str] = "pending"  # "pending" | "verified" | "failed"
     address_verification_started_at: Optional[datetime] = None
     address_verification_deadline: Optional[datetime] = None
+
+    # Provider identity & status (Phase 5B)
+    provider_type: Optional[str] = "individual"  # "individual" | "business"
+    provider_intent: Optional[str] = "not_hiring"  # "not_hiring" | "hiring" | "mentoring"
+    provider_status: Optional[str] = "draft"  # "draft" | "submitted" | "active" | "restricted"
+    provider_completeness: Optional[int] = 0  # Percentage 0-100
     
 class UserCreate(BaseModel):
     email: EmailStr

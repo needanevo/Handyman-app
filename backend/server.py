@@ -167,14 +167,16 @@ async def register_user(user_data: UserCreate):
         # Generate user_id FIRST before creating the User object
         user_id = str(uuid.uuid4())
 
-        # Initialize verification tracking for providers
+        # Initialize verification tracking and provider status for providers
         verification_fields = {}
         if user_data.role in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
             now = datetime.utcnow()
             verification_fields = {
                 "address_verification_status": "pending",
                 "address_verification_started_at": now,
-                "address_verification_deadline": now + timedelta(days=10)
+                "address_verification_deadline": now + timedelta(days=10),
+                "provider_status": "draft",  # Phase 5B: draft → submitted → active
+                "provider_completeness": 0,
             }
 
         user = User(
