@@ -2040,7 +2040,7 @@ async def update_contractor_profile(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """
-    Update contractor profile (skills, experience, business info).
+    Update contractor/handyman profile (skills, experience, business info).
 
     Expected structure:
     {
@@ -2049,8 +2049,8 @@ async def update_contractor_profile(
         "business_name": "John's Handyman Services"
     }
     """
-    if current_user.role != UserRole.CONTRACTOR:
-        raise HTTPException(403, detail="Only contractors can update profile")
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only contractors and handymen can update profile")
 
     # Build update dict with only provided fields
     update_fields = {}
@@ -2060,6 +2060,20 @@ async def update_contractor_profile(
         update_fields["years_experience"] = profile_data["years_experience"]
     if "business_name" in profile_data:
         update_fields["business_name"] = profile_data["business_name"]
+
+    # Handle business_address by adding to addresses array
+    if "business_address" in profile_data:
+        addr_data = profile_data["business_address"]
+        new_address = {
+            "id": str(uuid.uuid4()),
+            "street": addr_data.get("street", ""),
+            "city": addr_data.get("city", ""),
+            "state": addr_data.get("state", ""),
+            "zip_code": addr_data.get("zip", ""),
+            "is_default": True
+        }
+        # Add address to addresses array (replace any existing default address)
+        update_fields["addresses"] = [new_address]
 
     if not update_fields:
         raise HTTPException(400, detail="No fields to update")
