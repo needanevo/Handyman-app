@@ -2606,6 +2606,17 @@ async def accept_contractor_job(
     if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can accept jobs")
 
+    # Check provider_status - only active providers can accept jobs
+    if current_user.provider_status != "active":
+        raise HTTPException(
+            403,
+            detail={
+                "error": "Provider not active",
+                "provider_status": current_user.provider_status,
+                "message": "You must complete your profile and verification to accept jobs"
+            }
+        )
+
     # Find the job
     job = await db.jobs.find_one({"id": job_id})
     if not job:
@@ -3934,6 +3945,18 @@ async def create_proposal(
     Create a proposal for a job (handyman/contractor only).
     Only valid when job status = published.
     """
+    # Check provider_status - only active providers can create proposals
+    if current_user.role in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
+        if current_user.provider_status != "active":
+            raise HTTPException(
+                403,
+                detail={
+                    "error": "Provider not active",
+                    "provider_status": current_user.provider_status,
+                    "message": "You must complete your profile and verification to submit proposals"
+                }
+            )
+
     try:
         from services.proposal_service import ProposalError
         proposal = await proposal_service.create_proposal(
