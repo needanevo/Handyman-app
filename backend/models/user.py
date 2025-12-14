@@ -83,6 +83,9 @@ class User(BaseModel):
     provider_intent: Optional[str] = "not_hiring"  # "not_hiring" | "hiring" | "mentoring"
     provider_status: Optional[str] = "draft"  # "draft" | "submitted" | "active" | "restricted"
     provider_completeness: Optional[int] = 0  # Percentage 0-100
+    specialties: List[str] = []  # Contractor-only specialties (e.g., commercial, residential, remodeling)
+    license_info: Optional[dict] = None  # Structured license data placeholder
+    insurance_info: Optional[dict] = None  # Structured insurance data placeholder
     
 class UserCreate(BaseModel):
     email: EmailStr
