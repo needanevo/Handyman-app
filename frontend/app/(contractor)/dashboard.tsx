@@ -26,6 +26,7 @@ import { Badge } from '../../src/components/Badge';
 import { Button } from '../../src/components/Button';
 import { DashboardStats, JobStatus } from '../../src/types/contractor';
 import { contractorAPI } from '../../src/services/api';
+import { TrustBanner } from '../../src/components/TrustBanner';
 
 export default function ContractorDashboard() {
   const router = useRouter();
@@ -156,6 +157,16 @@ export default function ContractorDashboard() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
+        {/* Trust Banner */}
+        {user && (
+          <TrustBanner
+            providerStatus={user.providerStatus || 'draft'}
+            providerCompleteness={user.providerCompleteness || 0}
+            addressVerificationStatus={user.addressVerificationStatus}
+            role="contractor"
+          />
+        )}
+
         {/* Address Verification Banner */}
         {showVerificationBanner && daysRemaining !== null && (
           <TouchableOpacity
