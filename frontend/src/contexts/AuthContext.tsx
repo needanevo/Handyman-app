@@ -26,6 +26,7 @@ export interface User {
   // Contractor-specific fields (optional)
   businessName?: string;
   skills?: string[];
+  specialties?: string[];
   yearsExperience?: number;
   serviceAreas?: string[];
   documents?: {

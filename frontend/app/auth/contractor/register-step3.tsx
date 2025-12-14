@@ -36,8 +36,18 @@ const SERVICE_CATEGORIES = [
   'Other',
 ];
 
+const SPECIALTY_CATEGORIES = [
+  'Residential',
+  'Commercial',
+  'Remodeling',
+  'New Construction',
+  'Repair & Maintenance',
+  'Emergency Services',
+];
+
 interface Step3Form {
   skills: string[];
+  specialties: string[];
   yearsExperience: string;
   businessStreet: string;
   businessCity: string;
@@ -63,6 +73,7 @@ export default function ContractorRegisterStep3() {
     : standardSkills;
 
   const [selectedSkills, setSelectedSkills] = useState<string[]>(initialSelectedSkills);
+  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(user?.specialties || []);
   const [verifiedAddress, setVerifiedAddress] = useState<AddressComponents | null>(null);
 
   const {
@@ -74,6 +85,7 @@ export default function ContractorRegisterStep3() {
   } = useForm<Step3Form>({
     defaultValues: {
       skills: initialSelectedSkills,
+      specialties: user?.specialties || [],
       yearsExperience: user?.yearsExperience?.toString() || '',
       businessStreet: user?.addresses?.[0]?.street || '',
       businessCity: user?.addresses?.[0]?.city || '',
@@ -92,6 +104,14 @@ export default function ContractorRegisterStep3() {
       : [...selectedSkills, skill];
     setSelectedSkills(newSkills);
     setValue('skills', newSkills);
+  };
+
+  const toggleSpecialty = (specialty: string) => {
+    const newSpecialties = selectedSpecialties.includes(specialty)
+      ? selectedSpecialties.filter((s) => s !== specialty)
+      : [...selectedSpecialties, specialty];
+    setSelectedSpecialties(newSpecialties);
+    setValue('specialties', newSpecialties);
   };
 
   const onSubmit = async (data: Step3Form) => {
@@ -144,9 +164,10 @@ export default function ContractorRegisterStep3() {
         addressSaved = true;
         console.log('✅ Address saved successfully');
 
-        // Step 2: Save contractor profile (skills, experience, business name)
+        // Step 2: Save contractor profile (skills, specialties, experience, business name)
         await contractorAPI.updateProfile({
           skills: allSkills,
+          specialties: selectedSpecialties,
           years_experience: parseInt(data.yearsExperience) || 0,
           ...(businessName && { business_name: businessName }),
         });
@@ -330,6 +351,36 @@ export default function ContractorRegisterStep3() {
                 </Text>
               </View>
             )}
+
+            {/* Specialty Categories */}
+            <Text style={styles.label}>
+              Specialties
+            </Text>
+            <Text style={styles.helpText}>Select your business focus areas (optional)</Text>
+            <View style={styles.skillsGrid}>
+              {SPECIALTY_CATEGORIES.map((specialty) => (
+                <TouchableOpacity
+                  key={specialty}
+                  style={[
+                    styles.skillChip,
+                    selectedSpecialties.includes(specialty) && styles.skillChipSelected,
+                  ]}
+                  onPress={() => toggleSpecialty(specialty)}
+                >
+                  <Text
+                    style={[
+                      styles.skillChipText,
+                      selectedSpecialties.includes(specialty) && styles.skillChipTextSelected,
+                    ]}
+                  >
+                    {specialty}
+                  </Text>
+                  {selectedSpecialties.includes(specialty) && (
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary.main} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <Text style={styles.sectionTitle}>Business Address</Text>
             <Text style={styles.helpText}>

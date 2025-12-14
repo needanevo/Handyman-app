@@ -406,6 +406,7 @@ export const contractorAPI = {
 
   updateProfile: (profile_data: {
     skills?: string[];
+    specialties?: string[];
     years_experience?: number;
     business_name?: string;
   }) => apiClient.patch<any>('/contractors/profile', profile_data),
