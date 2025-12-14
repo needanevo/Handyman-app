@@ -127,11 +127,6 @@ export default function ContractorRegisterStep3() {
       return;
     }
 
-    if (!verifiedAddress) {
-      Alert.alert('Error', 'Please select and verify your business address');
-      return;
-    }
-
     setIsLoading(true);
 
     try {
@@ -158,18 +153,33 @@ export default function ContractorRegisterStep3() {
       let profileSaved = false;
 
       try {
-        // Step 1: Save business address with verified coordinates
-        await profileAPI.addAddress({
-          street: verifiedAddress.street,
-          city: verifiedAddress.city,
-          state: verifiedAddress.state,
-          zip_code: verifiedAddress.zipCode,  // Backend expects snake_case
-          is_default: true,  // Backend expects snake_case
-          latitude: verifiedAddress.latitude,  // Add verified coordinates
-          longitude: verifiedAddress.longitude,
-        });
-        addressSaved = true;
-        console.log('✅ Address saved successfully');
+        // Step 1: Save business address (verified or unverified)
+        if (verifiedAddress) {
+          // Use verified address with coordinates
+          await profileAPI.addAddress({
+            street: verifiedAddress.street,
+            city: verifiedAddress.city,
+            state: verifiedAddress.state,
+            zip_code: verifiedAddress.zipCode,  // Backend expects snake_case
+            is_default: true,  // Backend expects snake_case
+            latitude: verifiedAddress.latitude,  // Add verified coordinates
+            longitude: verifiedAddress.longitude,
+          });
+          addressSaved = true;
+          console.log('✅ Verified address saved successfully');
+        } else if (data.businessStreet && data.businessCity && data.businessState && data.businessZip) {
+          // Save unverified address without coordinates (Phase 5 requirement)
+          await profileAPI.addAddress({
+            street: data.businessStreet,
+            city: data.businessCity,
+            state: data.businessState,
+            zip_code: data.businessZip,
+            is_default: true,
+          });
+          addressSaved = true;
+          console.log('✅ Unverified address saved successfully');
+          console.warn('Address not verified — compliance countdown active');
+        }
 
         // Step 2: Save contractor profile (skills, specialties, experience, business name, provider intent)
         await contractorAPI.updateProfile({
