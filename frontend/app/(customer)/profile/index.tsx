@@ -93,6 +93,8 @@ export default function CustomerProfileScreen() {
       Alert.alert('Success', 'Address saved successfully');
     } catch (error: any) {
       console.error('Failed to save address:', error);
+      console.error('Error response status:', error.response?.status);
+      console.error('Error response data:', JSON.stringify(error.response?.data, null, 2));
 
       // TASK 4: Parse 422 validation errors properly
       let errorMessage = 'Failed to save address. Please try again.';

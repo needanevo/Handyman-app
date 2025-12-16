@@ -1958,28 +1958,32 @@ async def add_address(
         if existing_default:
             # UPDATE existing default address (replace it completely)
             logger.info(f"Updating existing default address for user {current_user.id}")
-            # Use new_address.id to keep IDs in sync
-            address.id = new_address.id
+            # Use address_payload (not address) and add new_address.id for sync
+            updated_address = address_payload.copy()
+            updated_address["id"] = new_address.id
             await db.users.update_one(
                 {"id": current_user.id, "addresses.is_default": True},
                 {"$set": {
-                    "addresses.$": address.model_dump()  # Replace the matched address
+                    "addresses.$": updated_address  # Replace the matched address
                 }}
             )
         else:
             # No default exists, add this as the first default
             logger.info(f"Adding first default address for user {current_user.id}")
-            address.id = new_address.id
+            # Use address_payload and add new_address.id
+            new_address_doc = address_payload.copy()
+            new_address_doc["id"] = new_address.id
             await db.users.update_one(
                 {"id": current_user.id},
-                {"$push": {"addresses": address.model_dump()}}
+                {"$push": {"addresses": new_address_doc}}
             )
     else:
         # Not a default address, just add it
-        address.id = new_address.id
+        new_address_doc = address_payload.copy()
+        new_address_doc["id"] = new_address.id
         await db.users.update_one(
             {"id": current_user.id},
-            {"$push": {"addresses": address.model_dump()}}
+            {"$push": {"addresses": new_address_doc}}
         )
 
     return {"message": "Address saved successfully", "address_id": new_address.id}
