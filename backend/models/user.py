@@ -87,6 +87,14 @@ class User(BaseModel):
     license_info: Optional[dict] = None  # Structured license data placeholder
     insurance_info: Optional[dict] = None  # Structured insurance data placeholder
     
+class AddressInput(BaseModel):
+    """Address input for registration"""
+    street: str
+    city: str
+    state: str
+    zipCode: str
+    unitNumber: Optional[str] = None
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -96,6 +104,7 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.CUSTOMER
     marketingOptIn: bool = False
     businessName: Optional[str] = None  # For contractors
+    address: Optional[AddressInput] = None  # For customer registration
 
     @field_validator('role', mode='before')
     @classmethod

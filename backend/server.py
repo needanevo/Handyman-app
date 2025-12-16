@@ -181,6 +181,21 @@ async def register_user(user_data: UserCreate):
                 "provider_completeness": 0,
             }
 
+        # Handle address if provided (typically for customer registration)
+        addresses = []
+        if user_data.address:
+            address_id = str(uuid.uuid4())
+            addresses = [{
+                "id": address_id,
+                "street": user_data.address.street,
+                "city": user_data.address.city,
+                "state": user_data.address.state,
+                "zip_code": user_data.address.zipCode,
+                "is_default": True,
+                "latitude": None,
+                "longitude": None
+            }]
+
         user = User(
             id=user_id,  # ← Explicitly set the ID
             email=user_data.email,
@@ -190,6 +205,7 @@ async def register_user(user_data: UserCreate):
             role=user_data.role,
             marketing_opt_in=user_data.marketingOptIn,
             business_name=user_data.businessName if user_data.businessName else None,
+            addresses=addresses,  # Set addresses during registration
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
             **verification_fields
