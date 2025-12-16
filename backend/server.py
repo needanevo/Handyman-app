@@ -6,7 +6,7 @@ from providers import EMAIL_PROVIDERS, AI_PROVIDERS, MAPS_PROVIDERS
 from fastapi.responses import RedirectResponse
 from providers.linode_storage_provider import LinodeObjectStorage
 from providers.quote_email_service import QuoteEmailService
-from models.address import Address
+from models.address import Address, AddressInput
 
 
 
@@ -1896,7 +1896,7 @@ async def verify_address(address_data: dict):
 
 @api_router.post("/profile/addresses")
 async def add_address(
-    address: Address, current_user: User = Depends(get_current_user_dependency)
+    address: AddressInput, current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Add or update address in user profile.
