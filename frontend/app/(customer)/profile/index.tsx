@@ -93,10 +93,30 @@ export default function CustomerProfileScreen() {
       Alert.alert('Success', 'Address saved successfully');
     } catch (error: any) {
       console.error('Failed to save address:', error);
-      Alert.alert(
-        'Error',
-        error.response?.data?.detail || error.message || 'Failed to save address. Please try again.'
-      );
+
+      // TASK 4: Parse 422 validation errors properly
+      let errorMessage = 'Failed to save address. Please try again.';
+
+      if (error.response?.status === 422 && error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+
+        // If detail is an array of validation errors, format them
+        if (Array.isArray(detail) && detail.length > 0) {
+          errorMessage = detail.map((err: any) => {
+            const field = Array.isArray(err.loc) && err.loc.length > 0
+              ? err.loc[err.loc.length - 1] // Get the last element (field name)
+              : 'Unknown field';
+            const message = err.msg || 'Invalid value';
+            return `${field}: ${message}`;
+          }).join('\n');
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        }
+      } else {
+        errorMessage = error.response?.data?.detail || error.message || errorMessage;
+      }
+
+      Alert.alert('Validation Error', errorMessage);
     } finally {
       setIsSaving(false);
     }

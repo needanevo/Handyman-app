@@ -8,11 +8,11 @@ export function isHandymanOnboardingComplete(user: User | null): boolean {
 
   // Check if required fields are present
   const hasSkills = !!(user.skills && user.skills.length > 0);
-  const hasAddress = !!(user.addresses && user.addresses.length > 0);
+  // Address is NO LONGER a gate - removed per TASK 1
   const hasExperience = user.yearsExperience !== undefined && user.yearsExperience !== null;
   const hasIntent = user.providerIntent !== undefined && user.providerIntent !== null;
 
-  return hasSkills && hasAddress && hasExperience && hasIntent;
+  return hasSkills && hasExperience && hasIntent;
 }
 
 /**
@@ -25,11 +25,11 @@ export function isContractorOnboardingComplete(user: User | null): boolean {
   const hasBusinessName = !!user.businessName;
   const hasDocuments = !!(user.documents && (user.documents.license || user.documents.businessLicense));
   const hasSkills = !!(user.skills && user.skills.length > 0);
-  const hasAddress = !!(user.addresses && user.addresses.length > 0);
+  // Address is NO LONGER a gate - removed per TASK 1
   const hasExperience = user.yearsExperience !== undefined && user.yearsExperience !== null;
   const hasIntent = user.providerIntent !== undefined && user.providerIntent !== null;
 
-  return hasBusinessName && hasDocuments && hasSkills && hasAddress && hasExperience && hasIntent;
+  return hasBusinessName && hasDocuments && hasSkills && hasExperience && hasIntent;
 }
 
 /**
@@ -41,13 +41,12 @@ export function getHandymanOnboardingStep(user: User | null): string | null {
   // Step 1: Basic info (always complete after registration)
   // If we're here, Step 1 is done
 
-  // Step 2: Skills, experience, address, intent
+  // Step 2: Skills, experience, intent (address NO LONGER required - TASK 1)
   const hasSkills = user.skills && user.skills.length > 0;
-  const hasAddress = user.addresses && user.addresses.length > 0;
   const hasExperience = user.yearsExperience !== undefined;
   const hasIntent = user.providerIntent !== undefined;
 
-  if (!hasSkills || !hasAddress || !hasExperience || !hasIntent) {
+  if (!hasSkills || !hasExperience || !hasIntent) {
     return '/auth/handyman/register-step2';
   }
 
@@ -77,13 +76,12 @@ export function getContractorOnboardingStep(user: User | null): string | null {
     return '/auth/contractor/register-step2';
   }
 
-  // Step 3: Skills, specialties, address, intent, experience
+  // Step 3: Skills, specialties, intent, experience (address NO LONGER required - TASK 1)
   const hasSkills = user.skills && user.skills.length > 0;
-  const hasAddress = user.addresses && user.addresses.length > 0;
   const hasExperience = user.yearsExperience !== undefined;
   const hasIntent = user.providerIntent !== undefined;
 
-  if (!hasSkills || !hasAddress || !hasExperience || !hasIntent) {
+  if (!hasSkills || !hasExperience || !hasIntent) {
     return '/auth/contractor/register-step3';
   }
 

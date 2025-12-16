@@ -143,9 +143,9 @@ export default function HandymanRegisterStep5() {
             </View>
             {user.addresses && user.addresses.length > 0 ? (
               <>
-                <Text style={styles.reviewItem}>{user.addresses[0].street}</Text>
+                <Text style={styles.reviewItem}>{user.addresses?.[0]?.street}</Text>
                 <Text style={styles.reviewItem}>
-                  {user.addresses[0].city}, {user.addresses[0].state} {user.addresses[0].zipCode}
+                  {user.addresses?.[0]?.city}, {user.addresses?.[0]?.state} {user.addresses?.[0]?.zipCode}
                 </Text>
               </>
             ) : (
@@ -166,7 +166,7 @@ export default function HandymanRegisterStep5() {
               />
             </View>
             <Text style={styles.reviewItem}>
-              Phone: {user.phoneVerified ? '✓ Verified' : '✗ Not verified'}
+              Phone: {(user as any).phoneVerified ? '✓ Verified' : '✗ Not verified'}
             </Text>
           </View>
 
@@ -183,7 +183,7 @@ export default function HandymanRegisterStep5() {
               />
             </View>
             <Text style={styles.reviewItem}>
-              Payment Account: {user.stripeAccountId ? '✓ Connected' : '✗ Not connected'}
+              Payment Account: {(user as any).stripeAccountId ? '✓ Connected' : '✗ Not connected'}
             </Text>
           </View>
         </View>

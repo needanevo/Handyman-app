@@ -82,7 +82,54 @@ export default function HandymanRegisterStep1() {
       console.error('[Step1] Error response:', error.response?.data);
       console.error('[Step1] Error message:', error.message);
 
-      const errorMessage = error?.response?.data?.detail || error?.message || 'Registration failed. Please try again.';
+      // TASK 2: Handle "Email already registered" with login attempt
+      const errorDetail = error?.response?.data?.detail || '';
+      const isEmailAlreadyRegistered = error?.response?.status === 400 &&
+        errorDetail.toLowerCase().includes('email already registered');
+
+      if (isEmailAlreadyRegistered) {
+        try {
+          console.log('[Step1] Email already registered, attempting login...');
+          await login(data.email, data.password);
+          console.log('[Step1] Login successful, redirecting to dashboard...');
+          // Login successful - navigate to handyman dashboard
+          router.replace('/(handyman)/dashboard');
+          Alert.alert('Welcome Back', 'You already have an account. Successfully logged in.');
+          return; // Exit early, don't show error
+        } catch (loginError: any) {
+          console.error('[Step1] Login attempt failed:', loginError);
+          // Login failed - show clear message
+          Alert.alert(
+            'Account Exists',
+            'This email already exists. The password you entered is incorrect. Please try again or use Forgot Password.'
+          );
+          setIsLoading(false);
+          return; // Exit early
+        }
+      }
+
+      // TASK 4: Parse 422 validation errors properly
+      let errorMessage = 'Registration failed. Please try again.';
+
+      if (error?.response?.status === 422 && error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+
+        // If detail is an array of validation errors, format them
+        if (Array.isArray(detail) && detail.length > 0) {
+          errorMessage = detail.map((err: any) => {
+            const field = Array.isArray(err.loc) && err.loc.length > 0
+              ? err.loc[err.loc.length - 1] // Get the last element (field name)
+              : 'Unknown field';
+            const message = err.msg || 'Invalid value';
+            return `${field}: ${message}`;
+          }).join('\n');
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        }
+      } else {
+        errorMessage = errorDetail || error?.message || errorMessage;
+      }
+
       Alert.alert('Registration Error', errorMessage);
     } finally {
       setIsLoading(false);

@@ -105,7 +105,8 @@ export default function ContractorRegisterStep3() {
   // Sync state with user context when it changes (ensures persistence)
   React.useEffect(() => {
     if (user) {
-      const userSkills = user.skills || [];
+      // TASK 5: Null-safe access to user.skills
+      const userSkills = user?.skills || [];
       const standardSkills = userSkills.filter(skill => SERVICE_CATEGORIES.includes(skill));
       const customSkills = userSkills.filter(skill => !SERVICE_CATEGORIES.includes(skill) && skill !== 'Other');
       const initialSelectedSkills = customSkills.length > 0 ? [...standardSkills, 'Other'] : standardSkills;
@@ -118,8 +119,9 @@ export default function ContractorRegisterStep3() {
 
   React.useEffect(() => {
     if (user?.specialties) {
-      setSelectedSpecialties(user.specialties);
-      setValue('specialties', user.specialties);
+      // TASK 5: Null-safe access to user.specialties
+      setSelectedSpecialties(user.specialties || []);
+      setValue('specialties', user.specialties || []);
     }
   }, [user?.specialties, setValue]);
 
@@ -130,12 +132,13 @@ export default function ContractorRegisterStep3() {
   }, [user?.providerIntent]);
 
   React.useEffect(() => {
-    if (user?.addresses && user.addresses.length > 0) {
+    // TASK 5: Null-safe access to user.addresses
+    if (user?.addresses && user?.addresses.length > 0) {
       const address = user.addresses[0];
-      setValue('businessStreet', address.street || '');
-      setValue('businessCity', address.city || '');
-      setValue('businessState', address.state || '');
-      setValue('businessZip', address.zipCode || '');
+      setValue('businessStreet', address?.street || '');
+      setValue('businessCity', address?.city || '');
+      setValue('businessState', address?.state || '');
+      setValue('businessZip', address?.zipCode || '');
     }
   }, [user?.addresses, setValue]);
 

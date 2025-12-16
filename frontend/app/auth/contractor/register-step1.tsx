@@ -39,7 +39,7 @@ export default function ContractorRegisterStep1() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const { user, register } = useAuth();
+  const { user, register, login } = useAuth();
 
   const {
     control,
@@ -116,14 +116,56 @@ export default function ContractorRegisterStep1() {
       console.error('Error status:', error.response?.status);
       console.error('Error headers:', error.response?.headers);
 
-      const errorMessage = error.response?.data?.detail
-        || JSON.stringify(error.response?.data)
-        || 'Please try again';
+      // TASK 2: Handle "Email already registered" with login attempt
+      const errorDetail = error.response?.data?.detail || '';
+      const isEmailAlreadyRegistered = error.response?.status === 400 &&
+        errorDetail.toLowerCase().includes('email already registered');
 
-      Alert.alert(
-        'Registration Failed',
-        errorMessage
-      );
+      if (isEmailAlreadyRegistered) {
+        try {
+          console.log('[Step1] Email already registered, attempting login...');
+          await login(data.email, data.password);
+          console.log('[Step1] Login successful, redirecting to dashboard...');
+          // Login successful - navigate to contractor dashboard
+          router.replace('/(contractor)/dashboard');
+          Alert.alert('Welcome Back', 'You already have an account. Successfully logged in.');
+          setIsLoading(false);
+          return; // Exit early, don't show error
+        } catch (loginError: any) {
+          console.error('[Step1] Login attempt failed:', loginError);
+          // Login failed - show clear message
+          Alert.alert(
+            'Account Exists',
+            'This email already exists. The password you entered is incorrect. Please try again or use Forgot Password.'
+          );
+          setIsLoading(false);
+          return; // Exit early
+        }
+      }
+
+      // TASK 4: Parse 422 validation errors properly
+      let errorMessage = 'Registration failed. Please try again.';
+
+      if (error.response?.status === 422 && error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+
+        // If detail is an array of validation errors, format them
+        if (Array.isArray(detail) && detail.length > 0) {
+          errorMessage = detail.map((err: any) => {
+            const field = Array.isArray(err.loc) && err.loc.length > 0
+              ? err.loc[err.loc.length - 1] // Get the last element (field name)
+              : 'Unknown field';
+            const message = err.msg || 'Invalid value';
+            return `${field}: ${message}`;
+          }).join('\n');
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        }
+      } else {
+        errorMessage = error.response?.data?.detail || JSON.stringify(error.response?.data) || 'Please try again';
+      }
+
+      Alert.alert('Registration Failed', errorMessage);
     } finally {
       setIsLoading(false);
     }
