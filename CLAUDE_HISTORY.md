@@ -2414,3 +2414,73 @@ Implemented provider completeness computation, automated status transitions, add
 - 6cfbe1d - Task 6: Inactivity Auto-Cleanup + TS fixes
 
 **Branch:** dev2
+
+────────────────────────────────────────
+
+## [2025-12-30] Frontend Startup Investigation — IP Address Fix
+
+**Summary:**
+Investigated frontend (Expo) startup issues. Discovered IP address mismatch in frontend/.env preventing frontend from connecting to backend. Updated EXPO_PUBLIC_BACKEND_URL with correct local IP address.
+
+**Issue Encountered:**
+- Expo Metro Bundler hanging during initialization
+- Metro starts but gets stuck at "Logs for your project will appear below" without showing QR code
+- Phantom process (PID 5864) occupying port 8081 that cannot be killed
+- When forced to pre-bundle with --clear flag, bundling failed due to react-native-maps not supporting web
+
+**Root Cause Identified:**
+- Frontend .env had `EXPO_PUBLIC_BACKEND_URL=http://192.168.1.74:8001`
+- Current computer IP address is `192.168.4.168`
+- IP mismatch would prevent frontend from connecting to backend API
+
+**Files Modified:**
+- `frontend/.env` (line 3)
+
+**Changes:**
+- Updated `EXPO_PUBLIC_BACKEND_URL` from `http://192.168.1.74:8001` to `http://192.168.4.168:8001`
+- Backend port 8001 confirmed correct by Manager
+
+**Current State:**
+- IP address corrected in frontend/.env
+- Metro Bundler still experiencing initialization hang (likely requires system restart to clear phantom processes)
+- Manager will restart system and retry Expo startup
+- Backend confirmed running with no issues
+
+**Next Steps:**
+- After system restart, run: `cd frontend && npx expo start`
+- If Metro still hangs, try: `npx expo start --tunnel`
+- Monitor for Metro initialization completion and QR code display
+
+**Branch:** dev2
+
+────────────────────────────────────────
+
+## [2026-01-02 16:59] HTTP Basic Auth for /api/health (n8n Monitoring)
+
+**Summary:**
+Secured the `/api/health` endpoint with HTTP Basic Authentication for n8n workflow monitoring. Created secure credential storage using systemd EnvironmentFile with 600 permissions. n8n workflow "midday ops flow" now successfully authenticates and retrieves daily health status.
+
+**Files Modified:**
+- `backend/server.py` (lines 2, 17, 4189-4206)
+
+**Changes:**
+- Added `HTTPBasic` and `HTTPBasicCredentials` to fastapi.security imports
+- Added `secrets` module import for constant-time credential comparison
+- Created `n8n_basic_auth()` dependency function reading credentials from env vars (N8N_BASIC_USER, N8N_BASIC_PASS)
+- Updated `/health` endpoint to require Basic Auth via `Depends(n8n_basic_auth)`
+- Response body unchanged - returns same JSON health check
+
+**Server Configuration (not in git):**
+- Created `/etc/handyman-api.env` with 600 permissions for secure credential storage
+- Updated `/etc/systemd/system/handyman-api.service` to use EnvironmentFile instead of inline credentials
+- Service restarted successfully with new auth configuration
+
+**Testing Results:**
+✅ Without credentials: 401 Unauthorized
+✅ With incorrect credentials: 401 Unauthorized
+✅ With correct credentials: 200 OK with health JSON
+✅ n8n workflow "midday ops flow" running flawlessly
+
+**Commit:** d0839b0
+
+**Branch:** dev2
