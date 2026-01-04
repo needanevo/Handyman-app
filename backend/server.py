@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Body, Request, UploadFile, File, Form
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from providers import EMAIL_PROVIDERS, AI_PROVIDERS, MAPS_PROVIDERS
@@ -14,6 +14,7 @@ load_dotenv("backend/providers/providers.env")
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import secrets
 import logging
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -4185,8 +4186,24 @@ async def root(): # type: ignore
     }
 
 
+# Basic Auth for n8n health monitoring
+security = HTTPBasic()
+
+def n8n_basic_auth(credentials: HTTPBasicCredentials = Depends(security)):
+    expected_user = os.getenv("N8N_BASIC_USER", "")
+    expected_pass = os.getenv("N8N_BASIC_PASS", "")
+    ok_user = secrets.compare_digest(credentials.username, expected_user)
+    ok_pass = secrets.compare_digest(credentials.password, expected_pass)
+    if not (ok_user and ok_pass):
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return True
+
 @api_router.get("/health")
-async def health_check():
+async def health_check(_: bool = Depends(n8n_basic_auth)):
     """Detailed health check"""
     return {
         "status": "healthy",
