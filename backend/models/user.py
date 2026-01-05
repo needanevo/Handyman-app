@@ -94,6 +94,7 @@ class AddressInput(BaseModel):
     state: str
     zipCode: str
     unitNumber: Optional[str] = None
+    is_default: bool = True  # Default to True for registration address
 
 class UserCreate(BaseModel):
     email: EmailStr
