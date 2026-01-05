@@ -163,6 +163,12 @@ logger = logging.getLogger(__name__)
 @api_router.post("/auth/register", response_model=Token)
 async def register_user(user_data: UserCreate):
     try:
+        # DEBUG: Log incoming registration data
+        logger.info(f"[REGISTER] Email: {user_data.email}, Role: {user_data.role}")
+        logger.info(f"[REGISTER] Address provided: {user_data.address is not None}")
+        if user_data.address:
+            logger.info(f"[REGISTER] Address data: street={user_data.address.street}, city={user_data.address.city}, state={user_data.address.state}, zip={user_data.address.zipCode}")
+
         # Check if email already exists BEFORE attempting creation
         if await auth_handler.get_user_by_email(user_data.email):
             raise HTTPException(400, detail="Email already registered. Please try logging in or use Forgot Password.")
@@ -196,6 +202,7 @@ async def register_user(user_data: UserCreate):
                 "latitude": None,
                 "longitude": None
             }]
+            logger.info(f"[REGISTER] Created addresses array with {len(addresses)} address(es)")
 
         user = User(
             id=user_id,  # ← Explicitly set the ID
@@ -222,7 +229,11 @@ async def register_user(user_data: UserCreate):
         if user_doc.get("address_verification_deadline"):
             user_doc["address_verification_deadline"] = user_doc["address_verification_deadline"].isoformat()
 
+        # DEBUG: Log addresses before DB insertion
+        logger.info(f"[REGISTER] user_doc addresses before DB insert: {user_doc.get('addresses', [])}")
+
         await db.users.insert_one(user_doc)
+        logger.info(f"[REGISTER] User {user_id} inserted into database")
         await auth_handler.create_user_password(user_id, user_data.password)
 
         return Token(
