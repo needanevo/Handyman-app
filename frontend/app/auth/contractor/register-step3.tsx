@@ -17,7 +17,6 @@ import { colors, spacing, typography, borderRadius } from '../../../src/constant
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
-import { AddressAutocomplete, AddressComponents } from '../../../src/components/AddressAutocomplete';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { profileAPI, contractorAPI } from '../../../src/services/api';
 
@@ -81,7 +80,6 @@ export default function ContractorRegisterStep3() {
   const [selectedSkills, setSelectedSkills] = useState<string[]>(initialSelectedSkills);
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(user?.specialties || []);
   const [selectedIntent, setSelectedIntent] = useState<string>(user?.providerIntent || 'not_hiring');
-  const [verifiedAddress, setVerifiedAddress] = useState<AddressComponents | null>(null);
 
   const {
     control,
@@ -199,22 +197,8 @@ export default function ContractorRegisterStep3() {
       let profileSaved = false;
 
       try {
-        // Step 1: Save business address (verified or unverified)
-        if (verifiedAddress) {
-          // Use verified address with coordinates
-          await profileAPI.addAddress({
-            street: verifiedAddress.street,
-            city: verifiedAddress.city,
-            state: verifiedAddress.state,
-            zip_code: verifiedAddress.zipCode,  // Backend expects snake_case
-            is_default: true,  // Backend expects snake_case
-            latitude: verifiedAddress.latitude,  // Add verified coordinates
-            longitude: verifiedAddress.longitude,
-          });
-          addressSaved = true;
-          console.log('✅ Verified address saved successfully');
-        } else if (data.businessStreet && data.businessCity && data.businessState && data.businessZip) {
-          // Save unverified address without coordinates (Phase 5 requirement)
+        // Step 1: Save business address
+        if (data.businessStreet && data.businessCity && data.businessState && data.businessZip) {
           await profileAPI.addAddress({
             street: data.businessStreet,
             city: data.businessCity,
@@ -223,8 +207,7 @@ export default function ContractorRegisterStep3() {
             is_default: true,
           });
           addressSaved = true;
-          console.log('✅ Unverified address saved successfully');
-          console.warn('Address not verified — compliance countdown active');
+          console.log('✅ Business address saved successfully');
         }
 
         // Step 2: Save contractor profile (skills, specialties, experience, business name, provider intent)
@@ -484,43 +467,92 @@ export default function ContractorRegisterStep3() {
 
             <Text style={styles.sectionTitle}>Business Address</Text>
             <Text style={styles.helpText}>
-              This address determines your 50-mile service radius. We'll verify it and get exact coordinates.
+              Where you're based (used for 50-mile radius matching)
             </Text>
 
-            <AddressAutocomplete
-              onAddressSelected={(address) => {
-                setVerifiedAddress(address);
-                setValue('businessStreet', address.street);
-                setValue('businessCity', address.city);
-                setValue('businessState', address.state);
-                setValue('businessZip', address.zipCode);
-              }}
-              initialValue={{
-                street: user?.addresses?.[0]?.street || '',
-                city: user?.addresses?.[0]?.city || '',
-                state: user?.addresses?.[0]?.state || '',
-                zipCode: user?.addresses?.[0]?.zipCode || '',
-              }}
-              label=""
-              required={true}
-              error={!verifiedAddress ? (errors.businessStreet?.message || undefined) : undefined}
+            <Controller
+              control={control}
+              name="businessStreet"
+              rules={{ required: 'Street address required' }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Street Address"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="123 Main Street"
+                  error={errors.businessStreet?.message}
+                  required
+                  autoComplete="street-address"
+                />
+              )}
             />
 
-            {/* Show verified address summary */}
-            {verifiedAddress && (
-              <View style={styles.verifiedAddressCard}>
-                <View style={styles.verifiedHeader}>
-                  <Ionicons name="checkmark-circle" size={24} color={colors.success.main} />
-                  <Text style={styles.verifiedTitle}>Address Verified</Text>
-                </View>
-                <Text style={styles.verifiedText}>
-                  {verifiedAddress.formattedAddress}
-                </Text>
-                <Text style={styles.verifiedCoords}>
-                  📍 {verifiedAddress.latitude.toFixed(4)}, {verifiedAddress.longitude.toFixed(4)}
-                </Text>
+            <Controller
+              control={control}
+              name="businessCity"
+              rules={{ required: 'City required' }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="City"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Baltimore"
+                  error={errors.businessCity?.message}
+                  required
+                  autoComplete="address-line2"
+                />
+              )}
+            />
+
+            <View style={styles.row}>
+              <View style={styles.halfWidth}>
+                <Controller
+                  control={control}
+                  name="businessState"
+                  rules={{
+                    required: 'State required',
+                    minLength: { value: 2, message: '2-letter code' },
+                    maxLength: { value: 2, message: '2-letter code' },
+                  }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="State"
+                      value={value}
+                      onChangeText={(text) => onChange(text.toUpperCase())}
+                      placeholder="MD"
+                      error={errors.businessState?.message}
+                      required
+                      maxLength={2}
+                      autoCapitalize="characters"
+                      autoComplete="address-line1"
+                    />
+                  )}
+                />
               </View>
-            )}
+              <View style={styles.halfWidth}>
+                <Controller
+                  control={control}
+                  name="businessZip"
+                  rules={{
+                    required: 'ZIP required',
+                    pattern: { value: /^\d{5}$/, message: '5 digits' },
+                  }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="ZIP Code"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="21201"
+                      error={errors.businessZip?.message}
+                      required
+                      keyboardType="numeric"
+                      maxLength={5}
+                      autoComplete="postal-code"
+                    />
+                  )}
+                />
+              </View>
+            </View>
 
             <Controller
               control={control}
@@ -655,36 +687,6 @@ const styles = StyleSheet.create({
   customSkillsSection: {
     marginTop: spacing.lg,
     marginBottom: spacing.md,
-  },
-  verifiedAddressCard: {
-    backgroundColor: colors.success.lightest,
-    borderWidth: 1,
-    borderColor: colors.success.main,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  verifiedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  verifiedTitle: {
-    ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
-    color: colors.success.main,
-  },
-  verifiedText: {
-    ...typography.sizes.sm,
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  verifiedCoords: {
-    ...typography.sizes.xs,
-    color: colors.neutral[600],
-    fontFamily: 'monospace',
   },
   row: {
     flexDirection: 'row',
