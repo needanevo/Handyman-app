@@ -2153,6 +2153,10 @@ async def update_contractor_profile(
         # Add address to addresses array (replace any existing default address)
         update_fields["addresses"] = [new_address]
 
+    # Handle banking_info (for Stripe Connect or similar)
+    if "banking_info" in profile_data:
+        update_fields["banking_info"] = profile_data["banking_info"]
+
     if not update_fields:
         raise HTTPException(400, detail="No fields to update")
 
