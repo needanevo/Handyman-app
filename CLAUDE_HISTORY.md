@@ -2664,3 +2664,37 @@ Added banking_info field handling to the /contractors/profile endpoint, which wa
 - Users can complete full registration flow from step 1 through step 5
 - Ready for end-to-end testing
 
+
+[2026-01-15 16:50] Fix — Linode Photo Upload boto3 ConnectionClosedError Workaround
+
+**Commit:** d9a85e2
+
+**Summary:**
+Implemented workaround for boto3+urllib3+Linode Object Storage incompatibility causing all photo uploads to fail with ConnectionClosedError. Upload succeeds but response reading fails - added verification via HEAD request.
+
+**Issues Resolved:**
+
+1. ✅ Photo Upload ConnectionClosedError Bug
+   - boto3 put_object() fails to read response from Linode despite successful upload
+   - Added try-except wrapper around put_object
+   - Verify upload succeeded via HEAD request if PUT response fails
+   - Only raise error if HEAD also fails (true upload failure)
+
+2. ✅ Customer Photo Upload Now Works
+   - Photos upload successfully to Linode Object Storage
+   - Public URLs generated correctly
+   - Error handling prevents false negatives
+
+**Files Modified:**
+- backend/providers/linode_storage_provider.py (added error handling in upload_photo_direct method)
+
+**Technical Details:**
+- Root cause: botocore/urllib3 IncompleteRead exception with Linode S3-compatible API
+- Workaround: Catch exception, verify via HEAD, only fail if object doesn't exist
+- This is a known issue with boto3 + non-AWS S3 providers
+
+**Impact:**
+- Customer registration photo uploads now work
+- Quote request photos upload successfully
+- Ready for production use
+
