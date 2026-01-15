@@ -137,7 +137,7 @@ export default function JobsListScreen() {
         <View style={styles.headerTop}>
           <Button
             title=""
-            onPress={() => router.back()}
+            onPress={() => router.replace('/(customer)/dashboard')}
             variant="ghost"
             size="small"
             icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
@@ -230,7 +230,7 @@ export default function JobsListScreen() {
                 <View style={styles.jobHeader}>
                   <View style={styles.jobTitleSection}>
                     <Text style={styles.jobTitle}>
-                      {job.title || job.service_category || 'Service Request'}
+                      {job.service_category || job.category || job.title || 'Service Request'}
                     </Text>
                     <View style={styles.jobMeta}>
                       <Badge
@@ -284,14 +284,18 @@ export default function JobsListScreen() {
 
                   <View style={styles.costSection}>
                     <Text style={styles.costLabel}>
-                      {job.itemType === 'quote' ? 'Estimate' : 'Total'}
+                      {job.itemType === 'quote' ? 'Estimate' : 'Quote'}
                     </Text>
                     <Text style={styles.costAmount}>
                       {typeof job.totalCost === 'number'
                         ? `$${job.totalCost.toFixed(2)}`
                         : typeof job.estimated_total === 'number'
                         ? `$${job.estimated_total.toFixed(2)}`
-                        : '$TBD'}
+                        : typeof job.ai_quote?.estimated_total === 'number'
+                        ? `$${job.ai_quote.estimated_total.toFixed(2)}`
+                        : typeof job.aiQuote?.estimatedTotal === 'number'
+                        ? `$${job.aiQuote.estimatedTotal.toFixed(2)}`
+                        : 'Quote Pending'}
                     </Text>
                   </View>
 
