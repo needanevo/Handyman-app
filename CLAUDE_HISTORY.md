@@ -2574,3 +2574,35 @@ See `PHASE_VERIFICATION_REPORT_2026-01-04.md` section "Manual Testing Checklist"
 **Commit:** a472961
 
 **Branch:** dev2
+
+[2026-01-15 16:00] Fix — Critical Handyman Auth & API Routing
+
+**Commit:** 267e1d2
+
+**Summary:**
+Fixed critical bug where handyman role was calling contractor API endpoints, resulting in 403 Forbidden errors. Added separate handymanAPI for correct endpoint routing and implemented SMS verification admin bypass for testing.
+
+**Issues Resolved:**
+
+1. ✅ Handyman Dashboard API Routing
+   - Created handymanAPI in src/services/api.ts
+   - Maps to correct /handyman endpoints: /handyman/jobs/feed, /handyman/jobs/active, /handyman/jobs/history
+   - Added wallet and growth endpoint support
+   - Fixed dashboard to import handymanAPI instead of contractorAPI
+
+2. ✅ SMS Verification Admin Bypass
+   - Added admin bypass code: 000000
+   - Allows testing registration with any area code without SMS
+   - Applied to handyman registration step 3
+   - Backend still validates normally for production
+
+**Files Modified:**
+- frontend/src/services/api.ts (added handymanAPI export)
+- frontend/app/(handyman)/dashboard.tsx (changed import and API calls)
+- frontend/app/auth/handyman/register-step3.tsx (added admin bypass)
+
+**Impact:**
+- Handyman registration and login now works end-to-end
+- No more 403 Forbidden errors for handyman users
+- Testing enabled for all US area codes without SMS service
+
