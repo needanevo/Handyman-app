@@ -46,9 +46,12 @@ export default function HandymanRegisterStep3() {
     setIsLoading(true);
 
     try {
+      // Admin bypass code: 000000
+      const isAdminBypass = data.phoneVerification === '000000';
+
       // TODO: Verify code with backend
-      // For now, accept any 6-digit code as valid
-      if (data.phoneVerification.length === 6) {
+      // For now, accept admin bypass (000000) or any 6-digit code as valid
+      if (isAdminBypass || data.phoneVerification.length === 6) {
         router.push({
           pathname: '/auth/handyman/register-step4',
           params,

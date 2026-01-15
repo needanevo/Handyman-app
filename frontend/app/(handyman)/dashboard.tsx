@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { contractorAPI } from '../../src/services/api';
+import { handymanAPI } from '../../src/services/api';
 import { TrustBanner } from '../../src/components/TrustBanner';
 
 export default function HandymanDashboard() {
@@ -32,7 +32,7 @@ export default function HandymanDashboard() {
   const { data: availableJobs } = useQuery({
     queryKey: ['handyman-available-jobs'],
     queryFn: async () => {
-      const response: any = await contractorAPI.getAvailableJobs();
+      const response: any = await handymanAPI.getAvailableJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
@@ -41,7 +41,7 @@ export default function HandymanDashboard() {
   const { data: acceptedJobs } = useQuery({
     queryKey: ['handyman-accepted-jobs'],
     queryFn: async () => {
-      const response: any = await contractorAPI.getAcceptedJobs();
+      const response: any = await handymanAPI.getAcceptedJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
@@ -50,7 +50,7 @@ export default function HandymanDashboard() {
   const { data: scheduledJobs } = useQuery({
     queryKey: ['handyman-scheduled-jobs'],
     queryFn: async () => {
-      const response: any = await contractorAPI.getScheduledJobs();
+      const response: any = await handymanAPI.getScheduledJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
@@ -59,7 +59,7 @@ export default function HandymanDashboard() {
   const { data: completedJobs } = useQuery({
     queryKey: ['handyman-completed-jobs'],
     queryFn: async () => {
-      const response: any = await contractorAPI.getCompletedJobs();
+      const response: any = await handymanAPI.getCompletedJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,

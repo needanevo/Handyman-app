@@ -223,6 +223,43 @@ export const verificationAPI = {
     }),
 };
 
+// Handyman API (for handyman role)
+export const handymanAPI = {
+  // Jobs
+  getAvailableJobs: (filters?: any) =>
+    apiClient.get<any[]>('/handyman/jobs/feed', filters),
+
+  getAcceptedJobs: () =>
+    apiClient.get<any[]>('/handyman/jobs/active'),
+
+  getScheduledJobs: () =>
+    apiClient.get<any[]>('/handyman/jobs/active'), // Same as accepted for handyman
+
+  getCompletedJobs: (filters?: { startDate?: string; endDate?: string }) =>
+    apiClient.get<any[]>('/handyman/jobs/history', filters),
+
+  getJob: (id: string) =>
+    apiClient.get<any>(`/handyman/jobs/${id}`),
+
+  // Wallet
+  getWalletSummary: () =>
+    apiClient.get<any>('/handyman/wallet/summary'),
+
+  getPayouts: () =>
+    apiClient.get<any[]>('/handyman/payouts'),
+
+  // Growth
+  getGrowthSummary: () =>
+    apiClient.get<any>('/handyman/growth/summary'),
+
+  getGrowthEvents: () =>
+    apiClient.get<any[]>('/handyman/growth/events'),
+
+  // Profile
+  updateProfile: (data: any) =>
+    apiClient.patch<any>('/contractors/profile', data), // Uses same endpoint as contractor
+};
+
 // Contractor API
 export const contractorAPI = {
   // Dashboard stats
