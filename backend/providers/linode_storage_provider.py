@@ -94,10 +94,14 @@ class LinodeObjectStorage:
             )
 
             # Upload using requests library (bypasses boto3 response reading bug)
+            # Must include ACL header to match presigned URL signature
             response = requests.put(
                 presigned_url,
                 data=file_data,
-                headers={'Content-Type': content_type}
+                headers={
+                    'Content-Type': content_type,
+                    'x-amz-acl': 'public-read'
+                }
             )
 
             if response.status_code not in [200, 204]:
