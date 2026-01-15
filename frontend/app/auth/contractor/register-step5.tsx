@@ -148,7 +148,7 @@ export default function ContractorRegisterStep5() {
               <>
                 <Text style={styles.reviewItem}>{user.addresses?.[0]?.street}</Text>
                 <Text style={styles.reviewItem}>
-                  {user.addresses?.[0]?.city}, {user.addresses?.[0]?.state} {user.addresses?.[0]?.zipCode}
+                  {user.addresses?.[0]?.city}, {user.addresses?.[0]?.state} {user.addresses?.[0]?.zipCode || (user.addresses?.[0] as any)?.zip_code}
                 </Text>
               </>
             ) : (
