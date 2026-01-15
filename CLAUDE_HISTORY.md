@@ -2606,3 +2606,33 @@ Fixed critical bug where handyman role was calling contractor API endpoints, res
 - No more 403 Forbidden errors for handyman users
 - Testing enabled for all US area codes without SMS service
 
+
+[2026-01-15 16:15] Fix — Handyman Registration Steps 2 & 4 API Routing
+
+**Commit:** c8124c9
+
+**Summary:**
+Fixed handyman registration steps 2 and 4 which were incorrectly calling contractorAPI instead of handymanAPI, preventing skills and banking information from being saved.
+
+**Issues Resolved:**
+
+1. ✅ Step 2 (Skills & Address) API Call
+   - Changed import from contractorAPI to handymanAPI
+   - Updated updateProfile call to use handymanAPI
+   - Now correctly saves skills, years_experience, provider_intent, and business_address
+
+2. ✅ Step 4 (Banking) API Call
+   - Changed import from contractorAPI to handymanAPI
+   - Updated updateProfile call to use handymanAPI
+   - Banking information now saves successfully
+   - Allows progression to Step 5 (Review)
+
+**Files Modified:**
+- frontend/app/auth/handyman/register-step2.tsx
+- frontend/app/auth/handyman/register-step4.tsx
+
+**Impact:**
+- Handyman registration flow now works end-to-end
+- All profile data persists correctly
+- Users can complete full registration and reach dashboard
+
