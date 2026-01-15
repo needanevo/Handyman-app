@@ -2698,3 +2698,126 @@ Implemented workaround for boto3+urllib3+Linode Object Storage incompatibility c
 - Quote request photos upload successfully
 - Ready for production use
 
+
+
+[2026-01-15 17:00] Fix — Change "Business Address" to "Home Address" for Handymen
+
+**Commit:** 49d1369
+
+**Summary:**
+Updated terminology across handyman registration and profile screens to use "Home Address" instead of "Business Address" to align with the growth path philosophy that handymen are individuals working from home, not formal businesses yet.
+
+**Issues Resolved:**
+
+1. ✅ Terminology Consistency
+   - Changed "Business Address" → "Home Address" in registration step 2
+   - Updated "Service Address" → "Home Address" in registration step 5 review
+   - Updated handyman profile screen to show "Home Address"
+
+2. ✅ Customer Photo Upload Presigned URL Fix
+   - Replaced boto3 put_object() with presigned URL + requests library approach
+   - Added _upload_via_presigned_url() helper method
+   - Bypasses boto3 ConnectionClosedError bug with Linode
+
+**Files Modified:**
+- frontend/app/auth/handyman/register-step2.tsx
+- frontend/app/auth/handyman/register-step5.tsx
+- frontend/app/(handyman)/profile/index.tsx
+- backend/providers/linode_storage_provider.py
+
+**Impact:**
+- Handyman UI now reflects growth path philosophy correctly
+- Customer photo uploads now work via presigned URLs
+
+
+[2026-01-15 18:00] Fix — All Contractor Photo Uploads Use Presigned URLs
+
+**Commit:** 811093b
+
+**Summary:**
+Simplified all 4 contractor upload methods to use presigned URL approach, reducing each from 60+ lines to 3 lines. This bypasses the boto3 ConnectionClosedError bug affecting all contractor/handyman photo uploads.
+
+**Issues Resolved:**
+
+1. ✅ Contractor Document Uploads
+   - upload_contractor_document() now uses presigned URLs
+   - License, insurance, business license uploads fixed
+
+2. ✅ Contractor Portfolio Uploads
+   - upload_contractor_portfolio() now uses presigned URLs
+   - Portfolio photo uploads fixed
+
+3. ✅ Contractor Profile Photo Uploads
+   - upload_contractor_profile_photo() now uses presigned URLs
+   - Logo/profile picture uploads fixed
+
+4. ✅ Contractor Job Photo Uploads
+   - upload_contractor_job_photo() now uses presigned URLs
+   - Job progress/completion photo uploads fixed
+
+**Files Modified:**
+- backend/providers/linode_storage_provider.py (simplified 4 methods)
+
+**Technical Details:**
+- Each method reduced from 60+ lines to 3 lines
+- All delegate to _upload_via_presigned_url() helper
+- File size reduction: -203 lines, +15 lines
+
+**Impact:**
+- All contractor/handyman photo uploads now work
+- Shared endpoints work for both contractor and handyman roles
+- Contractor registration can complete with profile photos
+
+
+[2026-01-15 18:05] Fix — Add x-amz-acl Header to Presigned URL Uploads
+
+**Commit:** 31b449a
+
+**Summary:**
+Fixed 403 SignatureDoesNotMatch error on all presigned URL uploads. Linode was rejecting uploads because the x-amz-acl header was missing from the PUT request, causing signature mismatch with the presigned URL.
+
+**Issues Resolved:**
+
+1. ✅ SignatureDoesNotMatch Error (403)
+   - Root cause: Presigned URL included ACL='public-read' in signature
+   - PUT request didn't include x-amz-acl header
+   - Linode rejected with SignatureDoesNotMatch error
+   - Fixed by adding 'x-amz-acl': 'public-read' header to match signature
+
+**Files Modified:**
+- backend/providers/linode_storage_provider.py (_upload_via_presigned_url method)
+
+**Technical Details:**
+- Presigned URL params must match headers in actual request
+- Added x-amz-acl header to requests.put() call
+- Single fix applies to all 6 upload methods using presigned URLs
+
+**Impact:**
+- ALL photo uploads now work correctly (customer + contractor/handyman)
+- Covers: customer photos, contractor documents, portfolio, profile photos, job photos
+- Production-ready after deployment
+
+
+[2026-01-15 18:10] Doc — Growth Path Verification Planning Document
+
+**File Created:** GROWTH_PATH_VERIFICATION.md
+
+**Summary:**
+Created comprehensive planning document for Phase 6+ verification features: LLC formation, insurance, trade licenses, and branding/logo verification. Maps requirements to existing database fields and plans admin dashboard verification queue.
+
+**Content:**
+- Current state audit (Phase 5)
+- Phase 6 verification requirements for LLC, insurance, licenses, branding
+- Tier system progression: Beginner → Verified Business → Licensed Contractor → Master
+- Rate premium structure based on verification level
+- Admin dashboard requirements for verification queue
+- Future enhancements (Phase 7+): OCR, API integrations, background checks
+
+**Purpose:**
+- Reference document for future implementation
+- Ensures verification system aligns with growth path philosophy
+- Documents existing database schema readiness
+
+**Impact:**
+- Clear roadmap for Phase 6+ verification features
+- No immediate code changes, planning only
