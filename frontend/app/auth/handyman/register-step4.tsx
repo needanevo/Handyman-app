@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
-import { contractorAPI } from '../../../src/services/api';
+import { handymanAPI } from '../../../src/services/api';
 import { useAuth } from '../../../src/contexts/AuthContext';
 
 interface Step4Form {
@@ -50,7 +50,7 @@ export default function HandymanRegisterStep4() {
 
       // TODO: Implement banking setup via Stripe Connect or similar
       // For now, just save the bank info to user profile
-      await contractorAPI.updateProfile({
+      await handymanAPI.updateProfile({
         banking_info: {
           account_holder_name: data.accountHolderName,
           routing_number: data.routingNumber,

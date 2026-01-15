@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
-import { contractorAPI } from '../../../src/services/api';
+import { handymanAPI } from '../../../src/services/api';
 
 interface Step2Form {
   yearsExperience: string;
@@ -68,7 +68,7 @@ export default function HandymanRegisterStep2() {
     setIsLoading(true);
 
     try {
-      await contractorAPI.updateProfile({
+      await handymanAPI.updateProfile({
         skills: selectedSkills,
         years_experience: parseInt(data.yearsExperience),
         provider_intent: selectedIntent,
