@@ -2636,3 +2636,31 @@ Fixed handyman registration steps 2 and 4 which were incorrectly calling contrac
 - All profile data persists correctly
 - Users can complete full registration and reach dashboard
 
+
+[2026-01-15 16:25] Fix — Add Banking Info Support to Profile Endpoint
+
+**Commit:** b8dbe83
+
+**Summary:**
+Added banking_info field handling to the /contractors/profile endpoint, which was causing handyman registration step 4 (banking) to fail with "No fields to update" error.
+
+**Issues Resolved:**
+
+1. ✅ Backend Profile Endpoint Enhancement
+   - Added banking_info field support in server.py line 2156-2158
+   - Endpoint now accepts and saves banking information for both contractor and handyman roles
+   - Resolves 400 Bad Request error when saving banking data
+
+2. ✅ Deployed to Production Server
+   - Pulled dev2 branch to /srv/app/Handyman-app/backend
+   - Restarted handyman-api service
+   - Banking saves now work in production
+
+**Files Modified:**
+- backend/server.py (added banking_info handling)
+
+**Impact:**
+- Handyman registration step 4 now saves banking information successfully
+- Users can complete full registration flow from step 1 through step 5
+- Ready for end-to-end testing
+
