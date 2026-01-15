@@ -37,7 +37,7 @@ class LinodeObjectStorage:
             region_name=self.region,
             config=Config(
                 signature_version='s3v4',
-                s3={'addressing_style': 'path'},
+                s3={'addressing_style': 'virtual'},
                 retries={'max_attempts': 3, 'mode': 'adaptive'},
                 connect_timeout=60,  # Increased from 3 to 60 seconds
                 read_timeout=60      # Increased from 9 to 60 seconds
@@ -283,7 +283,7 @@ class LinodeObjectStorage:
                 region_name=self.region,
                 config=Config(
                     signature_version='s3v4',
-                    s3={'addressing_style': 'path'},
+                    s3={'addressing_style': 'virtual'},
                     retries={'max_attempts': 3, 'mode': 'adaptive'},
                     connect_timeout=60,
                     read_timeout=60
@@ -337,7 +337,7 @@ class LinodeObjectStorage:
                 region_name=self.region,
                 config=Config(
                     signature_version='s3v4',
-                    s3={'addressing_style': 'path'},
+                    s3={'addressing_style': 'virtual'},
                     retries={'max_attempts': 3, 'mode': 'adaptive'},
                     connect_timeout=60,
                     read_timeout=60
@@ -387,7 +387,7 @@ class LinodeObjectStorage:
                 region_name=self.region,
                 config=Config(
                     signature_version='s3v4',
-                    s3={'addressing_style': 'path'},
+                    s3={'addressing_style': 'virtual'},
                     retries={'max_attempts': 3, 'mode': 'adaptive'},
                     connect_timeout=60,
                     read_timeout=60
@@ -437,7 +437,7 @@ class LinodeObjectStorage:
                 region_name=self.region,
                 config=Config(
                     signature_version='s3v4',
-                    s3={'addressing_style': 'path'},
+                    s3={'addressing_style': 'virtual'},
                     retries={'max_attempts': 3, 'mode': 'adaptive'},
                     connect_timeout=60,
                     read_timeout=60
@@ -488,7 +488,7 @@ class LinodeObjectStorage:
                 region_name=self.region,
                 config=Config(
                     signature_version='s3v4',
-                    s3={'addressing_style': 'path'},
+                    s3={'addressing_style': 'virtual'},
                     retries={'max_attempts': 3, 'mode': 'adaptive'},
                     connect_timeout=60,
                     read_timeout=60
