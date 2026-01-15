@@ -210,7 +210,7 @@ export default function HandymanRegisterStep2() {
               ))}
             </View>
 
-            <Text style={styles.sectionLabel}>Service Address</Text>
+            <Text style={styles.sectionLabel}>Home Address</Text>
             <Text style={styles.sectionHelp}>
               Where you're based (used for 50-mile radius matching)
             </Text>

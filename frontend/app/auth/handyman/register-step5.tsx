@@ -132,7 +132,7 @@ export default function HandymanRegisterStep5() {
           <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
               <Ionicons name="location" size={24} color={colors.brand.navy} />
-              <Text style={styles.reviewTitle}>Service Address</Text>
+              <Text style={styles.reviewTitle}>Home Address</Text>
               <Button
                 title="Edit"
                 onPress={() => router.push('/auth/handyman/register-step2')}

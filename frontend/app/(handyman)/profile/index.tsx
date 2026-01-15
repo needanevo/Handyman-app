@@ -246,7 +246,7 @@ export default function HandymanProfile() {
 
         {/* Address */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Service Address</Text>
+          <Text style={styles.sectionTitle}>Home Address</Text>
           <View style={styles.infoCard}>
             {!hasAddress && !isEditing && (
               <View style={styles.emptyState}>

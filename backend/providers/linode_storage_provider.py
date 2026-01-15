@@ -367,16 +367,28 @@ class LinodeObjectStorage:
             # Organize: contractors/{contractor_id}/profile/{document_type}_{filename}
             object_key = f"contractors/{contractor_id}/profile/{document_type}_{filename}"
 
-            s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=file_data,
-                ContentType=content_type,
-                ACL='public-read'
-            )
-            logger.info(f"📦 PUT contractor document -> bucket={self.bucket_name} key={object_key}")
+            # Upload with workaround for boto3+Linode ConnectionClosedError
+            try:
+                s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=object_key,
+                    Body=file_data,
+                    ContentType=content_type,
+                    ACL='public-read'
+                )
+                logger.info(f"📦 PUT contractor document -> bucket={self.bucket_name} key={object_key}")
+            except Exception as put_error:
+                logger.warning(f"⚠️ PUT response error (verifying upload): {put_error}")
+                try:
+                    s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+                    logger.info(f"✅ Upload verified via HEAD despite response error")
+                except Exception as head_error:
+                    logger.error(f"❌ Upload failed - file doesn't exist: {head_error}")
+                    raise Exception(f"Contractor document upload failed: {str(put_error)}")
+
+            # Final verification
             s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
-            logger.info("✅ HEAD object ok")
+            logger.info("✅ Final HEAD check ok")
 
             public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
             logger.info(f"Uploaded contractor document to: {public_url}")
@@ -417,16 +429,28 @@ class LinodeObjectStorage:
             # Organize: contractors/{contractor_id}/portfolio/{filename}
             object_key = f"contractors/{contractor_id}/portfolio/{filename}"
 
-            s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=file_data,
-                ContentType=content_type,
-                ACL='public-read'
-            )
-            logger.info(f"📦 PUT contractor portfolio -> bucket={self.bucket_name} key={object_key}")
+            # Upload with workaround for boto3+Linode ConnectionClosedError
+            try:
+                s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=object_key,
+                    Body=file_data,
+                    ContentType=content_type,
+                    ACL='public-read'
+                )
+                logger.info(f"📦 PUT contractor portfolio -> bucket={self.bucket_name} key={object_key}")
+            except Exception as put_error:
+                logger.warning(f"⚠️ PUT response error (verifying upload): {put_error}")
+                try:
+                    s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+                    logger.info(f"✅ Upload verified via HEAD despite response error")
+                except Exception as head_error:
+                    logger.error(f"❌ Upload failed - file doesn't exist: {head_error}")
+                    raise Exception(f"Contractor portfolio upload failed: {str(put_error)}")
+
+            # Final verification
             s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
-            logger.info("✅ HEAD object ok")
+            logger.info("✅ Final HEAD check ok")
 
             public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
             logger.info(f"Uploaded contractor portfolio photo to: {public_url}")
@@ -467,16 +491,28 @@ class LinodeObjectStorage:
             # Organize: contractors/{contractor_id}/profile/{filename}
             object_key = f"contractors/{contractor_id}/profile/{filename}"
 
-            s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=file_data,
-                ContentType=content_type,
-                ACL='public-read'
-            )
-            logger.info(f"📦 PUT contractor profile photo -> bucket={self.bucket_name} key={object_key}")
+            # Upload with workaround for boto3+Linode ConnectionClosedError
+            try:
+                s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=object_key,
+                    Body=file_data,
+                    ContentType=content_type,
+                    ACL='public-read'
+                )
+                logger.info(f"📦 PUT contractor profile photo -> bucket={self.bucket_name} key={object_key}")
+            except Exception as put_error:
+                logger.warning(f"⚠️ PUT response error (verifying upload): {put_error}")
+                try:
+                    s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+                    logger.info(f"✅ Upload verified via HEAD despite response error")
+                except Exception as head_error:
+                    logger.error(f"❌ Upload failed - file doesn't exist: {head_error}")
+                    raise Exception(f"Contractor profile photo upload failed: {str(put_error)}")
+
+            # Final verification
             s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
-            logger.info("✅ HEAD object ok")
+            logger.info("✅ Final HEAD check ok")
 
             public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
             logger.info(f"Uploaded contractor profile photo to: {public_url}")
@@ -518,16 +554,28 @@ class LinodeObjectStorage:
             # Organize: contractors/{contractor_id}/jobs/{job_id}/{filename}
             object_key = f"contractors/{contractor_id}/jobs/{job_id}/{filename}"
 
-            s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=file_data,
-                ContentType=content_type,
-                ACL='public-read'
-            )
-            logger.info(f"📦 PUT contractor job photo -> bucket={self.bucket_name} key={object_key}")
+            # Upload with workaround for boto3+Linode ConnectionClosedError
+            try:
+                s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=object_key,
+                    Body=file_data,
+                    ContentType=content_type,
+                    ACL='public-read'
+                )
+                logger.info(f"📦 PUT contractor job photo -> bucket={self.bucket_name} key={object_key}")
+            except Exception as put_error:
+                logger.warning(f"⚠️ PUT response error (verifying upload): {put_error}")
+                try:
+                    s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+                    logger.info(f"✅ Upload verified via HEAD despite response error")
+                except Exception as head_error:
+                    logger.error(f"❌ Upload failed - file doesn't exist: {head_error}")
+                    raise Exception(f"Contractor job photo upload failed: {str(put_error)}")
+
+            # Final verification
             s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
-            logger.info("✅ HEAD object ok")
+            logger.info("✅ Final HEAD check ok")
 
             public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
             logger.info(f"Uploaded contractor job photo to: {public_url}")
