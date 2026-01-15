@@ -2,6 +2,8 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 from botocore.config import Config
+import requests
+from requests.auth import HTTPBasicAuth
 
 
 from typing import Optional, List
@@ -9,6 +11,9 @@ import base64
 import uuid
 from datetime import datetime
 import logging
+import hashlib
+import hmac
+from email.utils import formatdate
 
 logger = logging.getLogger(__name__)
 
@@ -292,18 +297,33 @@ class LinodeObjectStorage:
 
             # Organize files: customers/{customer_id}/quotes/{quote_id}/{filename}
             object_key = f"customers/{customer_id}/quotes/{quote_id}/{filename}"
-            
+
             # Upload to Linode Object Storage
-            s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=file_data,
-                ContentType=content_type,
-                ACL='public-read'  # Make publicly accessible
-            )
-            logger.info(f"📦 PUT -> bucket={self.bucket_name} key={object_key}")
+            # WORKAROUND: boto3+Linode has ConnectionClosedError bug - ignore response errors
+            try:
+                s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=object_key,
+                    Body=file_data,
+                    ContentType=content_type,
+                    ACL='public-read'  # Make publicly accessible
+                )
+                logger.info(f"📦 PUT successful (no error) -> bucket={self.bucket_name} key={object_key}")
+            except Exception as put_error:
+                # Boto3+Linode often fails to read response even when upload succeeds
+                # Verify upload by checking if object exists
+                logger.warning(f"⚠️ PUT response error (checking if upload succeeded anyway): {put_error}")
+                try:
+                    s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
+                    logger.info(f"✅ Upload verified successful via HEAD despite response error")
+                except Exception as head_error:
+                    # File truly doesn't exist - upload failed
+                    logger.error(f"❌ Upload actually failed - file doesn't exist: {head_error}")
+                    raise Exception(f"Photo upload failed: {str(put_error)}")
+
+            # Final verification
             s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
-            logger.info("✅ HEAD object ok")
+            logger.info("✅ Final HEAD check ok")
 
             # Generate public URL - use correct Linode bucket URL format
             public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
