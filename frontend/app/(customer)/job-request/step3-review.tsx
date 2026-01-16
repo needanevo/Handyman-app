@@ -20,9 +20,11 @@ import { StepIndicator } from '../../../src/components/StepIndicator';
 import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 import { quotesAPI } from '../../../src/services/api';
 import { useAuth } from '../../../src/contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function JobRequestStep3() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const params = useLocalSearchParams();
   const [isGeneratingQuote, setIsGeneratingQuote] = useState(true);
   const [quote, setQuote] = useState<any>(null);
@@ -72,6 +74,11 @@ export default function JobRequestStep3() {
 
         setQuote(aiQuote);
         setIsGeneratingQuote(false);
+
+        // Invalidate React Query cache so new quote appears in "My Jobs"
+        queryClient.invalidateQueries({ queryKey: ['customer-quotes'] });
+        queryClient.invalidateQueries({ queryKey: ['customer-jobs'] });
+        console.log('✅ Cache invalidated - quote will appear in My Jobs');
       } catch (error) {
         console.error('Failed to generate AI quote:', error);
         // Fallback to default estimate if AI fails
@@ -109,6 +116,10 @@ export default function JobRequestStep3() {
       // Quote was already created during preview with AI analysis
       // Just redirect to jobs page where they can see and accept it
       console.log('Quote already created with ID:', quote?.quoteId);
+
+      // Ensure cache is fresh before showing jobs page
+      await queryClient.invalidateQueries({ queryKey: ['customer-quotes'] });
+      await queryClient.invalidateQueries({ queryKey: ['customer-jobs'] });
 
       Alert.alert(
         'Job Posted!',
