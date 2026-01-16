@@ -35,10 +35,13 @@ export default function JobsListScreen() {
   } = useQuery({
     queryKey: ['customer-jobs'],
     queryFn: async () => {
+      console.log('🔄 Fetching customer jobs...');
       const response = await jobsAPI.getJobs();
+      console.log('📦 Jobs response:', response);
       return response || [];
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 0, // Always refetch on mount
+    refetchOnMount: 'always', // Force refetch when component mounts
   });
 
   // Fetch all customer quotes
@@ -49,16 +52,26 @@ export default function JobsListScreen() {
   } = useQuery({
     queryKey: ['customer-quotes'],
     queryFn: async () => {
+      console.log('🔄 Fetching customer quotes...');
       const response = await jobsAPI.getQuotes();
+      console.log('📦 Quotes response:', response);
       return response || [];
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 0, // Always refetch on mount
+    refetchOnMount: 'always', // Force refetch when component mounts
   });
 
   // Merge jobs and quotes into a single list
   const allJobs = React.useMemo(() => {
+    console.log('🔀 Merging jobs and quotes...');
+    console.log('Jobs count:', jobs?.length || 0);
+    console.log('Quotes count:', quotes?.length || 0);
+
     const jobItems = (jobs || []).map((job: any) => ({ ...job, itemType: 'job' }));
     const quoteItems = (quotes || []).map((quote: any) => ({ ...quote, itemType: 'quote' }));
+
+    console.log('Job items:', jobItems);
+    console.log('Quote items:', quoteItems);
 
     // Merge and sort by created_at (most recent first)
     const merged = [...jobItems, ...quoteItems];
@@ -68,6 +81,7 @@ export default function JobsListScreen() {
       return dateB - dateA; // Descending order
     });
 
+    console.log('✅ Merged list:', merged.length, 'items');
     return merged;
   }, [jobs, quotes]);
 
@@ -110,17 +124,23 @@ export default function JobsListScreen() {
 
   // Filter items based on selected tab
   const allItems = allJobs || [];
-  const activeItems = allItems.filter((item: any) =>
-    item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'rejected'
-  );
+  const activeItems = allItems.filter((item: any) => {
+    const isActive = item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'rejected';
+    console.log(`Filtering item ${item.id}: status=${item.status}, isActive=${isActive}`);
+    return isActive;
+  });
   const completedItems = allItems.filter((item: any) =>
     item.status === 'completed' || item.status === 'accepted'
   );
+
+  console.log('📊 Filter counts - All:', allItems.length, 'Active:', activeItems.length, 'Completed:', completedItems.length);
 
   const filteredJobs =
     filter === 'active' ? activeItems :
     filter === 'completed' ? completedItems :
     allItems;
+
+  console.log(`🎯 Current filter: ${filter}, Showing ${filteredJobs.length} jobs`);
 
   // Show loading spinner while fetching
   if (isLoading) {
