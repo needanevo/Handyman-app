@@ -105,23 +105,53 @@ class OpenAiProvider(AiProvider):
             data = json.loads(response_text)
 
             # Map structured response to AiQuoteSuggestion
-            materials = data.get("suggested_materials", []) or []  # Handle None
-            suggestion = AiQuoteSuggestion(
-                estimated_hours=max(0.5, float(data.get("estimated_hours", 2.0))),
-                suggested_materials=(materials if isinstance(materials, list) else [])[:5],
-                complexity_rating=max(1, min(5, int(data.get("complexity_rating", 3)))),
-                base_price_suggestion=max(
-                    50, float(data.get("base_price_suggestion", 150))
-                ),
-                reasoning=str(
-                    data.get(
-                        "reasoning", "AI analysis based on service type and description"
-                    )
-                )[:500],
-                confidence=max(0.1, min(1.0, float(data.get("confidence", 0.7)))),
-            )
+            # Add detailed logging for debugging
+            import logging
+            logger = logging.getLogger(__name__)
 
-            return suggestion
+            try:
+                logger.info(f"🔍 Parsing AI response - Raw data keys: {list(data.keys())}")
+                logger.info(f"🔍 estimated_hours raw: {data.get('estimated_hours')}")
+                logger.info(f"🔍 suggested_materials raw: {data.get('suggested_materials')}")
+                logger.info(f"🔍 base_price_suggestion raw: {data.get('base_price_suggestion')}")
+
+                materials = data.get("suggested_materials", []) or []  # Handle None
+                logger.info(f"🔍 materials after get: type={type(materials)}, value={materials}")
+
+                # Process each field individually with logging
+                estimated_hours_value = max(0.5, float(data.get("estimated_hours", 2.0)))
+                logger.info(f"✅ estimated_hours processed: {estimated_hours_value}")
+
+                materials_value = (materials if isinstance(materials, list) else [])[:5]
+                logger.info(f"✅ materials sliced: type={type(materials_value)}, value={materials_value}")
+
+                complexity_value = max(1, min(5, int(data.get("complexity_rating", 3))))
+                logger.info(f"✅ complexity_rating processed: {complexity_value}")
+
+                base_price_value = max(50, float(data.get("base_price_suggestion", 150)))
+                logger.info(f"✅ base_price_suggestion processed: {base_price_value}")
+
+                reasoning_value = str(data.get("reasoning", "AI analysis based on service type and description"))[:500]
+                logger.info(f"✅ reasoning processed: length={len(reasoning_value)}")
+
+                confidence_value = max(0.1, min(1.0, float(data.get("confidence", 0.7))))
+                logger.info(f"✅ confidence processed: {confidence_value}")
+
+                logger.info("🔧 Creating AiQuoteSuggestion object...")
+                suggestion = AiQuoteSuggestion(
+                    estimated_hours=estimated_hours_value,
+                    suggested_materials=materials_value,
+                    complexity_rating=complexity_value,
+                    base_price_suggestion=base_price_value,
+                    reasoning=reasoning_value,
+                    confidence=confidence_value,
+                )
+                logger.info("✅ AiQuoteSuggestion created successfully!")
+
+                return suggestion
+            except Exception as parse_error:
+                logger.error(f"❌ Error during AI response parsing: {type(parse_error).__name__}: {str(parse_error)}")
+                raise
 
         except Exception as e:
             if self.safety_mode:
