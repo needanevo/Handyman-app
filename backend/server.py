@@ -817,15 +817,18 @@ async def request_quote(
             ai_suggested=ai_suggestion is not None,
             ai_confidence=ai_suggestion.confidence if ai_suggestion else None,
             ai_reasoning=ai_suggestion.reasoning if ai_suggestion else None,
-            status=QuoteStatus.DRAFT,
+            status=QuoteStatus.SENT,  # Auto-send quote so customer can immediately accept
+            sent_at=datetime.utcnow(),  # Set sent timestamp
         )
         
         # Save to database
         quote_dict = quote.model_dump()
-        
+
         # Convert dates to ISO format for MongoDB
         quote_dict["created_at"] = quote_dict["created_at"].isoformat()
         quote_dict["updated_at"] = quote_dict["updated_at"].isoformat()
+        if quote_dict.get("sent_at"):
+            quote_dict["sent_at"] = quote_dict["sent_at"].isoformat()
         if quote_dict.get("preferred_dates"):
             quote_dict["preferred_dates"] = [
                 d.isoformat() for d in quote_dict["preferred_dates"]
@@ -862,7 +865,7 @@ async def request_quote(
             "estimated_hours": estimated_hours,
             "ai_confidence": ai_suggestion.confidence if ai_suggestion else None,
             "photo_urls": photo_urls,
-            "message": "Quote request received! We'll send you a detailed estimate within 24 hours.",
+            "message": "Job posted successfully! Your quote is ready to review and accept.",
         }
         
     except Exception as e:
