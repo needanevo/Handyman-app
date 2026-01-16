@@ -2821,3 +2821,31 @@ Created comprehensive planning document for Phase 6+ verification features: LLC 
 **Impact:**
 - Clear roadmap for Phase 6+ verification features
 - No immediate code changes, planning only
+
+
+[2026-01-16 08:35] CRITICAL Fix — MongoDB Switched from Localhost to Atlas Cloud
+
+**Status:** RESOLVED
+
+**Issue:**
+Server backend was connecting to `mongodb://localhost:27017` instead of MongoDB Atlas cloud database. This caused ALL customer data (registrations, jobs, quotes) to fail saving.
+
+**Root Cause:**
+`backend/providers/providers.env` on server had MONGO_URL pointing to localhost, not the cloud MongoDB Atlas cluster.
+
+**Fix Applied:**
+- Updated server `/srv/app/Handyman-app/backend/providers/providers.env` line 2
+- Changed from: `MONGO_URL=mongodb://localhost:27017`
+- Changed to: `MONGO_URL=mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?appName=Cluster0&w=majority&tlsAllowInvalidCertificates=true`
+- Restarted handyman-api service with `systemctl restart handyman-api`
+- Confirmed connection: "Database indexes created successfully" in logs
+
+**Impact:**
+- All customer registrations now save correctly
+- Jobs and quotes persist to cloud database
+- Data is backed up and accessible from anywhere
+- No data loss (cloud database was always intact, just not being used)
+
+**Files Modified:**
+- Server: `/srv/app/Handyman-app/backend/providers/providers.env`
+- Local: `backend/providers/providers.env` (for reference, not committed - gitignored)
