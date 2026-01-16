@@ -789,6 +789,7 @@ async def request_quote(
             id=quote_id,
             customer_id=current_user.id,
             address_id=quote_request.address_id,
+            service_category=quote_request.service_category,
             items=[
                 QuoteItem(
                     service_id=str(uuid.uuid4()),
