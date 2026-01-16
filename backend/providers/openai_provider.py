@@ -105,9 +105,10 @@ class OpenAiProvider(AiProvider):
             data = json.loads(response_text)
 
             # Map structured response to AiQuoteSuggestion
+            materials = data.get("suggested_materials", []) or []  # Handle None
             suggestion = AiQuoteSuggestion(
                 estimated_hours=max(0.5, float(data.get("estimated_hours", 2.0))),
-                suggested_materials=data.get("suggested_materials", [])[:5],
+                suggested_materials=(materials if isinstance(materials, list) else [])[:5],
                 complexity_rating=max(1, min(5, int(data.get("complexity_rating", 3)))),
                 base_price_suggestion=max(
                     50, float(data.get("base_price_suggestion", 150))

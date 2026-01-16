@@ -37,7 +37,7 @@ class Quote(BaseModel):
     total_amount: float
 
     # Customer request details
-    service_category: str  # Service type (e.g., "Drywall", "Painting", "Plumbing")
+    service_category: str = "General Service"  # Service type (e.g., "Drywall", "Painting", "Plumbing") - default for backward compatibility
     description: str
     photos: List[str] = []  # Photo URLs (from Linode Object Storage)
     preferred_dates: List[date] = []
