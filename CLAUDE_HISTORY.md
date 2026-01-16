@@ -2849,3 +2849,54 @@ Server backend was connecting to `mongodb://localhost:27017` instead of MongoDB 
 **Files Modified:**
 - Server: `/srv/app/Handyman-app/backend/providers/providers.env`
 - Local: `backend/providers/providers.env` (for reference, not committed - gitignored)
+
+
+[2026-01-16 11:45] Fix — Backend Quote Fetch 500 Error and AI Materials Handling
+
+**Commit:** 250bec6
+
+**Status:** DEPLOYED
+
+**Issues Fixed:**
+
+1. **Backend 500 Error When Fetching Quotes**
+   - Symptom: `GET /api/quotes` returned 500 Internal Server Error
+   - Root Cause: Added required `service_category` field to Quote Pydantic model broke validation on old quotes in database without this field
+   - Console Error: `return [Quote(**quote) for quote in quotes]` failed validation
+
+2. **AI Always Returning $162**
+   - Symptom: All AI quotes returned exactly $162 regardless of job description
+   - Root Cause: AI provider throwing slice error on None materials: `slice(None, 5, None)`
+   - This caused fallback to base price $150 + 8% tax = $162
+
+**Fixes Applied:**
+
+1. **backend/models/quote.py line 40:**
+   - Made `service_category` optional with default value
+   - Changed from: `service_category: str`
+   - Changed to: `service_category: str = "General Service"`
+   - Allows backward compatibility with old quotes in database
+
+2. **backend/providers/openai_provider.py lines 108-111:**
+   - Added None handling for materials array
+   - Added: `materials = data.get("suggested_materials", []) or []`
+   - Changed slice to: `(materials if isinstance(materials, list) else [])[:5]`
+   - Prevents TypeError when AI returns None for materials
+
+**Testing Required:**
+- Create new quote with job description
+- Verify quote appears in "My Jobs" screen (no 500 error)
+- Verify AI generates varied pricing (not always $162)
+- Check backend logs for AI success vs fallback
+
+**Impact:**
+- Quotes now fetch without backend crashes
+- AI can properly process job descriptions and return varied pricing
+- Old quotes in database remain valid and accessible
+- Frontend "My Jobs" screen can display quote data
+
+**Files Modified:**
+- `backend/models/quote.py`
+- `backend/providers/openai_provider.py`
+
+**Deployed to:** Production server at 172.234.70.157 via `git pull origin dev2` and `systemctl restart handyman-api`
