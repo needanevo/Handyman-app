@@ -2900,3 +2900,67 @@ Server backend was connecting to `mongodb://localhost:27017` instead of MongoDB 
 - `backend/providers/openai_provider.py`
 
 **Deployed to:** Production server at 172.234.70.157 via `git pull origin dev2` and `systemctl restart handyman-api`
+
+
+[2026-01-16 12:00] Fix — AI Returning String Descriptors Instead of Numbers
+
+**Commit:** 812ccfc
+
+**Status:** DEPLOYED
+
+**Root Cause Identified:**
+
+The "AI always returns $162" issue was NOT a slice error. The real error was:
+```
+invalid literal for int() with base 10: 'Medium'
+```
+
+OpenAI was returning string descriptors ("Medium", "High", "Low") for numeric fields instead of integers/floats:
+- `complexity_rating` expected: integer 1-5, got: "Medium"
+- `confidence` expected: float 0.0-1.0, got: potentially "High"
+
+This caused the parsing to fail and fall back to default pricing ($150 + 8% tax = $162).
+
+**Testing Results:**
+
+Direct API test proved OpenAI works perfectly when prompted correctly:
+- Returned $1,710 estimate (not $162)
+- Returned 16 hours (not 2)
+- Returned 85% confidence (not 50%)
+- Returned valid materials list
+
+**Fixes Applied:**
+
+1. **Updated AI Prompt (lines 54-65):**
+   - Added explicit examples: `<number only, e.g. 2.5>`
+   - Added "CRITICAL" warning: "Use ONLY numbers... Do NOT use words like 'Medium', 'High'"
+   - Clarified each field type more explicitly
+
+2. **Added String-to-Number Mapping (lines 131-167):**
+   - `complexity_rating`: Low=2, Medium=3, High=4, etc.
+   - `confidence`: Low=0.4, Medium=0.6, High=0.85, etc.
+   - Logs warning when string conversion is used
+   - Falls back to default if string not in map
+
+3. **Enhanced Logging:**
+   - Added step-by-step parsing logs with 🔍 and ✅ emojis
+   - Shows raw AI response values
+   - Shows processed/mapped values
+   - Helps diagnose future issues
+
+**Impact:**
+- AI should now return proper numeric values with clearer prompt
+- If AI still sends strings, automatic mapping prevents crashes
+- Detailed logs help diagnose any remaining issues
+- Quotes should now have varied, accurate pricing
+
+**Testing Required:**
+- Create new quote with detailed job description
+- Verify varied pricing (not always $162)
+- Check backend logs for AI success vs string mapping warnings
+- Confirm materials, hours, and confidence are realistic
+
+**Files Modified:**
+- `backend/providers/openai_provider.py`
+
+**Deployed to:** Production server at 172.234.70.157 via `git pull origin dev2` and `systemctl restart handyman-api`
