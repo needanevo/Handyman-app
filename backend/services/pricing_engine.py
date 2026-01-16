@@ -212,6 +212,40 @@ class PricingEngine:
         # Round to nearest $10 for clean amounts
         return round(deposit / 10) * 10
 
+    def get_base_price(self, service_category: str) -> float:
+        """Get base price for a service category (fallback when AI fails)"""
+        # Default base prices by category
+        category_prices = {
+            "drywall": 150.0,
+            "painting": 200.0,
+            "electrical": 180.0,
+            "plumbing": 160.0,
+            "carpentry": 220.0,
+            "flooring": 250.0,
+            "hvac": 200.0,
+            "appliance repair": 150.0,
+            "door & window": 180.0,
+            "general handyman": 150.0,
+        }
+        return category_prices.get(service_category.lower(), 150.0)
+
+    def estimate_hours(self, service_category: str) -> float:
+        """Estimate hours for a service category (fallback when AI fails)"""
+        # Default hour estimates by category
+        category_hours = {
+            "drywall": 3.0,
+            "painting": 4.0,
+            "electrical": 2.0,
+            "plumbing": 2.5,
+            "carpentry": 4.5,
+            "flooring": 5.0,
+            "hvac": 3.0,
+            "appliance repair": 2.0,
+            "door & window": 3.0,
+            "general handyman": 3.0,
+        }
+        return category_hours.get(service_category.lower(), 3.0)
+
     def validate_pricing(self, quote_items: List[QuoteItem]) -> List[str]:
         """Validate pricing calculations and return any warnings"""
         warnings = []

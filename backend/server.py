@@ -744,6 +744,10 @@ async def request_quote(
         ai_suggestion_dict = None
         if os.getenv("FEATURE_AI_QUOTE_ENABLED", "true").lower() == "true":
             try:
+                logger.info(f"🤖 Requesting AI quote for: {quote_request.service_category}")
+                logger.info(f"Description: {quote_request.description[:200]}")
+                logger.info(f"Photos: {len(quote_request.photos)} uploaded")
+
                 ai_suggestion = await ai_provider.generate_quote_suggestion(
                     service_type=quote_request.service_category,
                     description=quote_request.description,
@@ -760,22 +764,21 @@ async def request_quote(
                     'confidence': ai_suggestion.confidence
                 }
                 
-                logger.info(f"AI suggestion generated with {ai_suggestion.confidence:.0%} confidence")
+                logger.info(f"✅ AI suggestion generated: ${ai_suggestion.base_price_suggestion:.2f} for {ai_suggestion.estimated_hours}hrs ({ai_suggestion.confidence:.0%} confidence)")
+                logger.info(f"AI reasoning: {ai_suggestion.reasoning[:200]}")
             except Exception as e:
-                logger.warning(f"AI quote generation failed: {e}")
-        
+                logger.warning(f"❌ AI quote generation failed: {e}")
+                logger.info("Using fallback pricing engine instead")
+
         # Step 3: Calculate pricing using AI suggestion or fallback to default
-        base_price = (
-            ai_suggestion.base_price_suggestion
-            if ai_suggestion
-            else pricing_engine.get_base_price(quote_request.service_category)
-        )
-        
-        estimated_hours = (
-            ai_suggestion.estimated_hours
-            if ai_suggestion
-            else pricing_engine.estimate_hours(quote_request.service_category)
-        )
+        if ai_suggestion:
+            base_price = ai_suggestion.base_price_suggestion
+            estimated_hours = ai_suggestion.estimated_hours
+            logger.info(f"Using AI-generated pricing: ${base_price:.2f} ({estimated_hours}hrs)")
+        else:
+            base_price = pricing_engine.get_base_price(quote_request.service_category)
+            estimated_hours = pricing_engine.estimate_hours(quote_request.service_category)
+            logger.info(f"Using fallback pricing for {quote_request.service_category}: ${base_price:.2f} ({estimated_hours}hrs)")
         
         # Calculate totals
         subtotal = base_price

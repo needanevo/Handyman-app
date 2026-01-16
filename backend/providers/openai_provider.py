@@ -35,22 +35,30 @@ class OpenAiProvider(AiProvider):
         """Generate AI-powered quote suggestion using OpenAI."""
 
         try:
-            # Build the prompt
+            # Build the prompt with actual job details
             prompt = f"""
-            Analyze this handyman job request and provide a structured estimate including parts, materials, and labor (base hourly rate $150/hr):
+            Analyze this handyman job request and provide a detailed cost estimate:
 
                 Service Type: {service_type}
                 Customer Description: {description}
                 Photos Provided: {len(photos_metadata or [])} images
 
+                IMPORTANT INSTRUCTIONS:
+                - Base your estimate on the SPECIFIC description provided
+                - Consider materials, labor, and complexity
+                - Base labor rate is $95/hour (adjust hours based on job complexity)
+                - Include materials cost in your base_price_suggestion
+                - If description mentions specific items (faucet, drywall size, paint rooms, etc.), factor those into pricing
+                - Vary your estimate based on job details - don't use generic estimates
+
                 Provide your response in this exact JSON format:
                 {{
-                    "estimated_hours": <number>,
+                    "estimated_hours": <number (be specific based on description)>,
                     "suggested_materials": ["material1", "material2", "material3"],
-                    "complexity_rating": <1-5>,
-                    "base_price_suggestion": <number>,
-                    "reasoning": "<detailed explanation>",
-                    "confidence": <0.0-1.0>
+                    "complexity_rating": <1-5 (rate based on actual job complexity)>,
+                    "base_price_suggestion": <number (include labor AND materials)>,
+                    "reasoning": "<detailed explanation of how you calculated the estimate>",
+                    "confidence": <0.0-1.0 (lower if description is vague)>
                 }}
             """
 
