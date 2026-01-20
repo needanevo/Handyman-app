@@ -196,8 +196,14 @@ export const quotesAPI = {
     return apiClient.postFormData<any>('/photos/upload', formData);
   },
   
-  respondToQuote: (id: string, response: { accept: boolean; customer_notes?: string }) => 
+  respondToQuote: (id: string, response: { accept: boolean; customer_notes?: string }) =>
     apiClient.post<any>(`/quotes/${id}/respond`, response),
+
+  acceptQuote: (id: string, notes?: string) =>
+    apiClient.post<any>(`/quotes/${id}/accept`, { customer_notes: notes }),
+
+  rejectQuote: (id: string, reason?: string) =>
+    apiClient.post<any>(`/quotes/${id}/reject`, { reason }),
 };
 
 // Profile API
