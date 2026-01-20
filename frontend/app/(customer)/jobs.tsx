@@ -6,10 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { Button } from '../../src/components/Button';
@@ -86,11 +87,52 @@ export default function JobsListScreen() {
   }, [jobs, quotes]);
 
   const isLoading = jobsLoading || quotesLoading;
+  const queryClient = useQueryClient();
+
+  // Delete job mutation
+  const deleteJobMutation = useMutation({
+    mutationFn: (jobId: string) => jobsAPI.deleteJob(jobId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-quotes'] });
+      Alert.alert('Success', 'Job has been cancelled successfully.');
+    },
+    onError: (error: any) => {
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to cancel job. Please try again.'
+      );
+    },
+  });
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([refetchJobs(), refetchQuotes()]);
     setRefreshing(false);
+  };
+
+  const handleDeleteJob = (job: any) => {
+    // Only allow deleting pending/draft jobs
+    if (job.status !== 'pending' && job.status !== 'draft') {
+      Alert.alert(
+        'Cannot Delete',
+        `Jobs in '${job.status}' status cannot be deleted. Only pending or draft jobs can be cancelled.`
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Cancel Job',
+      'Are you sure you want to cancel this job? This action cannot be undone.',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: () => deleteJobMutation.mutate(job.id),
+        },
+      ]
+    );
   };
 
   const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'neutral' => {
@@ -332,6 +374,20 @@ export default function JobsListScreen() {
                     </Text>
                   </View>
 
+                  {/* Delete button for jobs (not quotes) in pending/draft status */}
+                  {job.itemType === 'job' && (job.status === 'pending' || job.status === 'draft') && (
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeleteJob(job);
+                      }}
+                      disabled={deleteJobMutation.isPending}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={colors.error.main} />
+                    </TouchableOpacity>
+                  )}
+
                   <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
                 </View>
               </Card>
@@ -487,6 +543,10 @@ const styles = StyleSheet.create({
   costAmount: {
     ...typography.headings.h5,
     color: colors.primary.main,
+  },
+  deleteButton: {
+    padding: spacing.sm,
+    marginHorizontal: spacing.xs,
   },
   fab: {
     position: 'absolute',

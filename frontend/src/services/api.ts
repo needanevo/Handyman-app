@@ -143,6 +143,9 @@ export const jobsAPI = {
   getJob: (id: string) =>
     apiClient.get<any>(`/jobs/${id}`),
 
+  deleteJob: (id: string) =>
+    apiClient.delete<any>(`/jobs/${id}`),
+
   updateJobStatus: (id: string, status: string) =>
     apiClient.patch<any>(`/jobs/${id}/status`, { status }),
 
