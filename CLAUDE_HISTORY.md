@@ -2964,3 +2964,91 @@ Direct API test proved OpenAI works perfectly when prompted correctly:
 - `backend/providers/openai_provider.py`
 
 **Deployed to:** Production server at 172.234.70.157 via `git pull origin dev2` and `systemctl restart handyman-api`
+
+[2026-01-19 23:00] Feat — Contractor Job Board Visibility with Quotes + Jobs
+
+**Commit:** d7c18b8  
+**Branch:** dev2  
+**Deployed to:** Production server at 172.234.70.157
+
+**Summary:**
+Implemented contractor job board visibility system that shows both unaccepted quotes (open for bids) and accepted jobs (ready to accept). Contractors can now see available work within 50-mile radius filtered by their specialties and skills.
+
+**Backend Changes:**
+
+1. **Modified `/api/contractor/jobs/available` endpoint (via update_contractor_jobs.py):**
+   - Returns BOTH unaccepted quotes (`status="sent"`) and pending jobs (`contractor_id=None`)
+   - Filters by distance (50-mile radius using geopy.geodesic)
+   - Filters by skills match (service_category in contractor.specialties)
+   - Adds `item_type` field: "quote" or "job"
+   - Includes distance_miles, customer_address, standardized price fields
+   - Sorts by distance (closest first)
+
+2. **Added Quote Accept/Reject Endpoints (via insert_endpoints_script.py):**
+   - `POST /api/quotes/{quote_id}/accept` - Convenience endpoint to accept quote
+   - `POST /api/quotes/{quote_id}/reject` - Convenience endpoint to reject quote
+   - Both call existing `respond_to_quote()` logic
+
+**Frontend Changes:**
+
+1. **Updated `frontend/app/(contractor)/jobs/available.tsx`:**
+   - Replaced JobCard component with inline rendering
+   - Added item type badges: Blue "Open for Bids" (quotes) vs Green "Ready to Accept" (jobs)
+   - Display shows: category, distance, city/state, days posted, quoted amount
+   - Dynamic price label: "Customer Budget" vs "Agreed Amount"
+   - Dynamic button text: "Submit Bid" vs "Accept Job"
+   - Updated data mapping to support new backend format
+
+2. **Updated `frontend/app/(handyman)/jobs/available.tsx`:**
+   - Same inline rendering with item type identification
+   - Consistent styling and badges
+   - Location display with city/state
+   - Posted date calculation ("X days ago")
+
+3. **Updated `frontend/app/(customer)/quotes/[id].tsx` (previous session):**
+   - Added Accept/Reject buttons for sent quotes
+   - Cache invalidation on accept/reject
+   - Success redirects to My Jobs
+
+4. **Updated `frontend/src/services/api.ts` (previous session):**
+   - Added `acceptQuote(id, notes?)` method
+   - Added `rejectQuote(id, reason?)` method
+
+**Scripts Created:**
+- `backend/insert_endpoints_script.py` - Adds accept/reject quote endpoints to server.py
+- `backend/update_contractor_jobs.py` - Replaces get_available_jobs function in server.py
+
+**Testing:**
+- ✅ Backend service restarted successfully
+- ✅ API endpoints verified in OpenAPI schema at `/docs`
+- ✅ `/api/contractor/jobs/available` endpoint documented with new description
+- ✅ `/api/quotes/{quote_id}/accept` and `/reject` endpoints confirmed
+- ✅ Frontend code deployed to dev2 branch
+
+**Impact:**
+- Contractors can now see both quote opportunities (can bid) and available jobs (can accept)
+- Job matching based on skills and location (Phase 6 eligibility engine)
+- Proper job identification with category, location, price, and type badges
+- Foundation laid for bidding system (deferred to next session per user request)
+
+**Next Steps (Deferred):**
+- Implement contractor bidding system for unaccepted quotes
+- Allow customers to view and accept contractor bids
+- Complete Phase 5B-1/5B-2 (Provider Identity & Capability Capture)
+
+**Files Modified:**
+- `backend/server.py` (via Python scripts - already had changes from previous deployment)
+- `frontend/app/(contractor)/jobs/available.tsx`
+- `frontend/app/(handyman)/jobs/available.tsx`
+- `frontend/app/(customer)/quotes/[id].tsx` (previous session)
+- `frontend/src/services/api.ts` (previous session)
+
+**Deployment Commands:**
+```bash
+ssh root@172.234.70.157
+cd /srv/app/Handyman-app
+git pull origin dev2
+systemctl restart handyman-api
+systemctl status handyman-api --no-pager
+```
+
