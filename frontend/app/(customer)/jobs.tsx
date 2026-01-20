@@ -99,17 +99,33 @@ export default function JobsListScreen() {
     return 'neutral';
   };
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const getDaysAgo = (dateString: string) => {
+    if (!dateString) return 0;
+    const now = new Date();
+    const past = new Date(dateString);
+    const diffTime = Math.abs(now.getTime() - past.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
   const getStatusLabel = (status: string, itemType?: string) => {
-    // Quote statuses
+    // Quote statuses - show as job progress
     if (itemType === 'quote') {
       const quoteLabels: Record<string, string> = {
-        draft: 'Pending Quote',
-        pending: 'Awaiting Response',
+        draft: 'Quote Ready',
+        sent: 'Awaiting Accept',
+        pending: 'Awaiting Accept',
         quoted: 'Quote Received',
-        accepted: 'Quote Accepted',
-        rejected: 'Quote Declined',
+        accepted: 'Accepted',
+        rejected: 'Declined',
       };
-      return quoteLabels[status.toLowerCase()] || 'Pending Quote';
+      return quoteLabels[status.toLowerCase()] || 'Pending';
     }
 
     // Job statuses
@@ -250,11 +266,11 @@ export default function JobsListScreen() {
                 <View style={styles.jobHeader}>
                   <View style={styles.jobTitleSection}>
                     <Text style={styles.jobTitle}>
-                      {job.service_category || job.category || job.title || 'Service Request'}
+                      {job.description || job.service_category || job.category || job.title || 'Service Request'}
                     </Text>
                     <View style={styles.jobMeta}>
                       <Badge
-                        label={job.category || job.service_category || 'Service'}
+                        label={job.service_category || job.category || 'Service'}
                         variant="neutral"
                         size="sm"
                       />
@@ -292,30 +308,27 @@ export default function JobsListScreen() {
                 {/* Footer */}
                 <View style={styles.jobFooter}>
                   <View style={styles.jobDates}>
-                    <Text style={styles.dateLabel}>
-                      {job.status === 'completed' || job.status === 'accepted' ? 'Completed' : 'Posted'}
-                    </Text>
+                    <Text style={styles.dateLabel}>Posted</Text>
                     <Text style={styles.dateValue}>
-                      {job.status === 'completed' || job.status === 'accepted'
-                        ? (job.completedAt || job.completed_at || job.createdAt || job.created_at)
-                        : (job.createdAt || job.created_at)}
+                      {formatDate(job.created_at || job.createdAt)}
+                    </Text>
+                    <Text style={styles.daysAgo}>
+                      {getDaysAgo(job.created_at || job.createdAt)} days ago
                     </Text>
                   </View>
 
                   <View style={styles.costSection}>
                     <Text style={styles.costLabel}>
-                      {job.itemType === 'quote' ? 'Estimate' : 'Quote'}
+                      {job.itemType === 'quote' ? 'Quoted' : 'Total'}
                     </Text>
                     <Text style={styles.costAmount}>
-                      {typeof job.totalCost === 'number'
+                      {typeof job.total_amount === 'number'
+                        ? `$${job.total_amount.toFixed(2)}`
+                        : typeof job.totalCost === 'number'
                         ? `$${job.totalCost.toFixed(2)}`
                         : typeof job.estimated_total === 'number'
                         ? `$${job.estimated_total.toFixed(2)}`
-                        : typeof job.ai_quote?.estimated_total === 'number'
-                        ? `$${job.ai_quote.estimated_total.toFixed(2)}`
-                        : typeof job.aiQuote?.estimatedTotal === 'number'
-                        ? `$${job.aiQuote.estimatedTotal.toFixed(2)}`
-                        : 'Quote Pending'}
+                        : '$0.00'}
                     </Text>
                   </View>
 
@@ -456,6 +469,11 @@ const styles = StyleSheet.create({
   dateValue: {
     ...typography.caption.regular,
     color: colors.neutral[700],
+  },
+  daysAgo: {
+    ...typography.caption.small,
+    color: colors.neutral[500],
+    marginTop: spacing.xs / 2,
   },
   costSection: {
     alignItems: 'flex-end',
