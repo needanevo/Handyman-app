@@ -49,6 +49,15 @@ export default function ContractorRegisterStep4() {
         // Don't block navigation if refresh fails - data is already saved to backend
       }
 
+      // Track onboarding step completion (Phase 5B-1)
+      try {
+        await authAPI.updateOnboardingStep(4);
+        console.log('✅ Step 4 progress saved');
+      } catch (stepError) {
+        console.warn('Failed to save step progress:', stepError);
+        // Don't block navigation if step tracking fails
+      }
+
       // Navigate to Step 5 (Review)
       router.push('/auth/contractor/register-step5');
     } catch (error: any) {

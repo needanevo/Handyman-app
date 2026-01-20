@@ -3235,3 +3235,158 @@ systemctl restart handyman-api
 
 **Status:** ✅ DEPLOYED AND VERIFIED
 
+
+---
+
+[2026-01-20] Phase 5B-1 Complete — Onboarding Step Tracking & Resume Safety
+
+**Commit:** 385aaf8  
+**Branch:** dev2
+
+## Overview
+
+Completed Phase 5B-1 from BUILD_PHASES.md: "Onboarding is linear and reload-safe (resume at last confirmed step)". 
+
+Implemented explicit server-side onboarding step tracking to replace fragile field-based detection. Users who close the app mid-registration now resume at the last confirmed step (checkpoint-based) when they log back in.
+
+## Phase 5B-1 Requirements Met
+
+✅ Provider identity & type fields (provider_type, provider_intent) - Already existed from Phase 5A  
+✅ Capabilities persistence (skills/specialties arrays) - Already existed  
+✅ **NEW:** Onboarding reload-safety with server-side step tracking  
+✅ **NEW:** Checkpoint-based onboarding flow that resumes at last saved step
+
+## Architecture Change
+
+**Before (Field-Based Detection):**
+- Layout guards called getHandymanOnboardingStep(user) and getContractorOnboardingStep(user)
+- These functions checked if skills/experience/documents existed to infer current step
+- Fragile: fails if user skips fields or fields are optional
+- No explicit "onboarding complete" state
+
+**After (Explicit Step Tracking):**
+- Backend tracks onboarding_step: int (1-5) and onboarding_completed: bool
+- Registration steps save progress via POST /auth/onboarding/step
+- Final step marks complete via POST /auth/onboarding/complete
+- Layout guards check !user.onboardingCompleted && user.onboardingStep to redirect
+- Simple, reliable, explicit state management
+
+## Backend Changes
+
+**1. User Model (backend/models/user.py via script):**
+Added onboarding_step (Optional[int]) and onboarding_completed (bool) fields
+
+**2. Endpoints (backend/server.py via script):**
+- POST /auth/onboarding/step - Save current step (1-5)
+- POST /auth/onboarding/complete - Mark onboarding done, set provider_status to submitted
+
+**3. GET /auth/me:**
+- Already returns onboarding_step and onboarding_completed fields (no changes needed)
+
+## Frontend Changes
+
+**1. API Methods (frontend/src/services/api.ts):**
+Added authAPI.updateOnboardingStep(step) and authAPI.completeOnboarding()
+
+**2. AuthContext User Interface (frontend/src/contexts/AuthContext.tsx):**
+Added onboardingStep and onboardingCompleted fields to User interface
+
+**3. AuthContext Transformation (frontend/src/contexts/AuthContext.tsx):**
+- Added extraction of onboarding_step and onboarding_completed from backend response
+- Included in contractor/handyman user transformation
+
+**4. Registration Steps:**
+
+**Handyman Step 2** (frontend/app/auth/handyman/register-step2.tsx):
+Calls authAPI.updateOnboardingStep(2) after successful profile update
+
+**Handyman Step 5** (frontend/app/auth/handyman/register-step5.tsx):
+Calls authAPI.completeOnboarding() before redirecting to dashboard
+
+**Contractor Step 5** (frontend/app/auth/contractor/register-step5.tsx):
+Same pattern as handyman step 5
+
+**5. Layout Guards:**
+
+**Handyman Layout** (frontend/app/(handyman)/_layout.tsx):
+Checks !user.onboardingCompleted && user.onboardingStep to redirect to specific step
+
+**Contractor Layout** (frontend/app/(contractor)/_layout.tsx):
+Same pattern as handyman layout
+
+**Removed Dependencies:**
+- Removed imports of getHandymanOnboardingStep and getContractorOnboardingStep from onboardingState.ts
+- Layout guards now use explicit onboardingCompleted and onboardingStep checks
+
+## Files Modified
+
+**Backend:**
+- backend/models/user.py (via add_onboarding_step_field.py)
+- backend/server.py (via add_onboarding_endpoints.py)
+
+**Frontend:**
+- frontend/src/services/api.ts
+- frontend/src/contexts/AuthContext.tsx
+- frontend/app/auth/handyman/register-step2.tsx
+- frontend/app/auth/handyman/register-step5.tsx
+- frontend/app/auth/contractor/register-step5.tsx
+- frontend/app/(handyman)/_layout.tsx
+- frontend/app/(contractor)/_layout.tsx
+
+## User Flow Example
+
+**New Handyman Registration - Interrupted:**
+1. User completes Step 1 (basic info), account created, logged in
+2. User completes Step 2 (skills/address), onboarding_step = 2 saved
+3. User closes app
+4. User reopens app → AuthContext hydrates → Layout guard detects incomplete onboarding
+5. User redirected to /auth/handyman/register-step2 (last confirmed step)
+6. User continues through steps 3, 4, 5
+7. User clicks "Confirm & Enter Dashboard" on Step 5 → onboardingCompleted = true
+8. User redirected to /(handyman)/dashboard
+9. Future logins → Layout guard sees onboardingCompleted === true → allows dashboard access
+
+## Testing Notes
+
+**Manual Testing Required:**
+1. Start handyman registration → complete step 1 and 2 → close app
+2. Reopen app → verify redirect to step 2
+3. Complete registration → verify redirect to dashboard
+4. Log out and log back in → verify dashboard access (no redirect to onboarding)
+
+**Expected Behavior:**
+- Incomplete registrations resume at last confirmed checkpoint
+- Completed registrations go directly to dashboard
+- onboardingCompleted === true is the gate to dashboard access
+
+## Known Limitations
+
+**Only Step 2 and Step 5 Track Progress:**
+- Steps 3 and 4 do not call updateOnboardingStep() yet
+- If user closes app during step 3 or 4, they will resume at step 2
+- Not critical: worst case is re-entering step 2 data (which is saved)
+- Can be improved in future by adding tracking to all steps
+
+**Customer Role:**
+- Customer registration does not use this system (different flow)
+- Only applies to contractor/handyman onboarding
+
+## Phase 5B-1 Status
+
+✅ **COMPLETE**
+
+All BUILD_PHASES.md Phase 5B-1 requirements met:
+- Provider identity & type fields exist
+- Capabilities persist correctly
+- Onboarding is reload-safe with server-side tracking
+- Checkpoint-based flow resumes at last saved step
+
+**Ready for Phase 5B-2:** Provider status lifecycle (draft → submitted → active → restricted)
+
+## Deployment
+
+Backend deployed via git + systemctl restart on production server.
+Frontend committed and will deploy on next Expo build.
+
+**Backend Status:** ✅ DEPLOYED  
+**Frontend Status:** ✅ COMMITTED

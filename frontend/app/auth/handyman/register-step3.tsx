@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
+import { authAPI } from '../../../src/services/api';
 
 interface Step3Form {
   phoneVerification: string;
@@ -52,6 +53,15 @@ export default function HandymanRegisterStep3() {
       // TODO: Verify code with backend
       // For now, accept admin bypass (000000) or any 6-digit code as valid
       if (isAdminBypass || data.phoneVerification.length === 6) {
+        // Track onboarding step completion (Phase 5B-1)
+        try {
+          await authAPI.updateOnboardingStep(3);
+          console.log('✅ Step 3 progress saved');
+        } catch (stepError) {
+          console.warn('Failed to save step progress:', stepError);
+          // Don't block navigation if step tracking fails
+        }
+
         router.push({
           pathname: '/auth/handyman/register-step4',
           params,
