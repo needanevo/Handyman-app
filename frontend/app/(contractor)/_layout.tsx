@@ -51,9 +51,11 @@ export default function ContractorLayout() {
 
     // Onboarding guard (Phase 5B-1): Check if onboarding is incomplete
     // Use explicit step tracking instead of field-based detection
-    if (!user.onboardingCompleted && user.onboardingStep) {
-      const stepUrl = `/auth/contractor/register-step${user.onboardingStep}`;
-      console.log(`[Contractor Layout] Resuming onboarding at step ${user.onboardingStep}`);
+    if (!user.onboardingCompleted) {
+      // If step is tracked, resume there; otherwise default to step 2
+      const resumeStep = user.onboardingStep || 2;
+      const stepUrl = `/auth/contractor/register-step${resumeStep}`;
+      console.log(`[Contractor Layout] Resuming onboarding at step ${resumeStep} (tracked: ${user.onboardingStep})`);
       router.replace(stepUrl as any);
       return;
     }

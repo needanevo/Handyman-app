@@ -78,20 +78,30 @@ export default function HandymanRegisterStep1() {
       console.error('[Step1] Registration error:', error);
       console.error('[Step1] Error response:', error.response?.data);
       console.error('[Step1] Error message:', error.message);
+      console.error('[Step1] Full error object:', JSON.stringify(error, null, 2));
 
       // TASK 2: Handle "Email already registered" with login attempt
-      const errorDetail = error?.response?.data?.detail || '';
-      const isEmailAlreadyRegistered = error?.response?.status === 400 &&
-        errorDetail.toLowerCase().includes('email already registered');
+      const errorDetail = error?.response?.data?.detail || error?.message || '';
+      const errorStatus = error?.response?.status;
+
+      console.log('[Step1] Error detail:', errorDetail);
+      console.log('[Step1] Error status:', errorStatus);
+
+      const isEmailAlreadyRegistered = errorStatus === 400 &&
+        (errorDetail.toLowerCase().includes('email already registered') ||
+         errorDetail.toLowerCase().includes('already exists'));
 
       if (isEmailAlreadyRegistered) {
         try {
           console.log('[Step1] Email already registered, attempting login...');
           await login(data.email, data.password);
-          console.log('[Step1] Login successful, redirecting to dashboard...');
-          // Login successful - navigate to handyman dashboard
-          router.replace('/(handyman)/dashboard');
-          Alert.alert('Welcome Back', 'You already have an account. Successfully logged in.');
+          console.log('[Step1] Login successful');
+
+          // Don't manually navigate - let layout guards handle routing based on onboarding status
+          // If onboarding incomplete, they'll be redirected to correct step
+          // If complete, they'll reach dashboard
+          Alert.alert('Welcome Back', 'You already have an account. Resuming where you left off...');
+          setIsLoading(false);
           return; // Exit early, don't show error
         } catch (loginError: any) {
           console.error('[Step1] Login attempt failed:', loginError);
