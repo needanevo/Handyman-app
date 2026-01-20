@@ -12,6 +12,7 @@ import { colors, spacing, typography, borderRadius } from '../../../src/constant
 import { Button } from '../../../src/components/Button';
 import { StepIndicator } from '../../../src/components/StepIndicator';
 import { useAuth } from '../../../src/contexts/AuthContext';
+import { authAPI } from '../../../src/services/api';
 
 export default function HandymanRegisterStep5() {
   const router = useRouter();
@@ -32,9 +33,18 @@ export default function HandymanRegisterStep5() {
     }
   }, [registrationConfirmed, isHydrated, isAuthenticated, user, router]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setIsLoading(true);
-    setRegistrationConfirmed(true);
+    try {
+      // Mark onboarding as complete (Phase 5B-1)
+      await authAPI.completeOnboarding();
+      console.log('✅ Onboarding marked as complete');
+      setRegistrationConfirmed(true);
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      // Still allow redirect even if API call fails
+      setRegistrationConfirmed(true);
+    }
   };
 
   const steps = [

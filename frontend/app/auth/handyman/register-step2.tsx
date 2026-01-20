@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
-import { handymanAPI } from '../../../src/services/api';
+import { handymanAPI, authAPI } from '../../../src/services/api';
 
 interface Step2Form {
   yearsExperience: string;
@@ -79,6 +79,15 @@ export default function HandymanRegisterStep2() {
           zip: data.zip,
         },
       } as any);
+
+      // Track onboarding step completion (Phase 5B-1)
+      try {
+        await authAPI.updateOnboardingStep(2);
+        console.log('✅ Step 2 progress saved');
+      } catch (stepError) {
+        console.warn('Failed to save step progress:', stepError);
+        // Don't block navigation if step tracking fails
+      }
 
       router.push('/auth/handyman/register-step3');
     } catch (error: any) {

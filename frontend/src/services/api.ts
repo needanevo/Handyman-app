@@ -91,15 +91,22 @@ const apiClient = new APIClient();
 export const authAPI = {
   login: (credentials: { email: string; password: string }) =>
     apiClient.post<{ access_token: string; refresh_token: string; token_type: string }>('/auth/login', credentials),
-  
+
   register: (userData: any) =>
     apiClient.post<{ access_token: string; refresh_token: string; token_type: string }>('/auth/register', userData),
-  
+
   getCurrentUser: () => apiClient.get<any>('/auth/me'),
-  
+
   setAuthToken: (token: string) => apiClient.setAuthToken(token),
-  
+
   clearAuthToken: () => apiClient.clearAuthToken(),
+
+  // Onboarding step tracking (Phase 5B-1)
+  updateOnboardingStep: (step: number) =>
+    apiClient.post<{ success: boolean; step: number; message: string }>('/auth/onboarding/step', { step }),
+
+  completeOnboarding: () =>
+    apiClient.post<{ success: boolean; message: string; provider_status: string }>('/auth/onboarding/complete', {}),
 };
 
 // Services API

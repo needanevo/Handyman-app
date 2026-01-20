@@ -51,6 +51,9 @@ export interface User {
   providerIntent?: 'not_hiring' | 'hiring' | 'mentoring';
   providerStatus?: 'draft' | 'submitted' | 'active' | 'restricted';
   providerCompleteness?: number;  // Percentage 0-100
+  // Onboarding tracking (Phase 5B-1)
+  onboardingStep?: number | null;  // Current step (1-5), null if complete
+  onboardingCompleted?: boolean;  // Whether onboarding is fully done
 }
 
 export interface Address {
