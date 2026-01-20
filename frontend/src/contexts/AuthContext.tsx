@@ -262,6 +262,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         providerIntent: (userData as any).provider_intent,
         providerStatus: (userData as any).provider_status,
         providerCompleteness: (userData as any).provider_completeness,
+        // Onboarding tracking (Phase 5B-1)
+        onboardingStep: (userData as any).onboarding_step,
+        onboardingCompleted: (userData as any).onboarding_completed ?? false,
       } : {
         ...baseUser,
         // Customer-only: No contractor fields included

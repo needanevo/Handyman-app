@@ -9,7 +9,6 @@ import React, { useEffect } from 'react';
 import { Slot, useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { LoadingSpinner } from '../../src/components';
-import { getContractorOnboardingStep } from '../../src/utils/onboardingState';
 
 export default function ContractorLayout() {
   const { user, isHydrated, isAuthenticated } = useAuth();
@@ -50,11 +49,12 @@ export default function ContractorLayout() {
       return;
     }
 
-    // Onboarding guard: Check if onboarding is incomplete
-    const nextStep = getContractorOnboardingStep(user);
-    if (nextStep && user.providerStatus === 'draft') {
-      // Redirect to next incomplete step
-      router.replace(nextStep as any);
+    // Onboarding guard (Phase 5B-1): Check if onboarding is incomplete
+    // Use explicit step tracking instead of field-based detection
+    if (!user.onboardingCompleted && user.onboardingStep) {
+      const stepUrl = `/auth/contractor/register-step${user.onboardingStep}`;
+      console.log(`[Contractor Layout] Resuming onboarding at step ${user.onboardingStep}`);
+      router.replace(stepUrl as any);
       return;
     }
   }, [user, isHydrated, isAuthenticated, router]);
