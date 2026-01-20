@@ -19,15 +19,22 @@ export default function AvailableJobs() {
   const [selectedDistance, setSelectedDistance] = useState(25);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // Fetch real available jobs from API
-  // Using unified query key for cache synchronization with dashboard
-  const { data: jobs, isLoading } = useQuery({
-    queryKey: ['handyman-available-jobs'],
+  // Fetch real available jobs from API with filters
+  // Include filters in queryKey so changing them triggers refetch
+  const { data: jobs, isLoading, refetch } = useQuery({
+    queryKey: ['handyman-available-jobs', selectedDistance, selectedCategory],
     queryFn: async () => {
-      const response: any = await contractorAPI.getAvailableJobs();
+      const filters: any = {
+        max_distance: selectedDistance,
+      };
+      // Only add category if not "All"
+      if (selectedCategory !== 'All') {
+        filters.category = selectedCategory;
+      }
+      const response: any = await contractorAPI.getAvailableJobs(filters);
       return response.jobs || [];
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 30 * 1000, // 30 seconds - shorter for filter changes
   });
 
   const categories = ['All', 'Drywall', 'Painting', 'Electrical', 'Plumbing', 'Carpentry'];
