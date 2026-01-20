@@ -109,37 +109,54 @@ export default function AvailableJobs() {
             >
               <View style={styles.jobHeader}>
                 <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryText}>{job.category}</Text>
+                  <Text style={styles.categoryText}>{job.category || job.service_category}</Text>
                 </View>
-                <View style={styles.urgencyBadge}>
-                  <Ionicons name="time" size={14} color="#FFA500" />
-                  <Text style={styles.urgencyText}>{job.urgency}</Text>
+                <View style={[
+                  styles.typeBadge,
+                  job.item_type === 'quote' ? styles.quoteBadge : styles.jobBadge
+                ]}>
+                  <Text style={[
+                    styles.typeText,
+                    job.item_type === 'quote' ? styles.quoteText : styles.jobText
+                  ]}>
+                    {job.item_type === 'quote' ? 'Open for Bids' : 'Ready to Accept'}
+                  </Text>
                 </View>
               </View>
 
-              <Text style={styles.jobTitle}>{job.title}</Text>
+              <Text style={styles.jobTitle}>{job.title || job.description}</Text>
 
               <View style={styles.jobDetails}>
                 <View style={styles.jobDetailItem}>
                   <Ionicons name="location" size={16} color={colors.neutral[600]} />
-                  <Text style={styles.jobDetailText}>{job.distance} mi away</Text>
+                  <Text style={styles.jobDetailText}>
+                    {job.distance_miles || job.distance} mi • {job.customer_address?.city}, {job.customer_address?.state}
+                  </Text>
                 </View>
                 <View style={styles.jobDetailItem}>
-                  <Ionicons name="star" size={16} color="#FFA500" />
-                  <Text style={styles.jobDetailText}>{job.customerRating} customer</Text>
+                  <Ionicons name="calendar" size={16} color={colors.neutral[600]} />
+                  <Text style={styles.jobDetailText}>
+                    Posted {Math.floor((new Date().getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))} days ago
+                  </Text>
                 </View>
               </View>
 
               <View style={styles.jobFooter}>
                 <View>
-                  <Text style={styles.estimatedPayLabel}>Estimated Pay</Text>
-                  <Text style={styles.estimatedPayAmount}>${job.estimatedPay}</Text>
+                  <Text style={styles.estimatedPayLabel}>
+                    {job.item_type === 'quote' ? 'Customer Budget' : 'Agreed Amount'}
+                  </Text>
+                  <Text style={styles.estimatedPayAmount}>
+                    ${typeof job.price === 'number' ? job.price.toFixed(2) : job.total_amount?.toFixed(2) || '0.00'}
+                  </Text>
                 </View>
                 <TouchableOpacity
                   style={styles.viewJobButton}
                   onPress={() => router.push(`/(handyman)/jobs/${job.id}` as any)}
                 >
-                  <Text style={styles.viewJobText}>View Details</Text>
+                  <Text style={styles.viewJobText}>
+                    {job.item_type === 'quote' ? 'Submit Bid' : 'Accept Job'}
+                  </Text>
                   <Ionicons name="arrow-forward" size={16} color="#FFF" />
                 </TouchableOpacity>
               </View>
@@ -248,6 +265,27 @@ const styles = StyleSheet.create({
     ...typography.caption.small,
     color: '#FFA500',
     fontWeight: typography.weights.medium,
+  },
+  typeBadge: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  quoteBadge: {
+    backgroundColor: '#E3F2FD',
+  },
+  jobBadge: {
+    backgroundColor: '#E8F5E9',
+  },
+  typeText: {
+    ...typography.caption.small,
+    fontWeight: typography.weights.semibold,
+  },
+  quoteText: {
+    color: '#1976D2',
+  },
+  jobText: {
+    color: '#388E3C',
   },
   jobTitle: {
     ...typography.headings.h5,
