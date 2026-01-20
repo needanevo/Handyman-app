@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
-import { authAPI } from '../../../src/services/api';
 import { useAuth } from '../../../src/contexts/AuthContext';
 
 interface Step1Form {
@@ -40,7 +39,7 @@ const formatPhone = (value: string) => {
 
 export default function HandymanRegisterStep1() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { register, login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -62,20 +61,18 @@ export default function HandymanRegisterStep1() {
 
     try {
       console.log('[Step1] Submitting registration...');
-      const response = await authAPI.register({
+
+      // Use AuthContext register function (handles token storage and user setup)
+      await register({
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
         phone: normalizePhone(data.phone),
         password: data.password,
         role: 'handyman',
-        marketingOptIn: false,
       });
 
-      console.log('[Step1] Registration successful, logging in...', response);
-      await login(response.access_token, response.refresh_token);
-
-      console.log('[Step1] Login successful, navigating to step 2...');
+      console.log('[Step1] Registration successful, navigating to step 2...');
       router.push('/auth/handyman/register-step2');
     } catch (error: any) {
       console.error('[Step1] Registration error:', error);
