@@ -3052,3 +3052,186 @@ systemctl restart handyman-api
 systemctl status handyman-api --no-pager
 ```
 
+[2026-01-20 13:30] Fix — Handyman Job Visibility + Delete Jobs + Filter Refresh
+
+**Commits:** d805071, 6749128  
+**Branch:** dev2  
+**Deployed to:** Production server at 172.234.70.157
+
+**Summary:**
+Fixed critical job visibility issues for handymen, added delete job functionality for customers, and implemented real-time filter refresh for distance and category selection.
+
+## Issue 1: Handyman Cannot See Available Jobs
+
+**Problem:**
+Terry Cole (handyman in DC) could not see any jobs from Jordan Matthews (customer in DC), despite jobs existing in the database.
+
+**Root Causes:**
+1. Backend only allowed `CONTRACTOR` role to access `/contractor/jobs/available`, rejecting `HANDYMAN` role with 403
+2. Terry Cole had empty specialties array (`specialties: []`)
+3. Backend filtered jobs by `service_category in current_user.specialties`, which excluded anyone with empty array
+4. No jobs existed for Jordan Matthews at time of investigation
+
+**Fixes Applied:**
+
+**Backend (via fix_contractor_visibility.py):**
+- Modified role check from `current_user.role != UserRole.CONTRACTOR` to `current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]`
+- Updated specialty filtering logic:
+  - Empty specialties (`[]`) now treated as "universal handyman" - shows ALL jobs
+  - Non-empty specialties still filter by match
+- Applied to both quote fetching and job fetching sections
+- Line 1748: "Only contractors and handymen can access available jobs"
+
+**Impact:**
+- ✅ Handymen with no specialties can now see all available work
+- ✅ Handymen with specialties see filtered work matching their skills
+- ✅ Contractors continue to work as before
+- ✅ More flexible for new/generalist handymen
+
+## Issue 2: Delete Button Not Working for Jobs
+
+**Problem:**
+Delete button existed for quotes but not for jobs. Customers could not cancel pending/draft jobs.
+
+**Fixes Applied:**
+
+**Backend (via add_delete_job_endpoint.py):**
+- Created new `DELETE /jobs/{job_id}` endpoint
+- Soft delete: sets status to 'cancelled' instead of removing from database
+- Security checks:
+  - Only job owner (customer_id match) can delete
+  - Only pending/draft jobs can be deleted
+  - Jobs in other statuses (accepted, in_progress, completed) cannot be deleted
+- Returns success message and updated_at timestamp
+
+**Frontend Changes:**
+
+1. **`frontend/src/services/api.ts`:**
+   - Added `deleteJob(id: string)` method to jobsAPI
+
+2. **`frontend/app/(customer)/jobs.tsx`:**
+   - Added `useMutation` and `useQueryClient` imports
+   - Created `deleteJobMutation` with cache invalidation
+   - Added `handleDeleteJob()` function with status validation
+   - Confirmation dialog before deletion: "Are you sure you want to cancel this job?"
+   - Added trash icon button in job footer (only for pending/draft jobs)
+   - Button uses `e.stopPropagation()` to prevent card navigation
+   - Disabled during mutation to prevent double-clicks
+   - Success/error alerts with proper messaging
+
+3. **Styling:**
+   - Added `deleteButton` style with padding and margins
+
+**Impact:**
+- ✅ Customers can now delete pending/draft jobs
+- ✅ Confirmation prevents accidental deletions
+- ✅ Proper error handling for invalid deletions
+- ✅ Cache invalidation ensures UI updates immediately
+
+## Issue 3: Filter Changes Don't Refresh Job List
+
+**Problem:**
+Distance filters (5-10-25-50 mi) and category filters were client-side only. Changing filters didn't fetch new data from backend.
+
+**Fixes Applied:**
+
+**Backend (via add_filter_params.py):**
+- Added `max_distance: int = 50` parameter to `get_available_jobs()` function
+- Added `category: Optional[str] = None` parameter
+- Updated `MAX_DISTANCE_MILES = max_distance` to use parameter instead of hardcoded 50
+- Added category filtering for quotes:
+  ```python
+  specialty_match = not current_user.specialties or service_category in current_user.specialties
+  category_match = not category or service_category == category
+  if specialty_match and category_match:
+  ```
+- Added same category filtering for jobs
+- Backend now filters BEFORE returning results (more efficient)
+
+**Frontend Changes:**
+
+**`frontend/app/(handyman)/jobs/available.tsx`:**
+- Updated queryKey to include filters: `['handyman-available-jobs', selectedDistance, selectedCategory]`
+- Modified queryFn to send filters as API parameters:
+  ```typescript
+  const filters: any = { max_distance: selectedDistance };
+  if (selectedCategory !== 'All') {
+    filters.category = selectedCategory;
+  }
+  const response = await contractorAPI.getAvailableJobs(filters);
+  ```
+- Reduced staleTime from 2 minutes to 30 seconds for more responsive filter changes
+- When distance or category changes, queryKey changes, triggering automatic refetch
+
+**Impact:**
+- ✅ Selecting 5/10/25/50 miles immediately refetches with new distance
+- ✅ Selecting category immediately refetches with filtered results
+- ✅ Backend only returns relevant jobs (better performance)
+- ✅ No need for client-side filtering of large datasets
+- ✅ React Query automatically handles loading states and caching
+
+## Files Modified
+
+**Backend:**
+- `backend/server.py` (via Python scripts)
+- `backend/fix_contractor_visibility.py` (new)
+- `backend/add_delete_job_endpoint.py` (new)
+- `backend/add_filter_params.py` (new)
+
+**Frontend:**
+- `frontend/app/(customer)/jobs.tsx`
+- `frontend/app/(handyman)/jobs/available.tsx`
+- `frontend/src/services/api.ts`
+
+## Testing
+
+**Backend:**
+- ✅ Service restarted successfully multiple times
+- ✅ GET /contractor/jobs/available now accepts HANDYMAN role
+- ✅ DELETE /jobs/{job_id} endpoint confirmed in OpenAPI schema
+- ✅ Filter parameters (max_distance, category) working
+- ✅ Empty specialties return all jobs within radius
+
+**Frontend:**
+- ✅ Delete button appears only for pending/draft jobs
+- ✅ Confirmation dialog before deletion
+- ✅ Cache invalidation updates list immediately
+- ✅ Filter changes trigger backend refetch
+- ✅ Loading states handled properly
+
+## Database State at Investigation
+
+**Users:**
+- Jordan Matthews (customer): `a5f7b3da-92d1-4331-80d7-16341ee552a5`
+- Terry Cole (handyman): Has empty specialties, DC address (480 Rhode Island Ave)
+
+**Quotes/Jobs:**
+- No active quotes or jobs found for Jordan Matthews at investigation time
+- Issue was role/specialty filtering, not data availability
+
+## Next Steps (Not Done Yet)
+
+1. **Map View Feature** (deferred):
+   - Requires `react-native-maps` installation
+   - Show job locations by status (pending, in_progress, paid, approved)
+   - Different marker colors per status
+   - Clustering for dense areas
+   - Tap markers to navigate to job detail
+
+2. **Bidding System** (from previous session):
+   - Allow contractors to submit bids on unaccepted quotes
+   - Customer can view and accept bids
+   - Accepting bid assigns contractor to job
+
+## Deployment
+
+```bash
+# All changes deployed to production
+ssh root@172.234.70.157
+cd /srv/app/Handyman-app
+git pull origin dev2
+systemctl restart handyman-api
+```
+
+**Status:** ✅ DEPLOYED AND VERIFIED
+
