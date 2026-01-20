@@ -32,17 +32,13 @@ const serviceCategories = [
   'Windows & Doors', 'Other',
 ];
 
-const PROVIDER_INTENTS = [
-  { value: 'not_hiring', label: 'Working Solo', description: 'I work alone and handle jobs myself' },
-  { value: 'hiring', label: 'Building a Team', description: 'I\'m hiring or plan to hire helpers' },
-  { value: 'mentoring', label: 'Mentoring Others', description: 'I teach and mentor new handymen' },
-];
+// Handymen don't need business intent - they work solo by definition
+// Only contractors have team-building/mentoring options
 
 export default function HandymanRegisterStep2() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [selectedIntent, setSelectedIntent] = useState<string>('not_hiring');
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -71,7 +67,6 @@ export default function HandymanRegisterStep2() {
       await handymanAPI.updateProfile({
         skills: selectedSkills,
         years_experience: parseInt(data.yearsExperience),
-        provider_intent: selectedIntent,
         business_address: {
           street: data.businessAddress,
           city: data.city,
@@ -186,38 +181,6 @@ export default function HandymanRegisterStep2() {
                 />
               )}
             />
-
-            <Text style={styles.sectionLabel}>Business Intent</Text>
-            <Text style={styles.sectionHelp}>
-              Tell us about your business goals
-            </Text>
-            <View style={styles.intentGrid}>
-              {PROVIDER_INTENTS.map((intent) => (
-                <TouchableOpacity
-                  key={intent.value}
-                  style={[
-                    styles.intentCard,
-                    selectedIntent === intent.value && styles.intentCardSelected,
-                  ]}
-                  onPress={() => setSelectedIntent(intent.value)}
-                >
-                  <View style={styles.intentHeader}>
-                    <Text
-                      style={[
-                        styles.intentLabel,
-                        selectedIntent === intent.value && styles.intentLabelSelected,
-                      ]}
-                    >
-                      {intent.label}
-                    </Text>
-                    {selectedIntent === intent.value && (
-                      <Ionicons name="checkmark-circle" size={20} color="#FFA500" />
-                    )}
-                  </View>
-                  <Text style={styles.intentDescription}>{intent.description}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
 
             <Text style={styles.sectionLabel}>Home Address</Text>
             <Text style={styles.sectionHelp}>

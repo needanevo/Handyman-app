@@ -50,24 +50,23 @@ export default function HandymanProfile() {
     },
   });
 
-  // TODO: Fetch from backend GET /api/handyman/profile
-  const mockProfile = {
-    firstName: user?.firstName || 'John',
-    lastName: user?.lastName || 'Smith',
-    email: user?.email || 'john@example.com',
-    phone: '410-555-1234',
-    businessName: "John's Handyman Services",
-    businessAddress: '123 Main St, Baltimore, MD 21201',
-    skills: ['Drywall', 'Painting', 'Electrical', 'Plumbing', 'Carpentry'],
-    yearsExperience: 5,
-    rating: 4.7,
-    jobsCompleted: 23,
-    hasLLC: false,
-    isLicensed: false,
-    isInsured: false,
+  // Use real user data from AuthContext
+  const profile = {
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    skills: user?.skills || [],
+    yearsExperience: user?.yearsExperience || 0,
+    rating: user?.stats?.averageRating || 0,
+    jobsCompleted: user?.stats?.completedJobs || 0,
+    hasLLC: user?.hasLLC || false,
+    isLicensed: user?.isLicensed || false,
+    isInsured: user?.isInsured || false,
+    providerIntent: user?.providerIntent,
   };
 
-  const [skills, setSkills] = useState(mockProfile.skills);
+  const [skills, setSkills] = useState(profile.skills);
 
   const hasAddress = user?.addresses && user.addresses.length > 0;
 
@@ -118,7 +117,7 @@ export default function HandymanProfile() {
     setValue('city', user?.addresses?.[0]?.city || '');
     setValue('state', user?.addresses?.[0]?.state || '');
     setValue('zipCode', user?.addresses?.[0]?.zipCode || '');
-    setSkills(mockProfile.skills);
+    setSkills(profile.skills);
     setIsEditing(false);
   };
 
@@ -174,25 +173,25 @@ export default function HandymanProfile() {
             <Ionicons name="person" size={40} color="#FFA500" />
           </View>
           <Text style={styles.profileName}>
-            {mockProfile.firstName} {mockProfile.lastName}
+            {profile.firstName} {profile.lastName}
           </Text>
-          <Text style={styles.profileBusiness}>{mockProfile.businessName}</Text>
+          <Text style={styles.profileBusiness}>{profile.businessName}</Text>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{mockProfile.jobsCompleted}</Text>
+              <Text style={styles.statValue}>{profile.jobsCompleted}</Text>
               <Text style={styles.statLabel}>Jobs</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <View style={styles.ratingRow}>
                 <Ionicons name="star" size={16} color="#FFA500" />
-                <Text style={styles.statValue}>{mockProfile.rating}</Text>
+                <Text style={styles.statValue}>{profile.rating}</Text>
               </View>
               <Text style={styles.statLabel}>Rating</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{mockProfile.yearsExperience}</Text>
+              <Text style={styles.statValue}>{profile.yearsExperience}</Text>
               <Text style={styles.statLabel}>Years</Text>
             </View>
           </View>
@@ -202,27 +201,27 @@ export default function HandymanProfile() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Business Status</Text>
           <View style={styles.statusGrid}>
-            <View style={[styles.statusCard, mockProfile.hasLLC && styles.statusCardActive]}>
+            <View style={[styles.statusCard, profile.hasLLC && styles.statusCardActive]}>
               <Ionicons
-                name={mockProfile.hasLLC ? 'checkmark-circle' : 'ellipse-outline'}
+                name={profile.hasLLC ? 'checkmark-circle' : 'ellipse-outline'}
                 size={24}
-                color={mockProfile.hasLLC ? '#10B981' : colors.neutral[400]}
+                color={profile.hasLLC ? '#10B981' : colors.neutral[400]}
               />
               <Text style={styles.statusLabel}>LLC Formed</Text>
             </View>
-            <View style={[styles.statusCard, mockProfile.isLicensed && styles.statusCardActive]}>
+            <View style={[styles.statusCard, profile.isLicensed && styles.statusCardActive]}>
               <Ionicons
-                name={mockProfile.isLicensed ? 'checkmark-circle' : 'ellipse-outline'}
+                name={profile.isLicensed ? 'checkmark-circle' : 'ellipse-outline'}
                 size={24}
-                color={mockProfile.isLicensed ? '#10B981' : colors.neutral[400]}
+                color={profile.isLicensed ? '#10B981' : colors.neutral[400]}
               />
               <Text style={styles.statusLabel}>Licensed</Text>
             </View>
-            <View style={[styles.statusCard, mockProfile.isInsured && styles.statusCardActive]}>
+            <View style={[styles.statusCard, profile.isInsured && styles.statusCardActive]}>
               <Ionicons
-                name={mockProfile.isInsured ? 'checkmark-circle' : 'ellipse-outline'}
+                name={profile.isInsured ? 'checkmark-circle' : 'ellipse-outline'}
                 size={24}
-                color={mockProfile.isInsured ? '#10B981' : colors.neutral[400]}
+                color={profile.isInsured ? '#10B981' : colors.neutral[400]}
               />
               <Text style={styles.statusLabel}>Insured</Text>
             </View>
@@ -235,11 +234,11 @@ export default function HandymanProfile() {
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
               <Ionicons name="mail" size={20} color={colors.neutral[600]} />
-              <Text style={styles.infoText}>{mockProfile.email}</Text>
+              <Text style={styles.infoText}>{profile.email}</Text>
             </View>
             <View style={styles.infoRow}>
               <Ionicons name="call" size={20} color={colors.neutral[600]} />
-              <Text style={styles.infoText}>{mockProfile.phone}</Text>
+              <Text style={styles.infoText}>{profile.phone}</Text>
             </View>
           </View>
         </View>
