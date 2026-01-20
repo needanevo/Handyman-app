@@ -274,6 +274,16 @@ export const handymanAPI = {
   // Profile
   updateProfile: (data: any) =>
     apiClient.patch<any>('/contractors/profile', data), // Uses same endpoint as contractor
+
+  uploadProfilePhoto: (file: { uri: string; type: string; name: string }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri.startsWith('file://') ? file.uri : `file://${file.uri}`,
+      type: file.type || 'image/jpeg',
+      name: file.name || 'profile.jpg',
+    } as any);
+    return apiClient.postFormData<any>('/handyman/profile-photo/upload', formData);
+  },
 };
 
 // Contractor API

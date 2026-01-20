@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
+import { PhotoUploader } from '../../../src/components/PhotoUploader';
 import { handymanAPI, authAPI } from '../../../src/services/api';
 
 interface Step2Form {
@@ -39,6 +40,7 @@ export default function HandymanRegisterStep2() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [profilePhoto, setProfilePhoto] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -160,6 +162,25 @@ export default function HandymanRegisterStep2() {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>
+              Profile Photo <Text style={styles.optionalLabel}>(Optional)</Text>
+            </Text>
+            <Text style={styles.sectionHelp}>
+              Add a professional photo to help customers recognize you
+            </Text>
+            <PhotoUploader
+              photos={profilePhoto}
+              onPhotosChange={setProfilePhoto}
+              maxPhotos={1}
+              label="Take or upload photo"
+              customUpload={async (base64Image: string) => {
+                const response = await handymanAPI.uploadProfilePhoto(base64Image);
+                return response.url;
+              }}
+            />
           </View>
 
           <View style={styles.formSection}>
@@ -364,6 +385,10 @@ const styles = StyleSheet.create({
   },
   required: {
     color: colors.error.main,
+  },
+  optionalLabel: {
+    color: colors.neutral[500],
+    fontWeight: typography.weights.normal,
   },
   skillsGrid: {
     flexDirection: 'row',

@@ -354,6 +354,44 @@ class LinodeObjectStorage:
         object_key = f"contractors/{contractor_id}/portfolio/{filename}"
         return self._upload_via_presigned_url(object_key, file_data, content_type)
 
+    async def upload_handyman_profile_photo(
+        self,
+        file_data: bytes,
+        handyman_id: str,
+        filename: str,
+        extension: str,
+        content_type: str = 'image/jpeg'
+    ) -> str:
+        """
+        Upload handyman profile photo using presigned URLs
+
+        Path: handymen/{handyman_id}/profile/profile_{uuid}.{ext}
+        """
+        import uuid
+        unique_filename = f"profile_{uuid.uuid4().hex[:8]}.{extension}"
+        object_key = f"handymen/{handyman_id}/profile/{unique_filename}"
+        return self._upload_via_presigned_url(object_key, file_data, content_type)
+
+
+    async def upload_handyman_profile_photo(
+        self,
+        file_data: bytes,
+        handyman_id: str,
+        filename: str,
+        extension: str,
+        content_type: str = 'image/jpeg'
+    ) -> str:
+        """
+        Upload handyman profile photo using presigned URLs
+
+        Path: handymen/{handyman_id}/profile/profile_{uuid}.{ext}
+        """
+        import uuid
+        unique_filename = f"profile_{uuid.uuid4().hex[:8]}.{extension}"
+        object_key = f"handymen/{handyman_id}/profile/{unique_filename}"
+        return self._upload_via_presigned_url(object_key, file_data, content_type)
+
+
     async def upload_contractor_profile_photo(
         self,
         file_data: bytes,
