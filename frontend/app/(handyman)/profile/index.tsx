@@ -60,10 +60,6 @@ export default function HandymanProfile() {
     yearsExperience: user?.yearsExperience || 0,
     rating: user?.stats?.averageRating || 0,
     jobsCompleted: user?.stats?.completedJobs || 0,
-    hasLLC: user?.hasLLC || false,
-    isLicensed: user?.isLicensed || false,
-    isInsured: user?.isInsured || false,
-    providerIntent: user?.providerIntent,
   };
 
   const [skills, setSkills] = useState(profile.skills);
@@ -192,37 +188,6 @@ export default function HandymanProfile() {
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{profile.yearsExperience}</Text>
               <Text style={styles.statLabel}>Years</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Business Status */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Business Status</Text>
-          <View style={styles.statusGrid}>
-            <View style={[styles.statusCard, profile.hasLLC && styles.statusCardActive]}>
-              <Ionicons
-                name={profile.hasLLC ? 'checkmark-circle' : 'ellipse-outline'}
-                size={24}
-                color={profile.hasLLC ? '#10B981' : colors.neutral[400]}
-              />
-              <Text style={styles.statusLabel}>LLC Formed</Text>
-            </View>
-            <View style={[styles.statusCard, profile.isLicensed && styles.statusCardActive]}>
-              <Ionicons
-                name={profile.isLicensed ? 'checkmark-circle' : 'ellipse-outline'}
-                size={24}
-                color={profile.isLicensed ? '#10B981' : colors.neutral[400]}
-              />
-              <Text style={styles.statusLabel}>Licensed</Text>
-            </View>
-            <View style={[styles.statusCard, profile.isInsured && styles.statusCardActive]}>
-              <Ionicons
-                name={profile.isInsured ? 'checkmark-circle' : 'ellipse-outline'}
-                size={24}
-                color={profile.isInsured ? '#10B981' : colors.neutral[400]}
-              />
-              <Text style={styles.statusLabel}>Insured</Text>
             </View>
           </View>
         </View>
