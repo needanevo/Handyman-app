@@ -465,9 +465,12 @@ async def refresh_token(refresh: dict = Body(...)):
 
 # ==================== ONBOARDING STEP TRACKING (Phase 5B-1) ====================
 
+class OnboardingStepUpdate(BaseModel):
+    step: int
+
 @api_router.post("/auth/onboarding/step")
 async def update_onboarding_step(
-    step: int,
+    data: OnboardingStepUpdate,
     current_user: User = Depends(get_current_user_dependency)
 ):
     """
@@ -476,6 +479,8 @@ async def update_onboarding_step(
     Call this after each registration step completes successfully.
     Steps 1-5 for both handymen and contractors.
     """
+    step = data.step
+
     if step < 1 or step > 5:
         raise HTTPException(400, detail="Invalid step number. Must be 1-5.")
 
