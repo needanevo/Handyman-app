@@ -175,7 +175,6 @@ export default function HandymanProfile() {
           <Text style={styles.profileName}>
             {profile.firstName} {profile.lastName}
           </Text>
-          <Text style={styles.profileBusiness}>{profile.businessName}</Text>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{profile.jobsCompleted}</Text>
