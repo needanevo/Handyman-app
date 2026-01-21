@@ -20,6 +20,25 @@ export default function HandymanRegisterStep5() {
   const { user, isHydrated, isAuthenticated, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
+  // Log user data for debugging
+  useEffect(() => {
+    if (user) {
+      console.log('[Step5] User data loaded:', {
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        phone: user.phone,
+        skills: user.skills,
+        yearsExperience: user.yearsExperience,
+        addresses: user.addresses,
+        banking_info: (user as any).banking_info,
+        providerIntent: user.providerIntent,
+        onboardingCompleted: user.onboardingCompleted
+      });
+    } else {
+      console.log('[Step5] User data not available yet');
+    }
+  }, [user]);
+
   const handleConfirm = async () => {
     setIsLoading(true);
     try {
@@ -190,9 +209,26 @@ export default function HandymanRegisterStep5() {
                 style={styles.editButton}
               />
             </View>
-            <Text style={styles.reviewItem}>
-              Payment Account: {(user as any).stripeAccountId ? '✓ Connected' : '✗ Not connected'}
-            </Text>
+            {(user as any).banking_info ? (
+              <>
+                <Text style={styles.reviewItem}>
+                  Account Holder: {(user as any).banking_info.account_holder_name || 'Not set'}
+                </Text>
+                <Text style={styles.reviewItem}>
+                  Routing Number: {(user as any).banking_info.routing_number ? `****${(user as any).banking_info.routing_number.slice(-4)}` : 'Not set'}
+                </Text>
+                <Text style={styles.reviewItem}>
+                  Account Number: {(user as any).banking_info.account_number ? `****${(user as any).banking_info.account_number.slice(-4)}` : 'Not set'}
+                </Text>
+                <Text style={styles.reviewItem}>
+                  Status: {(user as any).banking_info.verified ? '✓ Verified' : 'Pending verification'}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.reviewItem}>
+                Payment Account: ✗ Not set
+              </Text>
+            )}
           </View>
         </View>
 
