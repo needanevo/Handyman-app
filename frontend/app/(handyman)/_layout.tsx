@@ -49,16 +49,50 @@ export default function HandymanLayout() {
       return;
     }
 
-    // Onboarding guard (Phase 5B-1): Check if onboarding is incomplete
-    // Use explicit step tracking instead of field-based detection
+    // Onboarding guard: Check actual field completeness, not just onboardingCompleted flag
     if (!user.onboardingCompleted) {
-      // If step is tracked, resume there; otherwise default to step 2
-      const resumeStep = user.onboardingStep || 2;
-      const stepUrl = `/auth/handyman/register-step${resumeStep}`;
-      console.log(`[Handyman Layout] Resuming onboarding at step ${resumeStep} (tracked: ${user.onboardingStep})`);
-      router.replace(stepUrl as any);
-      return;
+      console.log('[Handyman Layout] Onboarding not complete, checking fields...');
+      console.log('[Handyman Layout] User data:', {
+        skills: user.skills,
+        yearsExperience: user.yearsExperience,
+        addresses: user.addresses,
+        banking_info: (user as any).banking_info
+      });
+
+      // Check which fields are actually filled
+      const hasSkills = user.skills && user.skills.length > 0;
+      const hasExperience = user.yearsExperience != null;
+      const hasAddress = user.addresses && user.addresses.length > 0;
+      const hasBanking = (user as any).banking_info != null;
+
+      console.log('[Handyman Layout] Completeness check:', {
+        hasSkills,
+        hasExperience,
+        hasAddress,
+        hasBanking,
+        onboardingCompleted: user.onboardingCompleted
+      });
+
+      // Determine first incomplete step based on actual data
+      if (!hasSkills || !hasExperience || !hasAddress) {
+        // Step 2 incomplete - need skills, experience, and address
+        console.log('[Handyman Layout] → Redirecting to step 2 (skills/experience/address missing)');
+        router.replace('/auth/handyman/register-step2' as any);
+        return;
+      } else if (!hasBanking) {
+        // Step 4 incomplete - need banking info
+        console.log('[Handyman Layout] → Redirecting to step 4 (banking missing)');
+        router.replace('/auth/handyman/register-step4' as any);
+        return;
+      } else {
+        // All fields filled but not marked complete - go to review
+        console.log('[Handyman Layout] → Redirecting to step 5 (review and confirm)');
+        router.replace('/auth/handyman/register-step5' as any);
+        return;
+      }
     }
+
+    console.log('[Handyman Layout] Onboarding complete, allowing dashboard access');
   }, [user, isHydrated, isAuthenticated, router]);
 
   // Show loading state while hydrating

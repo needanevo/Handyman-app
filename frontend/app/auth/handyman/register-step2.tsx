@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { PhotoUploader } from '../../../src/components/PhotoUploader';
 import { handymanAPI, authAPI } from '../../../src/services/api';
+import { useAuth } from '../../../src/contexts/AuthContext';
 
 interface Step2Form {
   yearsExperience: string;
@@ -40,6 +41,7 @@ const serviceCategories = [
 export default function HandymanRegisterStep2() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { user } = useAuth();
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [profilePhoto, setProfilePhoto] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,8 +49,56 @@ export default function HandymanRegisterStep2() {
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<Step2Form>();
+
+  // Hydrate form with existing user data
+  useEffect(() => {
+    console.log('[Step2] useEffect triggered, user:', user ? 'exists' : 'null');
+
+    if (!user) {
+      console.log('[Step2] User not available yet, waiting...');
+      return;
+    }
+
+    console.log('[Step2] Hydrating form with user data:', {
+      skills: user.skills,
+      yearsExperience: user.yearsExperience,
+      addresses: user.addresses,
+      profilePhoto: user.profilePhoto
+    });
+
+    // Populate skills
+    if (user.skills && user.skills.length > 0) {
+      console.log('[Step2] Setting skills:', user.skills);
+      setSelectedSkills(user.skills);
+    }
+
+    // Populate years of experience
+    if (user.yearsExperience != null) {
+      console.log('[Step2] Setting years experience:', user.yearsExperience);
+      setValue('yearsExperience', user.yearsExperience.toString());
+    }
+
+    // Populate address fields
+    if (user.addresses && user.addresses.length > 0) {
+      const addr = user.addresses[0];
+      console.log('[Step2] Setting address:', addr);
+      setValue('businessAddress', addr.street || '');
+      setValue('city', addr.city || '');
+      setValue('state', addr.state || '');
+      setValue('zip', addr.zipCode || '');
+    }
+
+    // Populate profile photo
+    if (user.profilePhoto) {
+      console.log('[Step2] Setting profile photo:', user.profilePhoto);
+      setProfilePhoto([user.profilePhoto]);
+    }
+
+    console.log('[Step2] Form hydration complete');
+  }, [user, setValue]);
 
   const toggleSkill = (skill: string) => {
     if (selectedSkills.includes(skill)) {

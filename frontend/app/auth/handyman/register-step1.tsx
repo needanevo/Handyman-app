@@ -16,6 +16,7 @@ import { colors, spacing, typography, borderRadius } from '../../../src/constant
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { useAuth } from '../../../src/contexts/AuthContext';
+import { authAPI } from '../../../src/services/api';
 
 interface Step1Form {
   firstName: string;
@@ -39,7 +40,7 @@ const formatPhone = (value: string) => {
 
 export default function HandymanRegisterStep1() {
   const router = useRouter();
-  const { register, login } = useAuth();
+  const { register, login, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -72,6 +73,15 @@ export default function HandymanRegisterStep1() {
         role: 'handyman',
       });
 
+      // Track onboarding step completion (Phase 5B-1)
+      try {
+        await authAPI.updateOnboardingStep(1);
+        console.log('✅ Step 1 progress saved');
+      } catch (stepError) {
+        console.warn('Failed to save step progress:', stepError);
+        // Don't block navigation if step tracking fails
+      }
+
       console.log('[Step1] Registration successful, navigating to step 2...');
       router.push('/auth/handyman/register-step2');
     } catch (error: any) {
@@ -94,13 +104,19 @@ export default function HandymanRegisterStep1() {
       if (isEmailAlreadyRegistered) {
         try {
           console.log('[Step1] Email already registered, attempting login...');
+
+          // Login (this calls refreshUser internally and updates AuthContext)
           await login(data.email, data.password);
           console.log('[Step1] Login successful');
 
-          // Don't manually navigate - let layout guards handle routing based on onboarding status
-          // If onboarding incomplete, they'll be redirected to correct step
-          // If complete, they'll reach dashboard
-          Alert.alert('Welcome Back', 'You already have an account. Resuming where you left off...');
+          // Wait a moment for AuthContext to fully update with user data
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Navigate to dashboard - layout guard will check completeness and redirect to correct step
+          // The layout guard runs AFTER navigation, so user context will be fully updated
+          Alert.alert('Welcome Back', 'Loading your profile...');
+          router.replace('/(handyman)/dashboard');
+
           setIsLoading(false);
           return; // Exit early, don't show error
         } catch (loginError: any) {

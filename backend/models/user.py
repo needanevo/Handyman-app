@@ -56,6 +56,7 @@ class User(BaseModel):
     documents: Optional[dict] = None  # license, insurance, etc.
     portfolio_photos: List[str] = []  # Portfolio photo URLs
     profile_photo: Optional[str] = None  # Profile picture/logo URL
+    banking_info: Optional[dict] = None  # Banking information for payouts
 
     # Business growth tracking
     has_llc: bool = False  # Whether they've formed an LLC
@@ -86,6 +87,10 @@ class User(BaseModel):
     specialties: List[str] = []  # Contractor-only specialties (e.g., commercial, residential, remodeling)
     license_info: Optional[dict] = None  # Structured license data placeholder
     insurance_info: Optional[dict] = None  # Structured insurance data placeholder
+
+    # Onboarding tracking (Phase 5B-1)
+    onboarding_step: Optional[int] = None  # Last completed step (1-5)
+    onboarding_completed: bool = False  # Whether onboarding is fully complete
     
 class AddressInput(BaseModel):
     """Address input for registration"""

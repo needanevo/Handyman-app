@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,34 +17,31 @@ import { authAPI } from '../../../src/services/api';
 
 export default function HandymanRegisterStep5() {
   const router = useRouter();
-  const { user, isHydrated, isAuthenticated } = useAuth();
+  const { user, isHydrated, isAuthenticated, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [registrationConfirmed, setRegistrationConfirmed] = useState(false);
-
-  // Redirect to dashboard ONLY after confirmation
-  useEffect(() => {
-    if (!registrationConfirmed) return;
-    if (!isHydrated || !isAuthenticated || !user?.role) return;
-
-    console.log('Registration confirmed - redirecting to dashboard');
-    if (user.role === 'handyman') {
-      router.replace('/(handyman)/dashboard');
-    } else {
-      router.replace('/auth/welcome');
-    }
-  }, [registrationConfirmed, isHydrated, isAuthenticated, user, router]);
 
   const handleConfirm = async () => {
     setIsLoading(true);
     try {
+      console.log('[Step5] Marking onboarding as complete...');
+
       // Mark onboarding as complete (Phase 5B-1)
       await authAPI.completeOnboarding();
-      console.log('✅ Onboarding marked as complete');
-      setRegistrationConfirmed(true);
+      console.log('[Step5] ✅ Onboarding API call successful');
+
+      // CRITICAL: Refresh user context to get updated onboardingCompleted status
+      await refreshUser();
+      console.log('[Step5] ✅ User context refreshed');
+
+      // Wait a moment for context to propagate
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      console.log('[Step5] Navigating to dashboard...');
+      router.replace('/(handyman)/dashboard');
     } catch (error) {
-      console.error('Error completing onboarding:', error);
-      // Still allow redirect even if API call fails
-      setRegistrationConfirmed(true);
+      console.error('[Step5] Error completing onboarding:', error);
+      Alert.alert('Error', 'Failed to complete registration. Please try again.');
+      setIsLoading(false);
     }
   };
 

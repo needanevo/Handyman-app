@@ -27,17 +27,53 @@ interface Step4Form {
 
 export default function HandymanRegisterStep4() {
   const router = useRouter();
-  const { refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors },
     watch,
   } = useForm<Step4Form>();
 
   const accountNumber = watch('accountNumber');
+
+  // Hydrate form with existing banking data
+  useEffect(() => {
+    console.log('[Step4] useEffect triggered, user:', user ? 'exists' : 'null');
+
+    if (!user) {
+      console.log('[Step4] User not available yet, waiting...');
+      return;
+    }
+
+    const banking = (user as any).banking_info;
+    console.log('[Step4] Banking info from user:', banking);
+
+    if (banking) {
+      console.log('[Step4] Hydrating banking fields');
+
+      if (banking.account_holder_name) {
+        console.log('[Step4] Setting account holder name:', banking.account_holder_name);
+        setValue('accountHolderName', banking.account_holder_name);
+      }
+      if (banking.routing_number) {
+        console.log('[Step4] Setting routing number:', banking.routing_number);
+        setValue('routingNumber', banking.routing_number);
+      }
+      if (banking.account_number) {
+        console.log('[Step4] Setting account numbers:', banking.account_number);
+        setValue('accountNumber', banking.account_number);
+        setValue('confirmAccountNumber', banking.account_number);
+      }
+
+      console.log('[Step4] Banking form hydration complete');
+    } else {
+      console.log('[Step4] No banking info found in user data');
+    }
+  }, [user, setValue]);
 
   const onSubmit = async (data: Step4Form) => {
     if (data.accountNumber !== data.confirmAccountNumber) {

@@ -49,15 +49,39 @@ export default function ContractorLayout() {
       return;
     }
 
-    // Onboarding guard (Phase 5B-1): Check if onboarding is incomplete
-    // Use explicit step tracking instead of field-based detection
+    // Onboarding guard: Check actual field completeness, not just onboardingCompleted flag
     if (!user.onboardingCompleted) {
-      // If step is tracked, resume there; otherwise default to step 2
-      const resumeStep = user.onboardingStep || 2;
-      const stepUrl = `/auth/contractor/register-step${resumeStep}`;
-      console.log(`[Contractor Layout] Resuming onboarding at step ${resumeStep} (tracked: ${user.onboardingStep})`);
-      router.replace(stepUrl as any);
-      return;
+      // Check which fields are actually filled
+      const hasSkills = user.skills && user.skills.length > 0;
+      const hasExperience = user.yearsExperience != null;
+      const hasAddress = user.addresses && user.addresses.length > 0;
+      const hasBanking = (user as any).banking_info != null;
+
+      console.log('[Contractor Layout] Completeness check:', {
+        hasSkills,
+        hasExperience,
+        hasAddress,
+        hasBanking,
+        onboardingCompleted: user.onboardingCompleted
+      });
+
+      // Determine first incomplete step based on actual data
+      if (!hasSkills || !hasExperience || !hasAddress) {
+        // Step 2 incomplete - need skills, experience, and address
+        console.log('[Contractor Layout] Redirecting to step 2 (skills/experience/address missing)');
+        router.replace('/auth/contractor/register-step2' as any);
+        return;
+      } else if (!hasBanking) {
+        // Step 4 incomplete - need banking info
+        console.log('[Contractor Layout] Redirecting to step 4 (banking missing)');
+        router.replace('/auth/contractor/register-step4' as any);
+        return;
+      } else {
+        // All fields filled but not marked complete - go to review
+        console.log('[Contractor Layout] Redirecting to step 5 (review and confirm)');
+        router.replace('/auth/contractor/register-step5' as any);
+        return;
+      }
     }
   }, [user, isHydrated, isAuthenticated, router]);
 
