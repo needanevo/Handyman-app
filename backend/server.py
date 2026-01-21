@@ -462,6 +462,79 @@ async def refresh_token(refresh: dict = Body(...)):
 # ==================== CUSTOMER LOCATION VERIFICATION ROUTES ====================
 
 
+
+# ==================== ONBOARDING STEP TRACKING (Phase 5B-1) ====================
+
+@api_router.post("/auth/onboarding/step")
+async def update_onboarding_step(
+    step: int,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Update user's current onboarding step (Phase 5B-1 requirement).
+
+    Call this after each registration step completes successfully.
+    Steps 1-5 for both handymen and contractors.
+    """
+    if step < 1 or step > 5:
+        raise HTTPException(400, detail="Invalid step number. Must be 1-5.")
+
+    # Only providers need onboarding tracking
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
+        raise HTTPException(400, detail="Onboarding tracking only applies to providers")
+
+    # Update step in database
+    await db.users.update_one(
+        {"id": current_user.id},
+        {
+            "$set": {
+                "onboarding_step": step,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+
+    logger.info(f"User {current_user.id} ({current_user.role}) completed onboarding step {step}")
+
+    return {"success": True, "step": step, "message": f"Step {step} saved"}
+
+
+@api_router.post("/auth/onboarding/complete")
+async def complete_onboarding(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Mark onboarding as fully complete (Phase 5B-1 requirement).
+
+    Call this when user confirms final step (step 5).
+    Sets onboarding_completed=True and onboarding_step=None.
+    """
+    # Only providers need onboarding tracking
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
+        raise HTTPException(400, detail="Onboarding completion only applies to providers")
+
+    # Mark onboarding as complete
+    await db.users.update_one(
+        {"id": current_user.id},
+        {
+            "$set": {
+                "onboarding_completed": True,
+                "onboarding_step": None,  # Clear step since onboarding is done
+                "provider_status": "submitted",  # Auto-advance to submitted status
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+
+    logger.info(f"User {current_user.id} ({current_user.role}) completed full onboarding")
+
+    return {
+        "success": True,
+        "message": "Onboarding complete! Welcome to The Real Johnson.",
+        "provider_status": "submitted"
+    }
+
+
 @api_router.post("/customers/verify-location")
 async def verify_customer_location(
     verification_data: dict = Body(...),

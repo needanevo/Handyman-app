@@ -5,7 +5,7 @@ Add onboarding step tracking endpoints for Phase 5B-1
 
 import sys
 
-SERVER_FILE = "/srv/app/Handyman-app/backend/server.py"
+SERVER_FILE = "server.py"
 
 NEW_ENDPOINTS = '''
 # ==================== ONBOARDING STEP TRACKING (Phase 5B-1) ====================
@@ -82,7 +82,7 @@ async def complete_onboarding(
 '''
 
 try:
-    with open(SERVER_FILE, 'r') as f:
+    with open(SERVER_FILE, 'r', encoding='utf-8') as f:
         content = f.read()
 
     # Find a good insertion point - after auth routes, before customer routes
@@ -101,10 +101,10 @@ try:
     # Insert the new endpoints before the marker
     new_content = content[:marker_pos] + NEW_ENDPOINTS + '\n' + content[marker_pos:]
 
-    with open(SERVER_FILE, 'w') as f:
+    with open(SERVER_FILE, 'w', encoding='utf-8') as f:
         f.write(new_content)
 
-    print("✅ Successfully added onboarding tracking endpoints")
+    print("[OK] Successfully added onboarding tracking endpoints")
     print(f"   Inserted at position {marker_pos}")
     print("\nNew endpoints:")
     print("  POST /auth/onboarding/step - Save current step progress")
@@ -112,7 +112,7 @@ try:
     print("\nThese enable reload-safe onboarding (Phase 5B-1)")
 
 except Exception as e:
-    print(f"❌ Error: {e}")
+    print(f"[ERROR] Error: {e}")
     import traceback
     traceback.print_exc()
     sys.exit(1)
