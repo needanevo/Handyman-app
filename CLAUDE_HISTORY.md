@@ -3390,3 +3390,72 @@ Frontend committed and will deploy on next Expo build.
 
 **Backend Status:** ✅ DEPLOYED  
 **Frontend Status:** ✅ COMMITTED
+
+---
+
+# [2026-01-20] Fix — Remove Business Status from Handyman Profile
+
+**Commit:** `d3983c1`  
+**Branch:** `dev2`
+
+## Problem
+
+TypeScript errors in handyman profile page:
+- `profile.businessName` does not exist on type
+- `hasLLC`, `isLicensed`, `isInsured` do not exist on type
+
+Handyman User interface does not include contractor-specific business fields.
+
+## Solution
+
+**File Modified:** `frontend/app/(handyman)/profile/index.tsx`
+
+Removed contractor-only fields from handyman profile:
+- Removed `hasLLC`, `isLicensed`, `isInsured` from profile object (lines 63-65)
+- Removed entire "Business Status" section from UI
+  - LLC Formed status
+  - Licensed status
+  - Insured status
+
+Handymen don't have business entities like contractors do (no LLC, licenses, insurance tracking).
+
+## Changes
+
+**Profile Object (Before):**
+```typescript
+const profile = {
+  ...
+  hasLLC: user?.hasLLC || false,
+  isLicensed: user?.isLicensed || false,
+  isInsured: user?.isInsured || false,
+};
+```
+
+**Profile Object (After):**
+```typescript
+const profile = {
+  firstName: user?.firstName || '',
+  lastName: user?.lastName || '',
+  email: user?.email || '',
+  phone: user?.phone || '',
+  skills: user?.skills || [],
+  yearsExperience: user?.yearsExperience || 0,
+  rating: user?.stats?.averageRating || 0,
+  jobsCompleted: user?.stats?.completedJobs || 0,
+};
+```
+
+**Removed UI Section:**
+- Business Status section with LLC/Licensed/Insured checkmarks (29 lines removed)
+
+## Result
+
+✅ TypeScript errors resolved  
+✅ Handyman profile displays only relevant handyman fields  
+✅ Maintains role-based field separation (handyman vs contractor)
+
+## Status
+
+**Backend:** No changes required  
+**Frontend:** ✅ COMMITTED & PUSHED to `dev2`
+
