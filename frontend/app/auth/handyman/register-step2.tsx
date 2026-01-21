@@ -25,6 +25,7 @@ interface Step2Form {
   city: string;
   state: string;
   zip: string;
+  customSkills: string;
 }
 
 const serviceCategories = [
@@ -66,8 +67,22 @@ export default function HandymanRegisterStep2() {
     setIsLoading(true);
 
     try {
+      // Build final skills array: standard categories + custom skills (excluding "Other")
+      const standardSkills = selectedSkills.filter(skill => skill !== 'Other');
+
+      // Parse custom skills if "Other" was selected
+      const customSkillsList = selectedSkills.includes('Other') && data.customSkills
+        ? data.customSkills
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+        : [];
+
+      // Combine and deduplicate
+      const allSkills = [...new Set([...standardSkills, ...customSkillsList])];
+
       await handymanAPI.updateProfile({
-        skills: selectedSkills,
+        skills: allSkills,
         years_experience: parseInt(data.yearsExperience),
         business_address: {
           street: data.businessAddress,
@@ -162,6 +177,33 @@ export default function HandymanRegisterStep2() {
                 </TouchableOpacity>
               ))}
             </View>
+
+            {/* Custom Skills Input (shown when "Other" is selected) */}
+            {selectedSkills.includes('Other') && (
+              <View style={styles.customSkillsSection}>
+                <Controller
+                  control={control}
+                  name="customSkills"
+                  rules={{
+                    required: selectedSkills.includes('Other') ? 'Please specify your custom skills' : false
+                  }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="Specify Your Skills"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="e.g., Tile work, Fence installation, Pool maintenance"
+                      error={errors.customSkills?.message}
+                      required={selectedSkills.includes('Other')}
+                      multiline
+                      numberOfLines={3}
+                      icon="create-outline"
+                      helpText="List any additional skills not covered above (comma-separated)"
+                    />
+                  )}
+                />
+              </View>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -176,9 +218,9 @@ export default function HandymanRegisterStep2() {
               onPhotosChange={setProfilePhoto}
               maxPhotos={1}
               label="Take or upload photo"
-              customUpload={async (base64Image: string) => {
-                const response = await handymanAPI.uploadProfilePhoto(base64Image);
-                return response.url;
+              customUpload={async (file: { uri: string; type: string; name: string }) => {
+                const response = await handymanAPI.uploadProfilePhoto(file);
+                return response;
               }}
             />
           </View>
@@ -389,6 +431,10 @@ const styles = StyleSheet.create({
   optionalLabel: {
     color: colors.neutral[500],
     fontWeight: typography.weights.normal,
+  },
+  customSkillsSection: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
   },
   skillsGrid: {
     flexDirection: 'row',
