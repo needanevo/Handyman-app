@@ -143,6 +143,7 @@ export function GooglePlacesAddressInput({
         placeholder={placeholder}
         fetchDetails={true}
         onPress={handlePlaceSelect}
+        predefinedPlaces={[]}
         query={{
           key: apiKey,
           language: 'en',
