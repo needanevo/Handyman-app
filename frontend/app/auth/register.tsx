@@ -24,6 +24,10 @@ interface RegisterForm {
   phone: string;
   password: string;
   confirmPassword: string;
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
 }
 
 const formatPhone = (value: string) => {
@@ -45,9 +49,24 @@ export default function RegisterScreen() {
     handleSubmit,
     formState: { errors },
     watch,
+    setValue,
   } = useForm<RegisterForm>();
 
   const password = watch('password');
+  const streetValue = watch('street');
+  const cityValue = watch('city');
+  const stateValue = watch('state');
+  const zipValue = watch('zip');
+
+  // Handler for when autocomplete selects an address - auto-fills form fields
+  const handleAddressSelected = (address: StructuredAddress) => {
+    console.log('[Register] Autocomplete address selected:', address);
+    setValue('street', address.street || '');
+    setValue('city', address.city || '');
+    setValue('state', address.state || '');
+    setValue('zip', address.zipCode || '');
+    setSelectedAddress(address);
+  };
 
   // Fix 5.11: Explicit redirect after registration hydration
   useEffect(() => {
@@ -84,8 +103,9 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (!selectedAddress || !selectedAddress.street) {
-      Alert.alert('Error', 'Please enter and select your service address');
+    // Validate address using form fields
+    if (!data.street || !data.city || !data.state || !data.zip) {
+      Alert.alert('Error', 'Please fill in all address fields');
       return;
     }
 
@@ -99,11 +119,11 @@ export default function RegisterScreen() {
         password: data.password,
         role: 'customer',
         address: {
-          street: selectedAddress.street,
-          city: selectedAddress.city,
-          state: selectedAddress.state,
-          zipCode: selectedAddress.zipCode,
-          unitNumber: selectedAddress.line2,
+          street: data.street,
+          city: data.city,
+          state: data.state,
+          zipCode: data.zip,
+          unitNumber: selectedAddress?.line2,
         },
       });
 
@@ -255,13 +275,99 @@ export default function RegisterScreen() {
             {/* Address Fields */}
             <View style={styles.addressSection}>
               <Text style={styles.sectionTitle}>Service Address</Text>
+
+              {/* Optional autocomplete helper */}
               <GooglePlacesAddressInput
-                label=""
-                required
-                onAddressSelected={setSelectedAddress}
-                placeholder="Start typing your address..."
-                zipFirst={true}
+                label="Quick Address Search"
+                onAddressSelected={handleAddressSelected}
+                placeholder="Search for your address..."
               />
+
+              {/* Manual address fields */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Street Address</Text>
+                <Controller
+                  control={control}
+                  name="street"
+                  rules={{ required: 'Street address is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.street && styles.inputError]}
+                      onChangeText={onChange}
+                      value={value}
+                      placeholder="123 Main St"
+                    />
+                  )}
+                />
+                {errors.street && (
+                  <Text style={styles.errorText}>{errors.street.message}</Text>
+                )}
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>City</Text>
+                <Controller
+                  control={control}
+                  name="city"
+                  rules={{ required: 'City is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.city && styles.inputError]}
+                      onChangeText={onChange}
+                      value={value}
+                      placeholder="Austin"
+                    />
+                  )}
+                />
+                {errors.city && (
+                  <Text style={styles.errorText}>{errors.city.message}</Text>
+                )}
+              </View>
+
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>State</Text>
+                  <Controller
+                    control={control}
+                    name="state"
+                    rules={{ required: 'State is required' }}
+                    render={({ field: { onChange, value } }) => (
+                      <TextInput
+                        style={[styles.input, errors.state && styles.inputError]}
+                        onChangeText={(text) => onChange(text.toUpperCase())}
+                        value={value}
+                        placeholder="TX"
+                        maxLength={2}
+                      />
+                    )}
+                  />
+                  {errors.state && (
+                    <Text style={styles.errorText}>{errors.state.message}</Text>
+                  )}
+                </View>
+
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>ZIP Code</Text>
+                  <Controller
+                    control={control}
+                    name="zip"
+                    rules={{ required: 'ZIP code is required' }}
+                    render={({ field: { onChange, value } }) => (
+                      <TextInput
+                        style={[styles.input, errors.zip && styles.inputError]}
+                        onChangeText={onChange}
+                        value={value}
+                        placeholder="78701"
+                        keyboardType="numeric"
+                        maxLength={5}
+                      />
+                    )}
+                  />
+                  {errors.zip && (
+                    <Text style={styles.errorText}>{errors.zip.message}</Text>
+                  )}
+                </View>
+              </View>
             </View>
 
             <View style={styles.inputGroup}>

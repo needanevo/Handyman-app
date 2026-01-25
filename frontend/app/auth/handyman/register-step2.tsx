@@ -24,6 +24,10 @@ import { useAuth } from '../../../src/contexts/AuthContext';
 interface Step2Form {
   yearsExperience: string;
   customSkills: string;
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
 }
 
 const serviceCategories = [
@@ -48,8 +52,15 @@ export default function HandymanRegisterStep2() {
     control,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<Step2Form>();
+
+  // Watch address fields for button disabled state
+  const streetValue = watch('street');
+  const cityValue = watch('city');
+  const stateValue = watch('state');
+  const zipValue = watch('zip');
 
   // Hydrate form with existing user data
   useEffect(() => {
@@ -79,10 +90,18 @@ export default function HandymanRegisterStep2() {
       setValue('yearsExperience', user.yearsExperience.toString());
     }
 
-    // Populate address from existing user data
+    // Populate address from existing user data - both state and form fields
     if (user.addresses && user.addresses.length > 0) {
       const addr = user.addresses[0];
       console.log('[Step2] Setting address:', addr);
+
+      // Set form field values
+      setValue('street', addr.street || '');
+      setValue('city', addr.city || '');
+      setValue('state', addr.state || '');
+      setValue('zip', addr.zipCode || '');
+
+      // Also set state for Google Places metadata (lat/lng, placeId, etc.)
       setSelectedAddress({
         street: addr.street || '',
         line2: (addr as any).line2,
@@ -114,14 +133,27 @@ export default function HandymanRegisterStep2() {
     }
   };
 
+  // Handler for when autocomplete selects an address - auto-fills form fields
+  const handleAddressSelected = (address: StructuredAddress) => {
+    console.log('[Step2] Autocomplete address selected:', address);
+    // Populate form fields
+    setValue('street', address.street || '');
+    setValue('city', address.city || '');
+    setValue('state', address.state || '');
+    setValue('zip', address.zipCode || '');
+    // Store full address data for metadata (lat/lng, placeId, etc.)
+    setSelectedAddress(address);
+  };
+
   const onSubmit = async (data: Step2Form) => {
     if (selectedSkills.length === 0) {
       Alert.alert('Error', 'Please select at least one skill');
       return;
     }
 
-    if (!selectedAddress || !selectedAddress.street) {
-      Alert.alert('Error', 'Please enter and select your address');
+    // Validate address using form fields
+    if (!data.street || !data.city || !data.state || !data.zip) {
+      Alert.alert('Error', 'Please fill in all address fields');
       return;
     }
 
@@ -142,23 +174,26 @@ export default function HandymanRegisterStep2() {
       // Combine and deduplicate
       const allSkills = [...new Set([...standardSkills, ...customSkillsList])];
 
-      console.log('[Step2] Saving profile with address:', selectedAddress);
+      // Build address from form data + optional metadata from autocomplete
+      const addressPayload = {
+        street: data.street,
+        line2: selectedAddress?.line2,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zip,
+        country: selectedAddress?.country || 'US',
+        latitude: selectedAddress?.latitude,
+        longitude: selectedAddress?.longitude,
+        place_id: selectedAddress?.placeId,
+        formatted_address: selectedAddress?.formattedAddress,
+      };
+
+      console.log('[Step2] Saving profile with address:', addressPayload);
 
       await handymanAPI.updateProfile({
         skills: allSkills,
         years_experience: parseInt(data.yearsExperience),
-        business_address: {
-          street: selectedAddress.street,
-          line2: selectedAddress.line2,
-          city: selectedAddress.city,
-          state: selectedAddress.state,
-          zip_code: selectedAddress.zipCode,
-          country: selectedAddress.country || 'US',
-          latitude: selectedAddress.latitude,
-          longitude: selectedAddress.longitude,
-          place_id: selectedAddress.placeId,
-          formatted_address: selectedAddress.formattedAddress,
-        },
+        business_address: addressPayload,
       } as any);
 
       // Track onboarding step completion (Phase 5B-1)
@@ -322,14 +357,92 @@ export default function HandymanRegisterStep2() {
               )}
             />
 
+            {/* Address Section */}
+            <Text style={styles.sectionLabel}>
+              Home Address <Text style={styles.required}>*</Text>
+            </Text>
+
+            {/* Optional autocomplete helper */}
             <GooglePlacesAddressInput
-              label="Home Address"
-              required
-              onAddressSelected={setSelectedAddress}
-              initialValue={selectedAddress || undefined}
-              placeholder="Start typing your address..."
-              zipFirst={true}
+              label="Quick Address Search"
+              onAddressSelected={handleAddressSelected}
+              placeholder="Search for your address..."
             />
+
+            {/* Manual address fields */}
+            <Controller
+              control={control}
+              name="street"
+              rules={{ required: 'Street address is required' }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Street Address"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="123 Main St"
+                  error={errors.street?.message}
+                  required
+                  icon="location-outline"
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="city"
+              rules={{ required: 'City is required' }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="City"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Austin"
+                  error={errors.city?.message}
+                  required
+                  icon="business-outline"
+                />
+              )}
+            />
+
+            <View style={styles.rowFields}>
+              <View style={styles.halfField}>
+                <Controller
+                  control={control}
+                  name="state"
+                  rules={{ required: 'State is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="State"
+                      value={value}
+                      onChangeText={(text) => onChange(text.toUpperCase())}
+                      placeholder="TX"
+                      maxLength={2}
+                      error={errors.state?.message}
+                      required
+                    />
+                  )}
+                />
+              </View>
+              <View style={styles.halfField}>
+                <Controller
+                  control={control}
+                  name="zip"
+                  rules={{ required: 'ZIP code is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="ZIP Code"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="78701"
+                      keyboardType="numeric"
+                      maxLength={5}
+                      error={errors.zip?.message}
+                      required
+                    />
+                  )}
+                />
+              </View>
+            </View>
           </View>
 
           <View style={styles.actions}>
@@ -339,7 +452,7 @@ export default function HandymanRegisterStep2() {
               loading={isLoading}
               size="large"
               fullWidth
-              disabled={selectedSkills.length === 0 || !selectedAddress?.street}
+              disabled={selectedSkills.length === 0 || !streetValue || !cityValue || !stateValue || !zipValue}
             />
           </View>
         </ScrollView>
@@ -500,6 +613,13 @@ const styles = StyleSheet.create({
     gap: spacing.base,
     marginBottom: spacing.xl,
     zIndex: 1000, // Ensure address autocomplete dropdown appears above other elements
+  },
+  rowFields: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  halfField: {
+    flex: 1,
   },
   actions: {
     gap: spacing.md,

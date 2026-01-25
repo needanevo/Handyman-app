@@ -56,6 +56,10 @@ interface Step3Form {
   specialties: string[];
   yearsExperience: string;
   customSkills: string;  // Custom skills when "Other" is selected
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
 }
 
 export default function ContractorRegisterStep3() {
@@ -110,8 +114,18 @@ export default function ContractorRegisterStep3() {
       specialties: user?.specialties || [],
       yearsExperience: (user?.yearsExperience !== undefined && user?.yearsExperience !== null) ? String(user.yearsExperience) : '',
       customSkills: customSkills.join(', '),  // Pre-fill custom skills
+      street: user?.addresses?.[0]?.street || '',
+      city: user?.addresses?.[0]?.city || '',
+      state: user?.addresses?.[0]?.state || '',
+      zip: user?.addresses?.[0]?.zipCode || '',
     },
   });
+
+  // Watch address fields for validation
+  const streetValue = watch('street');
+  const cityValue = watch('city');
+  const stateValue = watch('state');
+  const zipValue = watch('zip');
 
   // Sync state with user context when it changes (ensures persistence)
   React.useEffect(() => {
@@ -169,14 +183,27 @@ export default function ContractorRegisterStep3() {
     setValue('specialties', newSpecialties);
   };
 
+  // Handler for when autocomplete selects an address - auto-fills form fields
+  const handleAddressSelected = (address: StructuredAddress) => {
+    console.log('[Step3] Autocomplete address selected:', address);
+    // Populate form fields
+    setValue('street', address.street || '');
+    setValue('city', address.city || '');
+    setValue('state', address.state || '');
+    setValue('zip', address.zipCode || '');
+    // Store full address data for metadata (lat/lng, placeId, etc.)
+    setSelectedAddress(address);
+  };
+
   const onSubmit = async (data: Step3Form) => {
     if (selectedSkills.length === 0) {
       Alert.alert('Error', 'Please select at least one skill');
       return;
     }
 
-    if (!selectedAddress || !selectedAddress.street) {
-      Alert.alert('Error', 'Please enter and select your business address');
+    // Validate address using form fields
+    if (!data.street || !data.city || !data.state || !data.zip) {
+      Alert.alert('Error', 'Please fill in all address fields');
       return;
     }
 
@@ -205,23 +232,26 @@ export default function ContractorRegisterStep3() {
       let addressSaved = false;
       let profileSaved = false;
 
-      console.log('[Step3] Saving address with Google Places data:', selectedAddress);
+      // Build address from form data + optional metadata from autocomplete
+      const addressPayload = {
+        street: data.street,
+        line2: selectedAddress?.line2,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zip,
+        country: selectedAddress?.country || 'US',
+        latitude: selectedAddress?.latitude,
+        longitude: selectedAddress?.longitude,
+        place_id: selectedAddress?.placeId,
+        formatted_address: selectedAddress?.formattedAddress,
+        is_default: true,
+      };
+
+      console.log('[Step3] Saving address with data:', addressPayload);
 
       try {
         // Step 1: Save business address with Google Places data
-        await profileAPI.addAddress({
-          street: selectedAddress.street,
-          line2: selectedAddress.line2,
-          city: selectedAddress.city,
-          state: selectedAddress.state,
-          zip_code: selectedAddress.zipCode,
-          country: selectedAddress.country || 'US',
-          latitude: selectedAddress.latitude,
-          longitude: selectedAddress.longitude,
-          place_id: selectedAddress.placeId,
-          formatted_address: selectedAddress.formattedAddress,
-          is_default: true,
-        });
+        await profileAPI.addAddress(addressPayload);
         addressSaved = true;
         console.log('✅ Business address saved successfully');
 
@@ -489,14 +519,92 @@ export default function ContractorRegisterStep3() {
               ))}
             </View>
 
+            {/* Address Section */}
+            <Text style={styles.label}>
+              Business Address <Text style={styles.required}>*</Text>
+            </Text>
+
+            {/* Optional autocomplete helper */}
             <GooglePlacesAddressInput
-              label="Business Address"
-              required
-              onAddressSelected={setSelectedAddress}
-              initialValue={selectedAddress || undefined}
-              placeholder="Start typing your business address..."
-              zipFirst={true}
+              label="Quick Address Search"
+              onAddressSelected={handleAddressSelected}
+              placeholder="Search for your address..."
             />
+
+            {/* Manual address fields */}
+            <Controller
+              control={control}
+              name="street"
+              rules={{ required: 'Street address is required' }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Street Address"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="123 Main St"
+                  error={errors.street?.message}
+                  required
+                  icon="location-outline"
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="city"
+              rules={{ required: 'City is required' }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="City"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Austin"
+                  error={errors.city?.message}
+                  required
+                  icon="business-outline"
+                />
+              )}
+            />
+
+            <View style={styles.row}>
+              <View style={styles.halfWidth}>
+                <Controller
+                  control={control}
+                  name="state"
+                  rules={{ required: 'State is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="State"
+                      value={value}
+                      onChangeText={(text) => onChange(text.toUpperCase())}
+                      placeholder="TX"
+                      maxLength={2}
+                      error={errors.state?.message}
+                      required
+                    />
+                  )}
+                />
+              </View>
+              <View style={styles.halfWidth}>
+                <Controller
+                  control={control}
+                  name="zip"
+                  rules={{ required: 'ZIP code is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="ZIP Code"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="78701"
+                      keyboardType="numeric"
+                      maxLength={5}
+                      error={errors.zip?.message}
+                      required
+                    />
+                  )}
+                />
+              </View>
+            </View>
 
             <Controller
               control={control}
