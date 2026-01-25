@@ -1,16 +1,3 @@
-// Polyfill for crypto.getRandomValues using expo-crypto - MUST be first
-import * as Crypto from 'expo-crypto';
-
-// Polyfill global crypto for uuid library used by react-native-google-places-autocomplete
-if (typeof global.crypto !== 'object') {
-  (global as any).crypto = {};
-}
-if (typeof global.crypto.getRandomValues !== 'function') {
-  (global as any).crypto.getRandomValues = (array: Uint8Array) => {
-    return Crypto.getRandomBytes(array.length);
-  };
-}
-
 import React from 'react';
 import { Slot } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
