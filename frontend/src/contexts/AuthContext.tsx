@@ -59,11 +59,15 @@ export interface User {
 export interface Address {
   id: string;
   street: string;
+  line2?: string;  // apt/suite/unit (from Google Places)
   city: string;
-  state: string;
+  state: string;  // 2-letter state code
   zipCode: string;
+  country?: string;  // ISO country code (default: US)
   latitude?: number;
   longitude?: number;
+  placeId?: string;  // Google Places place_id
+  formattedAddress?: string;  // Full formatted address from Google
   isDefault: boolean;
 }
 
@@ -226,11 +230,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         addresses: userData.addresses?.map((addr: any) => ({
           id: addr.id,
           street: addr.street,
+          line2: addr.line2,  // apt/suite/unit (Google Places)
           city: addr.city,
           state: addr.state,
           zipCode: addr.zip_code,
+          country: addr.country || 'US',  // ISO country code
           latitude: addr.latitude,
           longitude: addr.longitude,
+          placeId: addr.place_id,  // Google Places ID
+          formattedAddress: addr.formatted_address,  // Full formatted address
           isDefault: addr.is_default,
         })) || [],
         isActive: userData.is_active,

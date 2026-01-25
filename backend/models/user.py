@@ -12,12 +12,16 @@ class UserRole(str, Enum):
 
 class Address(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    street: str
+    street: str  # line1 - primary street address
+    line2: Optional[str] = None  # apt/suite/unit number
     city: str
-    state: str
-    zip_code: str
+    state: str  # 2-letter state code (normalized)
+    zip_code: str  # postal_code
+    country: str = "US"  # ISO country code
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    place_id: Optional[str] = None  # Google Places place_id for future verification
+    formatted_address: Optional[str] = None  # Full formatted address from Google
     is_default: bool = False
 
 class LocationVerification(BaseModel):

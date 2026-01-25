@@ -2225,14 +2225,21 @@ async def update_contractor_profile(
         update_fields["provider_intent"] = profile_data["provider_intent"]
 
     # Handle business_address by adding to addresses array
+    # Supports Google Places Autocomplete fields (place_id, lat/lng, formatted_address)
     if "business_address" in profile_data:
         addr_data = profile_data["business_address"]
         new_address = {
             "id": str(uuid.uuid4()),
             "street": addr_data.get("street", ""),
+            "line2": addr_data.get("line2"),  # apt/suite/unit
             "city": addr_data.get("city", ""),
-            "state": addr_data.get("state", ""),
-            "zip_code": addr_data.get("zip", ""),
+            "state": addr_data.get("state", "").upper(),  # Normalize to uppercase
+            "zip_code": addr_data.get("zip_code") or addr_data.get("zip", ""),  # Support both formats
+            "country": addr_data.get("country", "US"),
+            "latitude": addr_data.get("latitude"),
+            "longitude": addr_data.get("longitude"),
+            "place_id": addr_data.get("place_id"),  # Google Places ID
+            "formatted_address": addr_data.get("formatted_address"),
             "is_default": True
         }
         # Add address to addresses array (replace any existing default address)
