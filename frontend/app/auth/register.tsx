@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Button } from '../../src/components/Button';
 import { Ionicons } from '@expo/vector-icons';
-import { AddressForm } from '../../src/components/AddressForm';
+import { GooglePlacesAddressInput, StructuredAddress } from '../../src/components/GooglePlacesAddressInput';
 import { useForm, Controller } from 'react-hook-form';
 
 interface RegisterForm {
@@ -24,11 +24,6 @@ interface RegisterForm {
   phone: string;
   password: string;
   confirmPassword: string;
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  unitNumber?: string;
 }
 
 const formatPhone = (value: string) => {
@@ -43,6 +38,7 @@ export default function RegisterScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState<StructuredAddress | null>(null);
 
   const {
     control,
@@ -88,6 +84,11 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (!selectedAddress || !selectedAddress.street) {
+      Alert.alert('Error', 'Please enter and select your service address');
+      return;
+    }
+
     try {
       setIsLoading(true);
       await register({
@@ -98,11 +99,11 @@ export default function RegisterScreen() {
         password: data.password,
         role: 'customer',
         address: {
-          street: data.street,
-          city: data.city,
-          state: data.state,
-          zipCode: data.zipCode,
-          unitNumber: data.unitNumber,
+          street: selectedAddress.street,
+          city: selectedAddress.city,
+          state: selectedAddress.state,
+          zipCode: selectedAddress.zipCode,
+          unitNumber: selectedAddress.line2,
         },
       });
 
@@ -254,10 +255,12 @@ export default function RegisterScreen() {
             {/* Address Fields */}
             <View style={styles.addressSection}>
               <Text style={styles.sectionTitle}>Service Address</Text>
-              <AddressForm
-                control={control}
-                errors={errors}
-                showUnitNumber={true}
+              <GooglePlacesAddressInput
+                label=""
+                required
+                onAddressSelected={setSelectedAddress}
+                placeholder="Start typing your address..."
+                zipFirst={true}
               />
             </View>
 

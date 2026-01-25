@@ -17,6 +17,7 @@ import { colors, spacing, typography, borderRadius } from '../../../src/constant
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
+import { GooglePlacesAddressInput, StructuredAddress } from '../../../src/components/GooglePlacesAddressInput';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { profileAPI, contractorAPI, authAPI } from '../../../src/services/api';
 
@@ -54,10 +55,6 @@ interface Step3Form {
   skills: string[];
   specialties: string[];
   yearsExperience: string;
-  businessStreet: string;
-  businessCity: string;
-  businessState: string;
-  businessZip: string;
   customSkills: string;  // Custom skills when "Other" is selected
 }
 
@@ -81,6 +78,26 @@ export default function ContractorRegisterStep3() {
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(user?.specialties || []);
   const [selectedIntent, setSelectedIntent] = useState<string>(user?.providerIntent || 'not_hiring');
 
+  // Address state for Google Places autocomplete
+  const [selectedAddress, setSelectedAddress] = useState<StructuredAddress | null>(() => {
+    if (user?.addresses && user.addresses.length > 0) {
+      const addr = user.addresses[0];
+      return {
+        street: addr.street || '',
+        line2: addr.line2,
+        city: addr.city || '',
+        state: addr.state || '',
+        zipCode: addr.zipCode || '',
+        country: addr.country || 'US',
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+        placeId: addr.placeId,
+        formattedAddress: addr.formattedAddress,
+      };
+    }
+    return null;
+  });
+
   const {
     control,
     handleSubmit,
@@ -92,10 +109,6 @@ export default function ContractorRegisterStep3() {
       skills: initialSelectedSkills,
       specialties: user?.specialties || [],
       yearsExperience: (user?.yearsExperience !== undefined && user?.yearsExperience !== null) ? String(user.yearsExperience) : '',
-      businessStreet: user?.addresses?.[0]?.street || '',
-      businessCity: user?.addresses?.[0]?.city || '',
-      businessState: user?.addresses?.[0]?.state || '',
-      businessZip: user?.addresses?.[0]?.zipCode || '',
       customSkills: customSkills.join(', '),  // Pre-fill custom skills
     },
   });
@@ -129,16 +142,7 @@ export default function ContractorRegisterStep3() {
     }
   }, [user?.providerIntent]);
 
-  React.useEffect(() => {
-    // TASK 5: Null-safe access to user.addresses
-    if (user?.addresses && user?.addresses.length > 0) {
-      const address = user.addresses[0];
-      setValue('businessStreet', address?.street || '');
-      setValue('businessCity', address?.city || '');
-      setValue('businessState', address?.state || '');
-      setValue('businessZip', address?.zipCode || '');
-    }
-  }, [user?.addresses, setValue]);
+  // Address hydration is now handled by selectedAddress state initialization
 
   React.useEffect(() => {
     if (user?.yearsExperience !== undefined && user.yearsExperience !== null) {
@@ -171,6 +175,11 @@ export default function ContractorRegisterStep3() {
       return;
     }
 
+    if (!selectedAddress || !selectedAddress.street) {
+      Alert.alert('Error', 'Please enter and select your business address');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -196,19 +205,25 @@ export default function ContractorRegisterStep3() {
       let addressSaved = false;
       let profileSaved = false;
 
+      console.log('[Step3] Saving address with Google Places data:', selectedAddress);
+
       try {
-        // Step 1: Save business address
-        if (data.businessStreet && data.businessCity && data.businessState && data.businessZip) {
-          await profileAPI.addAddress({
-            street: data.businessStreet,
-            city: data.businessCity,
-            state: data.businessState,
-            zip_code: data.businessZip,
-            is_default: true,
-          });
-          addressSaved = true;
-          console.log('✅ Business address saved successfully');
-        }
+        // Step 1: Save business address with Google Places data
+        await profileAPI.addAddress({
+          street: selectedAddress.street,
+          line2: selectedAddress.line2,
+          city: selectedAddress.city,
+          state: selectedAddress.state,
+          zip_code: selectedAddress.zipCode,
+          country: selectedAddress.country || 'US',
+          latitude: selectedAddress.latitude,
+          longitude: selectedAddress.longitude,
+          place_id: selectedAddress.placeId,
+          formatted_address: selectedAddress.formattedAddress,
+          is_default: true,
+        });
+        addressSaved = true;
+        console.log('✅ Business address saved successfully');
 
         // Step 2: Save contractor profile (skills, specialties, experience, business name, provider intent)
         await contractorAPI.updateProfile({
@@ -474,94 +489,14 @@ export default function ContractorRegisterStep3() {
               ))}
             </View>
 
-            <Text style={styles.sectionTitle}>Business Address</Text>
-            <Text style={styles.helpText}>
-              Where you're based (used for 50-mile radius matching)
-            </Text>
-
-            <Controller
-              control={control}
-              name="businessStreet"
-              rules={{ required: 'Street address required' }}
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Street Address"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="123 Main Street"
-                  error={errors.businessStreet?.message}
-                  required
-                  autoComplete="street-address"
-                />
-              )}
+            <GooglePlacesAddressInput
+              label="Business Address"
+              required
+              onAddressSelected={setSelectedAddress}
+              initialValue={selectedAddress || undefined}
+              placeholder="Start typing your business address..."
+              zipFirst={true}
             />
-
-            <Controller
-              control={control}
-              name="businessCity"
-              rules={{ required: 'City required' }}
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="City"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="Baltimore"
-                  error={errors.businessCity?.message}
-                  required
-                  autoComplete="address-line2"
-                />
-              )}
-            />
-
-            <View style={styles.row}>
-              <View style={styles.halfWidth}>
-                <Controller
-                  control={control}
-                  name="businessState"
-                  rules={{
-                    required: 'State required',
-                    minLength: { value: 2, message: '2-letter code' },
-                    maxLength: { value: 2, message: '2-letter code' },
-                  }}
-                  render={({ field: { onChange, value } }) => (
-                    <Input
-                      label="State"
-                      value={value}
-                      onChangeText={(text) => onChange(text.toUpperCase())}
-                      placeholder="MD"
-                      error={errors.businessState?.message}
-                      required
-                      maxLength={2}
-                      autoCapitalize="characters"
-                      autoComplete="address-line1"
-                    />
-                  )}
-                />
-              </View>
-              <View style={styles.halfWidth}>
-                <Controller
-                  control={control}
-                  name="businessZip"
-                  rules={{
-                    required: 'ZIP required',
-                    pattern: { value: /^\d{5}$/, message: '5 digits' },
-                  }}
-                  render={({ field: { onChange, value } }) => (
-                    <Input
-                      label="ZIP Code"
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="21201"
-                      error={errors.businessZip?.message}
-                      required
-                      keyboardType="numeric"
-                      maxLength={5}
-                      autoComplete="postal-code"
-                    />
-                  )}
-                />
-              </View>
-            </View>
 
             <Controller
               control={control}

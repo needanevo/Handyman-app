@@ -88,7 +88,10 @@ export default function CustomerRegisterStep5() {
             </View>
             {user.addresses && user.addresses.length > 0 ? (
               <>
-                <Text style={styles.reviewItem}>{user.addresses?.[0]?.street}</Text>
+                <Text style={styles.reviewItem}>
+                  {user.addresses?.[0]?.street}
+                  {user.addresses?.[0]?.line2 ? `, ${user.addresses[0].line2}` : ''}
+                </Text>
                 <Text style={styles.reviewItem}>
                   {user.addresses?.[0]?.city}, {user.addresses?.[0]?.state} {user.addresses?.[0]?.zipCode}
                 </Text>

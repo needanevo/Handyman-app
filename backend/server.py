@@ -2022,15 +2022,19 @@ async def add_address(
             logger.warning(f"Geocoding failed: {e}")
 
     # Create address payload for canonical collection
+    # Supports Google Places Autocomplete fields
     address_payload = {
         "street": address.street,
-        "unit_number": getattr(address, "unit_number", None),
+        "line2": getattr(address, "line2", None) or getattr(address, "unit_number", None),  # Support both field names
         "city": address.city,
-        "state": address.state,
+        "state": address.state.upper() if address.state else "",  # Normalize to uppercase
         "zip_code": address.zip_code,
+        "country": getattr(address, "country", "US"),
         "is_default": address.is_default,
         "latitude": address.latitude,
         "longitude": address.longitude,
+        "place_id": getattr(address, "place_id", None),  # Google Places ID
+        "formatted_address": getattr(address, "formatted_address", None),  # Full formatted address
     }
 
     # Create canonical address in addresses collection
