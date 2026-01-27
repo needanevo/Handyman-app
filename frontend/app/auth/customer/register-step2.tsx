@@ -116,21 +116,19 @@ export default function CustomerRegisterStep2() {
         {/* Actions */}
         <View style={styles.actions}>
           <Button
-            title={profilePhoto.length > 0 ? "Continue to Dashboard" : "Continue Without Photo"}
+            title="Continue to Dashboard"
             onPress={onContinue}
             loading={isLoading}
             size="large"
             fullWidth
           />
-          {profilePhoto.length === 0 && (
-            <Button
-              title="Skip for Now"
-              onPress={onSkip}
-              variant="ghost"
-              size="medium"
-              fullWidth
-            />
-          )}
+          <Button
+            title="Skip Photo"
+            onPress={onSkip}
+            variant="outline"
+            size="medium"
+            fullWidth
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -213,6 +211,6 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: spacing.md,
-    marginTop: 'auto',
+    paddingTop: spacing.xl,
   },
 });
