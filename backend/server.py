@@ -2254,6 +2254,18 @@ async def update_contractor_profile(
     if "banking_info" in profile_data:
         update_fields["banking_info"] = profile_data["banking_info"]
 
+    # Handle phone verification status
+    if "phone_verified" in profile_data:
+        update_fields["phone_verified"] = profile_data["phone_verified"]
+
+    # Handle license number (for Electrical/Plumbing contractors)
+    if "license_number" in profile_data:
+        update_fields["license_number"] = profile_data["license_number"]
+
+    # Handle insurance policy number
+    if "insurance_policy_number" in profile_data:
+        update_fields["insurance_policy_number"] = profile_data["insurance_policy_number"]
+
     if not update_fields:
         raise HTTPException(400, detail="No fields to update")
 
@@ -2509,6 +2521,62 @@ async def upload_contractor_profile_photo(
         logger.error(f"Profile photo upload error: {str(e)}")
         raise HTTPException(500, detail=f"Upload failed: {str(e)}")
 
+
+
+@api_router.post("/customer/profile-photo/upload")
+async def upload_customer_profile_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload customer profile photo
+    Saves to: customers/{customer_id}/profile/profile_{uuid}.{ext}
+    Updates user.profile_photo field in database
+    """
+    if current_user.role != UserRole.CUSTOMER:
+        raise HTTPException(403, detail="Only customers can upload profile photos to this endpoint")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"profile_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to customer profile path
+        url = await storage_provider.upload_customer_profile_photo(
+            file_data=file_data,
+            customer_id=current_user.id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        # Update user profile_photo field in database
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"profile_photo": url, "updated_at": datetime.utcnow().isoformat()}}
+        )
+
+        logger.info(f"Customer profile photo uploaded for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "message": "Profile photo uploaded successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Customer profile photo upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
 
 
 @api_router.post("/contractor/photos/job/{job_id}")

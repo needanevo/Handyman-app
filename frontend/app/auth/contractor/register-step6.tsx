@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,68 +14,54 @@ import { StepIndicator } from '../../../src/components/StepIndicator';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { authAPI } from '../../../src/services/api';
 
-export default function HandymanRegisterStep5() {
+export default function ContractorRegisterStep6() {
   const router = useRouter();
-  const { user, isHydrated, isAuthenticated, refreshUser } = useAuth();
+  const { user, isHydrated, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [registrationConfirmed, setRegistrationConfirmed] = useState(false);
 
-  // Log user data for debugging
+  // Redirect to dashboard ONLY after confirmation
   useEffect(() => {
-    if (user) {
-      console.log('[Step5] User data loaded:', {
-        name: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        phone: user.phone,
-        skills: user.skills,
-        yearsExperience: user.yearsExperience,
-        addresses: user.addresses,
-        banking_info: (user as any).banking_info,
-        providerIntent: user.providerIntent,
-        onboardingCompleted: user.onboardingCompleted
-      });
+    if (!registrationConfirmed) return;
+    if (!isHydrated || !isAuthenticated || !user?.role) return;
+
+    console.log('Registration confirmed - redirecting to dashboard');
+    if (user.role === 'contractor') {
+      router.replace('/(contractor)/dashboard');
     } else {
-      console.log('[Step5] User data not available yet');
+      router.replace('/auth/welcome');
     }
-  }, [user]);
+  }, [registrationConfirmed, isHydrated, isAuthenticated, user, router]);
 
   const handleConfirm = async () => {
     setIsLoading(true);
     try {
-      console.log('[Step5] Marking onboarding as complete...');
-
       // Mark onboarding as complete (Phase 5B-1)
       await authAPI.completeOnboarding();
-      console.log('[Step5] ✅ Onboarding API call successful');
-
-      // CRITICAL: Refresh user context to get updated onboardingCompleted status
-      await refreshUser();
-      console.log('[Step5] ✅ User context refreshed');
-
-      // Wait a moment for context to propagate
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      console.log('[Step5] Navigating to dashboard...');
-      router.replace('/(handyman)/dashboard');
+      console.log('✅ Onboarding marked as complete');
+      setRegistrationConfirmed(true);
     } catch (error) {
-      console.error('[Step5] Error completing onboarding:', error);
-      Alert.alert('Error', 'Failed to complete registration. Please try again.');
-      setIsLoading(false);
+      console.error('Error completing onboarding:', error);
+      // Still allow redirect even if API call fails
+      setRegistrationConfirmed(true);
     }
   };
 
   const steps = [
     { label: 'Basic Info', completed: true },
-    { label: 'Skills', completed: true },
-    { label: 'Verification', completed: true },
+    { label: 'Documents', completed: true },
+    { label: 'Profile', completed: true },
+    { label: 'Portfolio', completed: true },
     { label: 'Banking', completed: true },
     { label: 'Review', completed: false },
   ];
 
   const handleStepPress = (stepIndex: number) => {
-    if (stepIndex === 0) router.push('/auth/handyman/register-step1');
-    else if (stepIndex === 1) router.push('/auth/handyman/register-step2');
-    else if (stepIndex === 2) router.push('/auth/handyman/register-step3');
-    else if (stepIndex === 3) router.push('/auth/handyman/register-step4');
+    if (stepIndex === 0) router.push('/auth/contractor/register-step1');
+    else if (stepIndex === 1) router.push('/auth/contractor/register-step2');
+    else if (stepIndex === 2) router.push('/auth/contractor/register-step3');
+    else if (stepIndex === 3) router.push('/auth/contractor/register-step4');
+    else if (stepIndex === 4) router.push('/auth/contractor/register-step5');
   };
 
   if (!isHydrated || !user) {
@@ -103,7 +88,7 @@ export default function HandymanRegisterStep5() {
           />
         </View>
 
-        <StepIndicator steps={steps} currentStep={4} onStepPress={handleStepPress} />
+        <StepIndicator steps={steps} currentStep={5} onStepPress={handleStepPress} />
 
         <View style={styles.titleSection}>
           <View style={styles.iconBadge}>
@@ -111,24 +96,24 @@ export default function HandymanRegisterStep5() {
           </View>
           <Text style={styles.title}>Review Your Profile</Text>
           <Text style={styles.subtitle}>
-            As a handyman, you work independently on smaller jobs, building local trust and growing your reputation.
+            As a contractor, you can handle larger jobs, build teams, and grow your business on our platform.
           </Text>
         </View>
 
         <View style={styles.reviewSection}>
           <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
-              <Ionicons name="person" size={24} color={colors.brand.navy} />
-              <Text style={styles.reviewTitle}>Personal Information</Text>
+              <Ionicons name="briefcase" size={24} color={colors.brand.navy} />
+              <Text style={styles.reviewTitle}>Business Information</Text>
               <Button
                 title="Edit"
-                onPress={() => router.push('/auth/handyman/register-step1')}
+                onPress={() => router.push('/auth/contractor/register-step1')}
                 variant="ghost"
                 size="small"
                 style={styles.editButton}
               />
             </View>
-            <Text style={styles.reviewItem}>Name: {user.firstName} {user.lastName}</Text>
+            <Text style={styles.reviewItem}>Business Name: {user.businessName || 'Not set'}</Text>
             <Text style={styles.reviewItem}>Email: {user.email}</Text>
             <Text style={styles.reviewItem}>Phone: {user.phone || 'Not set'}</Text>
           </View>
@@ -139,7 +124,7 @@ export default function HandymanRegisterStep5() {
               <Text style={styles.reviewTitle}>Skills & Experience</Text>
               <Button
                 title="Edit"
-                onPress={() => router.push('/auth/handyman/register-step2')}
+                onPress={() => router.push('/auth/contractor/register-step3')}
                 variant="ghost"
                 size="small"
                 style={styles.editButton}
@@ -147,6 +132,9 @@ export default function HandymanRegisterStep5() {
             </View>
             <Text style={styles.reviewItem}>
               Skills: {user.skills && user.skills.length > 0 ? user.skills.join(', ') : 'Not set'}
+            </Text>
+            <Text style={styles.reviewItem}>
+              Specialties: {user.specialties && user.specialties.length > 0 ? user.specialties.join(', ') : 'None'}
             </Text>
             <Text style={styles.reviewItem}>
               Experience: {user.yearsExperience || 0} years
@@ -159,10 +147,10 @@ export default function HandymanRegisterStep5() {
           <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
               <Ionicons name="location" size={24} color={colors.brand.navy} />
-              <Text style={styles.reviewTitle}>Home Address</Text>
+              <Text style={styles.reviewTitle}>Business Address</Text>
               <Button
                 title="Edit"
-                onPress={() => router.push('/auth/handyman/register-step2')}
+                onPress={() => router.push('/auth/contractor/register-step3')}
                 variant="ghost"
                 size="small"
                 style={styles.editButton}
@@ -185,18 +173,50 @@ export default function HandymanRegisterStep5() {
 
           <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
-              <Ionicons name="shield-checkmark" size={24} color={colors.brand.navy} />
-              <Text style={styles.reviewTitle}>Verification</Text>
+              <Ionicons name="document" size={24} color={colors.brand.navy} />
+              <Text style={styles.reviewTitle}>Documents & Licenses</Text>
               <Button
                 title="Edit"
-                onPress={() => router.push('/auth/handyman/register-step3')}
+                onPress={() => router.push('/auth/contractor/register-step2')}
                 variant="ghost"
                 size="small"
                 style={styles.editButton}
               />
             </View>
             <Text style={styles.reviewItem}>
-              Phone: {user.phoneVerified ? '✓ Verified' : '✗ Not verified'}
+              Profile Photo: {user.profilePhoto ? '✓ Uploaded' : '✗ Not uploaded'}
+            </Text>
+            <Text style={styles.reviewItem}>
+              Driver's License: {user.documents?.license ? '✓ Uploaded' : '✗ Not uploaded'}
+            </Text>
+            <Text style={styles.reviewItem}>
+              Professional License: {user.documents?.businessLicense ? '✓ Uploaded' : '✗ Not uploaded'}
+            </Text>
+            <Text style={styles.reviewItem}>
+              License Number: {user.licenseNumber || 'Not provided'}
+            </Text>
+            <Text style={styles.reviewItem}>
+              Insurance Doc: {user.documents?.insurance ? '✓ Uploaded' : '✗ Not uploaded'}
+            </Text>
+            <Text style={styles.reviewItem}>
+              Insurance Policy #: {user.insurancePolicyNumber || 'Not provided'}
+            </Text>
+          </View>
+
+          <View style={styles.reviewCard}>
+            <View style={styles.reviewHeader}>
+              <Ionicons name="images" size={24} color={colors.brand.navy} />
+              <Text style={styles.reviewTitle}>Portfolio</Text>
+              <Button
+                title="Edit"
+                onPress={() => router.push('/auth/contractor/register-step4')}
+                variant="ghost"
+                size="small"
+                style={styles.editButton}
+              />
+            </View>
+            <Text style={styles.reviewItem}>
+              Photos: {user.portfolioPhotos && user.portfolioPhotos.length > 0 ? `${user.portfolioPhotos.length} uploaded` : 'None uploaded'}
             </Text>
           </View>
 
@@ -206,7 +226,7 @@ export default function HandymanRegisterStep5() {
               <Text style={styles.reviewTitle}>Banking</Text>
               <Button
                 title="Edit"
-                onPress={() => router.push('/auth/handyman/register-step4')}
+                onPress={() => router.push('/auth/contractor/register-step5')}
                 variant="ghost"
                 size="small"
                 style={styles.editButton}

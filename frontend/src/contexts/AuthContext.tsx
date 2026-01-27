@@ -61,6 +61,11 @@ export interface User {
     account_number?: string;
     verified?: boolean;
   };
+  // Phone verification
+  phoneVerified?: boolean;
+  // License and insurance (contractor)
+  licenseNumber?: string;
+  insurancePolicyNumber?: string;
 }
 
 export interface Address {
@@ -282,9 +287,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         onboardingCompleted: (userData as any).onboarding_completed ?? false,
         // Banking info (for payouts)
         banking_info: (userData as any).banking_info,
+        // Phone verification
+        phoneVerified: (userData as any).phone_verified ?? false,
+        // License and insurance info
+        licenseNumber: (userData as any).license_number,
+        insurancePolicyNumber: (userData as any).insurance_policy_number,
       } : {
         ...baseUser,
         // Customer-only: No contractor fields included
+        // Customer profile photo (Phase 5B-1)
+        profilePhoto: userData.profile_photo,
         // Customer-specific: verification field
         verification: userData.verification ? {
           status: userData.verification.status,

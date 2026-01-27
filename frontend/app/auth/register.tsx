@@ -15,6 +15,8 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { Button } from '../../src/components/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { GooglePlacesAddressInput, StructuredAddress } from '../../src/components/GooglePlacesAddressInput';
+import { PhotoUploader } from '../../src/components/PhotoUploader';
+import { customerAPI } from '../../src/services/api';
 import { useForm, Controller } from 'react-hook-form';
 
 interface RegisterForm {
@@ -43,6 +45,7 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<StructuredAddress | null>(null);
+  const [profilePhoto, setProfilePhoto] = useState<string[]>([]);
 
   const {
     control,
@@ -172,6 +175,20 @@ export default function RegisterScreen() {
 
           {/* Form */}
           <View style={styles.form}>
+            {/* Profile Photo */}
+            <View style={styles.photoSection}>
+              <PhotoUploader
+                photos={profilePhoto}
+                onPhotosChange={setProfilePhoto}
+                maxPhotos={1}
+                label="Profile Photo"
+                helpText="Take a clear photo of yourself (optional but recommended)"
+                aspectRatio={[1, 1]}
+                cameraOnly={true}
+                customUpload={(file) => customerAPI.uploadProfilePhoto(file)}
+              />
+            </View>
+
             <View style={styles.row}>
               <View style={styles.halfInput}>
                 <Text style={styles.label}>First Name</Text>
@@ -539,5 +556,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#2C3E50',
     marginBottom: 16,
+  },
+  photoSection: {
+    marginBottom: 24,
+    alignItems: 'center',
   },
 });

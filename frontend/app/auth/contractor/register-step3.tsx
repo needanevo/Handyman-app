@@ -345,6 +345,7 @@ export default function ContractorRegisterStep3() {
     { label: 'Documents', completed: true },
     { label: 'Profile', completed: false },
     { label: 'Portfolio', completed: false },
+    { label: 'Banking', completed: false },
     { label: 'Review', completed: false },
   ];
 
@@ -363,6 +364,11 @@ export default function ContractorRegisterStep3() {
     } else if (stepIndex === 3) {
       router.push({
         pathname: '/auth/contractor/register-step4',
+        params,
+      });
+    } else if (stepIndex === 4) {
+      router.push({
+        pathname: '/auth/contractor/register-step5',
         params,
       });
     }

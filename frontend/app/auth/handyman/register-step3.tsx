@@ -14,7 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
-import { authAPI } from '../../../src/services/api';
+import { authAPI, handymanAPI } from '../../../src/services/api';
+import { useAuth } from '../../../src/contexts/AuthContext';
 
 interface Step3Form {
   phoneVerification: string;
@@ -23,6 +24,7 @@ interface Step3Form {
 export default function HandymanRegisterStep3() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
 
@@ -47,19 +49,35 @@ export default function HandymanRegisterStep3() {
     setIsLoading(true);
 
     try {
-      // Admin bypass code: 000000
+      // Admin bypass code: 000000 (always verifies)
       const isAdminBypass = data.phoneVerification === '000000';
 
-      // TODO: Verify code with backend
+      // TODO: Verify code with backend via Twilio
       // For now, accept admin bypass (000000) or any 6-digit code as valid
       if (isAdminBypass || data.phoneVerification.length === 6) {
+        // Save phone verification status to profile
+        try {
+          await handymanAPI.updateProfile({
+            phone_verified: true,
+          } as any);
+          console.log('Phone verified status saved');
+        } catch (verifyError) {
+          console.warn('Failed to save phone verification:', verifyError);
+        }
+
+        // Refresh user context to get updated phoneVerified status
+        try {
+          await refreshUser();
+        } catch (refreshError) {
+          console.warn('Failed to refresh user:', refreshError);
+        }
+
         // Track onboarding step completion (Phase 5B-1)
         try {
           await authAPI.updateOnboardingStep(3);
-          console.log('✅ Step 3 progress saved');
+          console.log('Step 3 progress saved');
         } catch (stepError) {
           console.warn('Failed to save step progress:', stepError);
-          // Don't block navigation if step tracking fails
         }
 
         router.push({

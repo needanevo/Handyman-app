@@ -58,7 +58,7 @@ export default function ContractorRegisterStep4() {
         // Don't block navigation if step tracking fails
       }
 
-      // Navigate to Step 5 (Review)
+      // Navigate to Step 5 (Banking)
       router.push('/auth/contractor/register-step5');
     } catch (error: any) {
       console.error('Failed to save portfolio:', error);
@@ -76,6 +76,7 @@ export default function ContractorRegisterStep4() {
     { label: 'Documents', completed: true },
     { label: 'Profile', completed: true },
     { label: 'Portfolio', completed: false },
+    { label: 'Banking', completed: false },
     { label: 'Review', completed: false },
   ];
 
@@ -144,7 +145,7 @@ export default function ContractorRegisterStep4() {
           {/* Actions */}
           <View style={styles.actions}>
             <Button
-              title="Continue to Review"
+              title="Continue to Banking"
               onPress={onSubmit}
               loading={isLoading}
               size="large"

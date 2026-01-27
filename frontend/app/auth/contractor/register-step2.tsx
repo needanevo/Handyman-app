@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
+import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
 import { PhotoUploader } from '../../../src/components/PhotoUploader';
 import { Card } from '../../../src/components/Card';
@@ -27,7 +28,9 @@ export default function ContractorRegisterStep2() {
   const [profilePhoto, setProfilePhoto] = useState<string[]>([]);
   const [driversLicense, setDriversLicense] = useState<string[]>([]);
   const [businessLicenses, setBusinessLicenses] = useState<string[]>([]);
+  const [licenseNumber, setLicenseNumber] = useState('');
   const [insurance, setInsurance] = useState<string[]>([]);
+  const [insurancePolicyNumber, setInsurancePolicyNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Pre-fill existing documents when editing
@@ -45,6 +48,13 @@ export default function ContractorRegisterStep2() {
       if (user.documents.insurance) {
         setInsurance([user.documents.insurance]);
       }
+    }
+    // Pre-fill license number and insurance policy number
+    if ((user as any)?.license_number) {
+      setLicenseNumber((user as any).license_number);
+    }
+    if ((user as any)?.insurance_policy_number) {
+      setInsurancePolicyNumber((user as any).insurance_policy_number);
     }
   }, [user]);
 
@@ -68,9 +78,17 @@ export default function ContractorRegisterStep2() {
       // Save documents to database
       await contractorAPI.updateDocuments({
         license: driversLicense[0],
-        business_license: businessLicenses,
-        insurance: insurance[0],
+        business_license: businessLicenses[0] || null,
+        insurance: insurance[0] || null,
       });
+
+      // Save license number and insurance policy number if provided
+      if (licenseNumber || insurancePolicyNumber) {
+        await contractorAPI.updateProfile({
+          license_number: licenseNumber || undefined,
+          insurance_policy_number: insurancePolicyNumber || undefined,
+        } as any);
+      }
 
       // Refresh user context to get updated documents
       await refreshUser();
@@ -101,6 +119,7 @@ export default function ContractorRegisterStep2() {
     { label: 'Documents', completed: false },
     { label: 'Profile', completed: false },
     { label: 'Portfolio', completed: false },
+    { label: 'Banking', completed: false },
     { label: 'Review', completed: false },
   ];
 
@@ -119,6 +138,11 @@ export default function ContractorRegisterStep2() {
     } else if (stepIndex === 3) {
       router.push({
         pathname: '/auth/contractor/register-step4',
+        params,
+      });
+    } else if (stepIndex === 4) {
+      router.push({
+        pathname: '/auth/contractor/register-step5',
         params,
       });
     }
@@ -199,10 +223,20 @@ export default function ContractorRegisterStep2() {
             <PhotoUploader
               photos={businessLicenses}
               onPhotosChange={setBusinessLicenses}
-              maxPhotos={5}
-              label="Professional Licenses"
-              helpText="Upload any relevant contractor, trade, or business licenses (optional)"
+              maxPhotos={1}
+              label="Professional License Photo"
+              helpText="Upload your contractor or trade license (required for Electrical/Plumbing)"
+              aspectRatio={[16, 10]}
               customUpload={(file) => contractorAPI.uploadDocument(file, 'business_license')}
+            />
+
+            <Input
+              label="License Number"
+              value={licenseNumber}
+              onChangeText={setLicenseNumber}
+              placeholder="e.g., EL-123456"
+              icon="document-text-outline"
+              helpText="Required for Electrical or Plumbing work"
             />
 
             <View style={styles.divider} />
@@ -210,10 +244,20 @@ export default function ContractorRegisterStep2() {
             <PhotoUploader
               photos={insurance}
               onPhotosChange={setInsurance}
-              maxPhotos={3}
+              maxPhotos={1}
               label="Insurance Documentation"
-              helpText="Liability insurance, workers compensation (optional but recommended)"
+              helpText="Liability insurance certificate (recommended)"
+              aspectRatio={[16, 10]}
               customUpload={(file) => contractorAPI.uploadDocument(file, 'insurance')}
+            />
+
+            <Input
+              label="Insurance Policy Number"
+              value={insurancePolicyNumber}
+              onChangeText={setInsurancePolicyNumber}
+              placeholder="e.g., POL-987654"
+              icon="shield-outline"
+              helpText="For contract and verification purposes"
             />
           </View>
 

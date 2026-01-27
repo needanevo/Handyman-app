@@ -36,6 +36,7 @@ class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
     phone: str
+    phone_verified: bool = False  # Whether phone number has been verified via SMS
     first_name: str
     last_name: str
     role: UserRole

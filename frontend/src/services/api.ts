@@ -509,6 +509,19 @@ export const contractorAPI = {
 
 };
 
+// Customer API
+export const customerAPI = {
+  uploadProfilePhoto: (file: { uri: string; type: string; name: string }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri.startsWith('file://') ? file.uri : `file://${file.uri}`,
+      type: file.type || 'image/jpeg',
+      name: file.name || 'profile.jpg',
+    } as any);
+    return apiClient.postFormData<any>('/customer/profile-photo/upload', formData);
+  },
+};
+
 // Health check
 export const healthAPI = {
   check: () => apiClient.get<{ status: string; timestamp: string }>('/health'),
