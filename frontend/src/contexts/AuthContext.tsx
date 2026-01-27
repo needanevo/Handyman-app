@@ -54,6 +54,13 @@ export interface User {
   // Onboarding tracking (Phase 5B-1)
   onboardingStep?: number | null;  // Current step (1-5), null if complete
   onboardingCompleted?: boolean;  // Whether onboarding is fully done
+  // Banking info (for contractor/handyman payouts)
+  banking_info?: {
+    account_holder_name?: string;
+    routing_number?: string;
+    account_number?: string;
+    verified?: boolean;
+  };
 }
 
 export interface Address {
@@ -273,6 +280,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Onboarding tracking (Phase 5B-1)
         onboardingStep: (userData as any).onboarding_step,
         onboardingCompleted: (userData as any).onboarding_completed ?? false,
+        // Banking info (for payouts)
+        banking_info: (userData as any).banking_info,
       } : {
         ...baseUser,
         // Customer-only: No contractor fields included

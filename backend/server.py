@@ -16,6 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import secrets
 import logging
+import httpx
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta, date
@@ -4366,11 +4367,36 @@ def n8n_basic_auth(credentials: HTTPBasicCredentials = Depends(security)):
 @api_router.get("/health")
 async def health_check(_: bool = Depends(n8n_basic_auth)):
     """Detailed health check"""
+    # Check Google Places API
+    google_places_status = "unavailable"
+    google_places_api_key = os.getenv("GOOGLE_MAPS_API_KEY", "")
+
+    if google_places_api_key:
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(
+                    "https://maps.googleapis.com/maps/api/place/autocomplete/json",
+                    params={
+                        "input": "test",
+                        "types": "address",
+                        "components": "country:us",
+                        "key": google_places_api_key,
+                    }
+                )
+                data = response.json()
+                if data.get("status") in ["OK", "ZERO_RESULTS"]:
+                    google_places_status = "connected"
+                else:
+                    google_places_status = f"error: {data.get('status', 'unknown')}"
+        except Exception as e:
+            google_places_status = f"error: {str(e)}"
+
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "database": "connected",
         "ai_provider": "connected" if ai_provider else "unavailable",
+        "google_places_api": google_places_status,
     }
 
 
