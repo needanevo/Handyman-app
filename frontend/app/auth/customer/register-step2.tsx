@@ -92,11 +92,11 @@ export default function CustomerRegisterStep2() {
             photos={profilePhoto}
             onPhotosChange={setProfilePhoto}
             maxPhotos={1}
-            label="Profile Photo"
-            helpText="Take a clear photo of yourself (camera only)"
-            aspectRatio={[1, 1]}
-            cameraOnly={true}
-            customUpload={(file) => customerAPI.uploadProfilePhoto(file)}
+            label="Take or upload photo"
+            customUpload={async (file: { uri: string; type: string; name: string }) => {
+              const response = await customerAPI.uploadProfilePhoto(file);
+              return response;
+            }}
           />
         </View>
 
