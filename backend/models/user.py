@@ -72,6 +72,17 @@ class User(BaseModel):
     upgrade_to_technician_date: Optional[datetime] = None  # When handyman became licensed
     registration_completed_date: Optional[datetime] = None
     registration_status: Optional[str] = "ACTIVE"  # ACTIVE, PENDING, SUSPENDED
+
+    # Provider readiness (Phase 5B-2)
+    provider_status: Optional[str] = None  # "draft" | "submitted" | "active" | "restricted"
+    provider_completeness: Optional[int] = None  # 0-100 percentage
+    address_verification_deadline: Optional[datetime] = None  # 10-day window from registration
+    address_verification_status: Optional[str] = None  # "pending" | "verified" | "failed"
+
+    # Soft delete / TTL cleanup (Phase 5B-2)
+    deleted_at: Optional[datetime] = None  # Set when soft-deleted; TTL index expires after 30 days
+    inactivity_reason: Optional[str] = None  # Why provider was marked inactive
+    marked_inactive_at: Optional[datetime] = None  # When provider was soft-deactivated
     
 class UserCreate(BaseModel):
     email: EmailStr

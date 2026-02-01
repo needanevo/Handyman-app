@@ -26,6 +26,7 @@ import { Badge } from '../../src/components/Badge';
 import { Button } from '../../src/components/Button';
 import { DashboardStats, JobStatus } from '../../src/types/contractor';
 import { contractorAPI } from '../../src/services/api';
+import { TrustBanner } from '../../src/components/TrustBanner';
 
 export default function ContractorDashboard() {
   const router = useRouter();
@@ -181,6 +182,15 @@ export default function ContractorDashboard() {
             <Text style={styles.profileIcon}>👤</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Phase 5B-2: Provider Readiness Banner */}
+        <TrustBanner
+          providerStatus={user?.providerStatus || 'draft'}
+          providerCompleteness={user?.providerCompleteness || 0}
+          addressVerificationStatus={user?.addressVerificationStatus}
+          addressVerificationDeadline={user?.addressVerificationDeadline}
+          role={user?.role || 'handyman'}
+        />
 
         {/* Job Status Cards */}
         <View style={styles.section}>
