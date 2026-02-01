@@ -16,7 +16,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
-import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
@@ -56,26 +55,6 @@ export default function CustomerProfileEdit() {
     },
   });
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Camera roll permissions are required to upload a photo.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setProfilePhoto(result.assets[0].uri);
-    }
-  };
-
   const onSubmit = async (data: ProfileForm) => {
     setIsLoading(true);
 
@@ -111,9 +90,9 @@ export default function CustomerProfileEdit() {
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Profile Photo */}
+        {/* Profile Photo - Display only, not editable */}
         <View style={styles.photoSection}>
-          <TouchableOpacity onPress={pickImage} style={styles.photoContainer}>
+          <View style={styles.photoContainer}>
             {profilePhoto ? (
               <Image source={{ uri: profilePhoto }} style={styles.photo} />
             ) : (
@@ -121,11 +100,8 @@ export default function CustomerProfileEdit() {
                 <Ionicons name="person" size={48} color={colors.neutral[400]} />
               </View>
             )}
-            <View style={styles.photoEditBadge}>
-              <Ionicons name="camera" size={16} color="white" />
-            </View>
-          </TouchableOpacity>
-          <Text style={styles.photoHint}>Tap to change photo</Text>
+          </View>
+          <Text style={styles.photoHint}>Profile photo cannot be changed</Text>
         </View>
 
         {/* Form */}
@@ -276,19 +252,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[200],
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  photoEditBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary.main,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.background.primary,
   },
   photoHint: {
     ...typography.caption.regular,

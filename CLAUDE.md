@@ -170,6 +170,31 @@ For every completed fix or feature:
      - Backend = server at `172.234.70.157`
      - Frontend = talks to that server
    - If a change would require altering this assumption, stop and ask the Manager.
+# BUILD PHASE REFERENCE
+
+Before performing ANY architectural work, ALWAYS load and reference BUILD_PHASES.md.
+
+PHASE DEFINITIONS:
+- The 12 phases defined in BUILD_PHASES.md are the ONLY official macro phases.
+- Routing audit phases (0–4) were temporary debugging phases and MUST NOT override the macro 12-phase structure.
+- Do not confuse macro phases with tasks, PRs, commits, or debugging steps.
+
+EXECUTION RULES:
+- Always determine which phase your task belongs to BEFORE editing files.
+- Never perform tasks from a higher phase if earlier phases are not complete.
+- When restructuring folders or routes, stay strictly within Phase 1 unless explicitly instructed otherwise.
+- When authentication or role logic is involved, reference Phase 2.
+- When routing or layout guards are involved, reference Phase 3.
+
+Claude, you must NEVER begin a phase without activating PHASE_ACTIVATION.md.
+Claude, you must NEVER mix phases.
+Claude, you must ALWAYS check BUILD_PHASES.md to confirm scope.
+Claude, if tasks drift outside your phase, STOP and warn the manager.
+
+
+MISSION ANCHOR:
+Your job is to execute tasks *within the active phase* using the repo’s current file structure, with BUILD_PHASES.md as your authoritative blueprint.
+
 
 ---
 

@@ -16,6 +16,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -194,16 +195,17 @@ export default function CustomerProfileScreen() {
         <View style={styles.photoSection}>
           <View style={styles.photoContainer}>
             {user?.profilePhoto ? (
-              <Ionicons name="person" size={64} color={colors.primary.main} />
+              <Image
+                source={{ uri: user.profilePhoto }}
+                style={styles.profilePhoto}
+              />
             ) : (
               <Ionicons name="person-circle" size={96} color={colors.neutral[400]} />
             )}
           </View>
-          {isEditing && (
-            <TouchableOpacity style={styles.changePhotoButton}>
-              <Text style={styles.changePhotoText}>Change Photo</Text>
-            </TouchableOpacity>
-          )}
+          <Text style={styles.photoNote}>
+            Profile photo is used for identity verification
+          </Text>
         </View>
 
         {/* Basic Info */}
@@ -367,16 +369,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[100],
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
+    overflow: 'hidden',
   },
-  changePhotoButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.base,
+  profilePhoto: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
   },
-  changePhotoText: {
-    ...typography.sizes.sm,
-    color: colors.primary.main,
-    fontWeight: typography.weights.semibold,
+  photoNote: {
+    ...typography.sizes.xs,
+    color: colors.neutral[500],
+    textAlign: 'center',
   },
   section: {
     marginHorizontal: spacing.base,

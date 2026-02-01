@@ -114,15 +114,20 @@ export interface JobLocation {
 export interface Job {
   id: string;
   customerId: string;
-  customer: CustomerInfo;
+  customer?: CustomerInfo;
   contractorId?: string;
-  status: JobStatus;
+  quoteId?: string;
+  status: JobStatus | string;
 
   // Job details
   title: string;
   description: string;
   category: string;
   location: JobLocation;
+
+  // Available jobs specific
+  itemType?: 'quote' | 'job';  // Whether this is an open quote or accepted job
+  distance?: number;  // Distance in miles from contractor
 
   // Scheduling
   requestedDate?: string;

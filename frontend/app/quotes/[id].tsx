@@ -25,11 +25,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
-import { Card } from '../../src/components/Card';
-import { Button } from '../../src/components/Button';
-import { LoadingSpinner } from '../../src/components/LoadingSpinner';
-import { quotesAPI } from '../../src/services/api';
+import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
+import { Card } from '../../../src/components/Card';
+import { Button } from '../../../src/components/Button';
+import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
+import { quotesAPI } from '../../../src/services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -53,7 +53,7 @@ export default function QuoteDetailScreen() {
       Alert.alert(
         'Success',
         'Your quote request has been deleted.',
-        [{ text: 'OK', onPress: () => router.replace('/home') }]
+        [{ text: 'OK', onPress: () => router.back() }]
       );
     },
     onError: (error: any) => {
@@ -99,6 +99,47 @@ export default function QuoteDetailScreen() {
     },
   });
 
+  // Accept quote mutation
+  const acceptQuoteMutation = useMutation({
+    mutationFn: () => quotesAPI.acceptQuote(id!),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-quotes'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-jobs'] });
+      Alert.alert(
+        'Quote Accepted!',
+        'Your job has been created and contractors will be notified. You can track progress in My Jobs.',
+        [{ text: 'View My Jobs', onPress: () => router.replace('/(customer)/jobs') }]
+      );
+    },
+    onError: (error: any) => {
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to accept quote. Please try again.'
+      );
+    },
+  });
+
+  // Reject quote mutation
+  const rejectQuoteMutation = useMutation({
+    mutationFn: (reason?: string) => quotesAPI.rejectQuote(id!, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quotes'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-quotes'] });
+      Alert.alert(
+        'Quote Declined',
+        'This quote has been declined. You can request a new quote or contact us for adjustments.',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    },
+    onError: (error: any) => {
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to decline quote. Please try again.'
+      );
+    },
+  });
+
   const handleDeleteQuote = () => {
     Alert.alert(
       'Delete Quote Request',
@@ -121,7 +162,7 @@ export default function QuoteDetailScreen() {
   const handleRequestAdditionalWork = () => {
     // Navigate to quote request with pre-filled address
     router.push({
-      pathname: '/quote/request',
+      pathname: '/(customer)/job-request/step0-address',
       params: {
         originalQuoteId: id,
         addressId: quote?.address_id || '',
@@ -149,6 +190,43 @@ export default function QuoteDetailScreen() {
         {
           text: 'Other issue',
           onPress: () => reportIssueMutation.mutate({ issueType: 'other' }),
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleAcceptQuote = () => {
+    Alert.alert(
+      'Accept Quote',
+      `Accept this quote for $${quote.total_amount || quote.totalAmount}? This will create a job and notify contractors.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Accept',
+          style: 'default',
+          onPress: () => acceptQuoteMutation.mutate(),
+        },
+      ]
+    );
+  };
+
+  const handleRejectQuote = () => {
+    Alert.alert(
+      'Decline Quote',
+      'Why are you declining this quote? (Optional)',
+      [
+        {
+          text: 'Price too high',
+          onPress: () => rejectQuoteMutation.mutate('Price too high'),
+        },
+        {
+          text: 'Changed my mind',
+          onPress: () => rejectQuoteMutation.mutate('Changed my mind'),
+        },
+        {
+          text: 'Other reason',
+          onPress: () => rejectQuoteMutation.mutate('Other reason'),
         },
         { text: 'Cancel', style: 'cancel' },
       ]
@@ -362,6 +440,31 @@ export default function QuoteDetailScreen() {
         {/* Action Buttons Section */}
         <View style={styles.actionsSection}>
           <Text style={styles.actionsSectionTitle}>Actions</Text>
+
+          {/* Accept/Reject buttons - only show for sent quotes */}
+          {quote.status === 'sent' && (
+            <View style={styles.acceptRejectSection}>
+              <Button
+                title="Accept Quote"
+                onPress={handleAcceptQuote}
+                size="large"
+                fullWidth
+                icon="checkmark-circle"
+                style={[styles.actionButton, styles.acceptButton] as any}
+                disabled={acceptQuoteMutation.isPending}
+              />
+              <Button
+                title="Decline"
+                onPress={handleRejectQuote}
+                variant="outline"
+                size="large"
+                fullWidth
+                style={[styles.actionButton, styles.rejectButton] as any}
+                textStyle={styles.rejectButtonText}
+                disabled={rejectQuoteMutation.isPending}
+              />
+            </View>
+          )}
 
           {/* Primary Action - Contact */}
           <Button
@@ -714,6 +817,22 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     marginBottom: spacing.md,
+  },
+  acceptRejectSection: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+    paddingBottom: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  acceptButton: {
+    backgroundColor: colors.success.main,
+  },
+  rejectButton: {
+    borderColor: colors.neutral[400],
+  },
+  rejectButtonText: {
+    color: colors.neutral[600],
   },
   deleteButton: {
     borderColor: colors.error.main,

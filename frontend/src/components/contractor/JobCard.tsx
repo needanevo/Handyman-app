@@ -87,7 +87,7 @@ export function JobCard({ job, showPhotoBadge = true }: JobCardProps) {
       <View style={styles.row}>
         <Text style={styles.icon}>👤</Text>
         <Text style={styles.text}>
-          {job.customer.firstName} {job.customer.lastName}
+          {job.customer?.firstName} {job.customer?.lastName}
         </Text>
       </View>
 
