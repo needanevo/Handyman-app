@@ -1149,16 +1149,33 @@ async def respond_to_quote(
     job_id = None
     if response.accept:
         try:
+            # Get address for the job (required for distance calculation)
+            address = await get_address_by_id(quote["address_id"])
+            if not address:
+                raise HTTPException(status_code=400, detail="Quote address not found")
+            
+            # Build JobAddress from canonical address
+            job_address = JobAddress(
+                street=address.street,
+                city=address.city,
+                state=address.state,
+                zip=address.zip_code,
+                lat=address.latitude,
+                lon=address.longitude,
+            )
+            
             # Create job from accepted quote
             job = Job(
                 customer_id=current_user.id,
-                quote_id=quote_id,
                 service_category=quote["service_category"],
                 description=quote["description"],
-                address_id=quote["address_id"],
-                agreed_amount=quote["total_amount"],
-                customer_notes=response.customer_notes,
+                address=job_address,  # Embedded address with coordinates
+                budget_max=quote.get("budget_range", {}).get("max") if quote.get("budget_range") else None,
+                urgency=quote.get("urgency", "low"),
             )
+
+            # Store quote_id for reference
+            job.quote_id = quote_id
 
             # Attempt contractor routing
             try:
@@ -1170,17 +1187,21 @@ async def respond_to_quote(
                 )
 
                 if contractor_id:
-                    job.contractor_id = contractor_id
+                    job.assigned_contractor_id = contractor_id
                     job.status = JobStatus.SCHEDULED
                     logger.info(f"Job {job.id} auto-assigned to contractor {contractor_id}")
                     # TODO: Send email to contractor about new job
                 else:
-                    logger.info(f"Job {job.id} created, awaiting manual routing")
+                    # No contractor found - publish job so contractors can see it
+                    job.status = JobStatus.PUBLISHED
+                    logger.info(f"Job {job.id} created, awaiting manual routing - published to feed")
                     # TODO: Send email to admin for manual assignment
 
             except Exception as e:
                 logger.error(f"Contractor routing failed for job {job.id}: {e}")
-                # Continue with job creation even if routing fails
+                # Publish job so contractors can see it
+                job.status = JobStatus.PUBLISHED
+                logger.info(f"Job {job.id} published to feed after routing failure")
 
             # Save job to database
             job_doc = job.model_dump()
@@ -1864,14 +1885,22 @@ async def get_contractor_dashboard_stats(
 
 @api_router.get("/contractor/jobs/available")
 async def get_available_jobs(
+    max_distance: int = 50,
+    category: Optional[str] = None,
     current_user: User = Depends(get_current_user_dependency)
 ):
     """
-    Get available jobs within 50-mile radius for contractor.
-
+    Get available jobs within configurable radius for contractor.
+    
     Returns pending/unassigned jobs that match contractor's skills
-    and are within 50 miles of contractor's business address.
+    and are within specified distance of contractor's business address.
+    
+    Query params:
+    - max_distance: Maximum distance in miles (default: 50)
+    - category: Filter by service category (optional)
     """
+    logger.info(f"[AVAILABLE_JOBS] User {current_user.id} role={current_user.role} skills={current_user.skills}")
+    
     # Only contractors can access this endpoint
     if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access available jobs")
@@ -1895,10 +1924,13 @@ async def get_available_jobs(
         )
 
     contractor_location = (business_address.latitude, business_address.longitude)
-    MAX_DISTANCE_MILES = 50
+    logger.info(f"[AVAILABLE_JOBS] Contractor location: {contractor_location}, max_distance={max_distance}")
+    
+    from geopy.distance import geodesic
 
+    available_jobs = []
+    
     # Get all published jobs (no contractor assigned)
-    # FIX: Use correct field name 'assigned_contractor_id' instead of 'contractor_id'
     pending_jobs_cursor = db.jobs.find({
         "$or": [
             {"assigned_contractor_id": None},
@@ -1906,10 +1938,7 @@ async def get_available_jobs(
         ],
         "status": "published"
     })
-
-    from geopy.distance import geodesic
-
-    available_jobs = []
+    
     async for job_doc in pending_jobs_cursor:
         # Use embedded address when available, fall back to customer lookup
         job_address = job_doc.get("address")
@@ -1929,6 +1958,36 @@ async def get_available_jobs(
         job_location = (job_address["latitude"], job_address["longitude"])
         distance = geodesic(contractor_location, job_location).miles
 
+        # Only include jobs within specified distance
+        if distance <= max_distance:
+            # Check if contractor has matching skill
+            service_category = job_doc.get("service_category", "")
+            
+            # If category filter specified, match it
+            if category and service_category.lower() != category.lower():
+                continue
+            
+            # Check skills - if contractor has skills defined, job must match one
+            contractor_skills = current_user.skills or []
+            if contractor_skills and service_category not in contractor_skills:
+                logger.debug(f"[AVAILABLE_JOBS] Skipping job {job_doc.get('id')} - category '{service_category}' not in skills")
+                continue
+            
+            # All checks passed - include job
+            job_doc["distance_miles"] = round(distance, 2)
+            job_doc["customer_address"] = {
+                "city": job_address.get("city", ""),
+                "state": job_address.get("state", ""),
+                "zip_code": job_address.get("zip_code", "")
+            }
+            job_doc["item_type"] = "job"
+            job_doc["title"] = job_doc.get("title") or job_doc.get("description", "Untitled Job")
+            job_doc["price"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
+            job_doc["total_amount"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
+            available_jobs.append(job_doc)
+            logger.info(f"[AVAILABLE_JOBS] Found job {job_doc.get('id')} - {service_category} at {distance:.1f} miles")
+        distance = geodesic(contractor_location, job_location).miles
+
         # Only include jobs within 50-mile radius
         if distance <= MAX_DISTANCE_MILES:
             # Check if contractor has matching skill
@@ -1944,60 +2003,60 @@ async def get_available_jobs(
                 available_jobs.append(job_doc)
 
     # ALSO FETCH QUOTES (open for bids from customers)
-    # Quotes with status 'pending' that are within distance and match skills
     try:
-        # Get pending quotes
         quotes_cursor = db.quotes.find({
             "status": "pending",
             "contractor_id": {"$exists": False}
         })
         
         async for quote_doc in quotes_cursor:
-            # Get quote address
             address = await get_address_by_id(quote_doc.get("address_id"))
             if not address or not address.latitude or not address.longitude:
                 continue
             
-            # Calculate distance
             quote_location = (address.latitude, address.longitude)
             distance = geodesic(contractor_location, quote_location).miles
             
-            # Only include if within distance
-            if distance <= MAX_DISTANCE_MILES:
-                # Check if contractor has matching skill
+            if distance <= max_distance:
                 service_category = quote_doc.get("service_category", "")
-                if service_category in current_user.skills:
-                    # Transform quote to job-like format for frontend
-                    quote_doc["distance_miles"] = round(distance, 2)
-                    quote_doc["customer_address"] = {
-                        "city": address.city,
-                        "state": address.state,
-                        "zip_code": address.zip_code
-                    }
-                    quote_doc["id"] = quote_doc.get("id")  # Ensure id field exists
-                    quote_doc["item_type"] = "quote"  # Mark as quote
-                    quote_doc["customer_id"] = quote_doc.get("customer_id")
-                    quote_doc["description"] = quote_doc.get("description", "")
-                    quote_doc["service_category"] = service_category
-                    quote_doc["title"] = quote_doc.get("title") or f"{service_category} Service"
-                    quote_doc["total_amount"] = quote_doc.get("total_amount", 0)
-                    quote_doc["price"] = quote_doc.get("total_amount", 0)
-                    available_jobs.append(quote_doc)
+                
+                # If category filter specified, match it
+                if category and service_category.lower() != category.lower():
+                    continue
+                
+                # Check skills
+                contractor_skills = current_user.skills or []
+                if contractor_skills and service_category not in contractor_skills:
+                    continue
+                
+                quote_doc["distance_miles"] = round(distance, 2)
+                quote_doc["customer_address"] = {
+                    "city": address.city,
+                    "state": address.state,
+                    "zip_code": address.zip_code
+                }
+                quote_doc["id"] = quote_doc.get("id")
+                quote_doc["item_type"] = "quote"
+                quote_doc["customer_id"] = quote_doc.get("customer_id")
+                quote_doc["description"] = quote_doc.get("description", "")
+                quote_doc["service_category"] = service_category
+                quote_doc["title"] = quote_doc.get("title") or f"{service_category} Service"
+                quote_doc["total_amount"] = quote_doc.get("total_amount", 0)
+                quote_doc["price"] = quote_doc.get("total_amount", 0)
+                available_jobs.append(quote_doc)
     except Exception as e:
         logger.warning(f"Error fetching quotes for contractor: {e}")
 
     # Sort by distance (closest first)
-    available_jobs.sort(key=lambda x: x["distance_miles"])
+    available_jobs.sort(key=lambda x: x.get("distance_miles", 0))
 
-    logger.info(
-        f"Contractor {current_user.id} found {len(available_jobs)} "
-        f"available jobs within {MAX_DISTANCE_MILES} miles"
-    )
+    logger.info(f"[AVAILABLE_JOBS] Returning {len(available_jobs)} jobs for contractor {current_user.id}")
 
     return {
         "jobs": available_jobs,
         "count": len(available_jobs),
-        "max_distance_miles": MAX_DISTANCE_MILES,
+        "max_distance": max_distance,
+        "category_filter": category,
         "contractor_location": {
             "city": business_address.city,
             "state": business_address.state
