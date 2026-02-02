@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -205,7 +206,12 @@ export default function GrowthCenter() {
               Based on your {currentRating}★ rating and {jobsCompleted} completed jobs,
               you can raise prices by {recommendedPriceIncrease}%.
             </Text>
-            <TouchableOpacity style={styles.priceButton}>
+            <TouchableOpacity
+              style={styles.priceButton}
+              onPress={() => {
+                Alert.alert('Coming Soon', 'Dynamic pricing management is not yet enabled.');
+              }}
+            >
               <Text style={styles.priceButtonText}>Update My Rates</Text>
             </TouchableOpacity>
           </View>

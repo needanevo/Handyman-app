@@ -1,7 +1,7 @@
 # Manual Test Plan - Registration & Profile Systems
 
-**Test Date:** _____________
-**Tester:** _____________
+**Test Date:**  7:00 PM 12/10/2025
+**Tester:** _Joshua_
 **Build Version:** dev branch (latest)
 
 ---
@@ -17,7 +17,8 @@
 2. **Start Backend:**
    ```bash
    cd backend
-   ../venv/Scripts/python.exe -m uvicorn server:app --reload
+   ../venv/Scripts/python.exe -m uvicorn server
+   :app --reload
    ```
 
 3. **Clear App Data:** Delete app and reinstall to test fresh registration flows
@@ -51,7 +52,8 @@
 - ✅ Redirects to `/quote/request` (quote onboarding)
 - ✅ Address is saved to user profile
 
-**Actual Results:** _______________________________________________
+**Actual Results:** Immediatly went to "unmatched route" Dissappointing. but the UI was perfect and when passwords didn't match, it wasn't a Conf Box. That was great. 
+
 
 ---
 
@@ -94,11 +96,11 @@
 - ✅ Form validation works
 - ✅ Advances to step 2
 
-**Actual Results:** _______________________________________________
+**Actual Results:** __Page requests "business name. There should be no business name. Also, phone number should format correctly after input. Conf box appeats at press of "Continue" Says "Alert [object Object]. Reg failed.
 
 ---
 
-### TC-2.2: Handyman Registration Step 2
+### TC-2.2: Handyman Registration Step 2 
 **Route:** `/auth/handyman/register-step2`
 
 **Steps:**
@@ -120,9 +122,10 @@
 - ✅ Account created with role=handyman
 - ✅ Redirects to handyman dashboard
 
-**Actual Results:** _______________________________________________
+**Actual Results:** ____Unable to due to reg failure.
 
 ---
+Testing stopped due to complete failure. 
 
 ## Test Suite 3: Customer Profile Photo Update
 
@@ -152,33 +155,31 @@
 
 ---
 
-## Test Suite 4: Address Editing
+## Test Suite 4: Address Verification
 
-### TC-4.1: Customer Profile Address Editing
+### TC-4.1: Address Verification Button (Customer Profile)
 **Route:** `/customer/profile`
 
 **Prerequisites:** Logged in as customer with address on file
 
 **Steps:**
 1. Open customer profile
-2. Tap "Edit" button in header
-3. Verify address form appears with current address populated
-4. Modify address fields (street, city, state, ZIP)
-5. Tap "Save Changes" button
+2. Locate address display section
+3. Tap "Verify Address" button
+4. Wait for verification response
 
 **Expected Results:**
-- ✅ Edit mode activates
-- ✅ Address form displays with current values
-- ✅ All address fields are editable
-- ✅ Save button works
-- ✅ Address updates in database
-- ✅ Profile returns to view mode with updated address
+- ✅ Button displays
+- ✅ Button shows loading state during verification
+- ✅ API call to `/address/verify` succeeds
+- ✅ Success/failure alert displays
+- ✅ Verification status updates in profile
 
 **Actual Results:** _______________________________________________
 
 ---
 
-### TC-4.2: Address Editing (Handyman Profile)
+### TC-4.2: Address Verification (Handyman Profile)
 **Route:** `/handyman/profile` (after editing address)
 
 **Prerequisites:** Logged in as handyman

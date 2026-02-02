@@ -74,7 +74,7 @@ class JobFeedService:
         contractor_role = contractor.get("role")
         contractor_type = (
             "handyman" if contractor_role == UserRole.HANDYMAN
-            else "licensed" if contractor_role == UserRole.TECHNICIAN
+            else "licensed" if contractor_role == UserRole.CONTRACTOR
             else None
         )
 

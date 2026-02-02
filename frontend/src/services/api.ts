@@ -91,15 +91,22 @@ const apiClient = new APIClient();
 export const authAPI = {
   login: (credentials: { email: string; password: string }) =>
     apiClient.post<{ access_token: string; refresh_token: string; token_type: string }>('/auth/login', credentials),
-  
+
   register: (userData: any) =>
     apiClient.post<{ access_token: string; refresh_token: string; token_type: string }>('/auth/register', userData),
-  
+
   getCurrentUser: () => apiClient.get<any>('/auth/me'),
-  
+
   setAuthToken: (token: string) => apiClient.setAuthToken(token),
-  
+
   clearAuthToken: () => apiClient.clearAuthToken(),
+
+  // Onboarding step tracking (Phase 5B-1)
+  updateOnboardingStep: (step: number) =>
+    apiClient.post<{ success: boolean; step: number; message: string }>('/auth/onboarding/step', { step }),
+
+  completeOnboarding: () =>
+    apiClient.post<{ success: boolean; message: string; provider_status: string }>('/auth/onboarding/complete', {}),
 };
 
 // Services API
@@ -142,6 +149,9 @@ export const jobsAPI = {
 
   getJob: (id: string) =>
     apiClient.get<any>(`/jobs/${id}`),
+
+  deleteJob: (id: string) =>
+    apiClient.delete<any>(`/jobs/${id}`),
 
   updateJobStatus: (id: string, status: string) =>
     apiClient.patch<any>(`/jobs/${id}/status`, { status }),
@@ -196,8 +206,14 @@ export const quotesAPI = {
     return apiClient.postFormData<any>('/photos/upload', formData);
   },
   
-  respondToQuote: (id: string, response: { accept: boolean; customer_notes?: string }) => 
+  respondToQuote: (id: string, response: { accept: boolean; customer_notes?: string }) =>
     apiClient.post<any>(`/quotes/${id}/respond`, response),
+
+  acceptQuote: (id: string, notes?: string) =>
+    apiClient.post<any>(`/quotes/${id}/accept`, { customer_notes: notes }),
+
+  rejectQuote: (id: string, reason?: string) =>
+    apiClient.post<any>(`/quotes/${id}/reject`, { reason }),
 };
 
 // Profile API
@@ -221,6 +237,53 @@ export const verificationAPI = {
     apiClient.patch<{ success: boolean; verification: any }>('/customers/verification-preferences', {
       auto_verify_enabled: autoVerifyEnabled,
     }),
+};
+
+// Handyman API (for handyman role)
+export const handymanAPI = {
+  // Jobs
+  getAvailableJobs: (filters?: any) =>
+    apiClient.get<any[]>('/handyman/jobs/feed', filters),
+
+  getAcceptedJobs: () =>
+    apiClient.get<any[]>('/handyman/jobs/active'),
+
+  getScheduledJobs: () =>
+    apiClient.get<any[]>('/handyman/jobs/active'), // Same as accepted for handyman
+
+  getCompletedJobs: (filters?: { startDate?: string; endDate?: string }) =>
+    apiClient.get<any[]>('/handyman/jobs/history', filters),
+
+  getJob: (id: string) =>
+    apiClient.get<any>(`/handyman/jobs/${id}`),
+
+  // Wallet
+  getWalletSummary: () =>
+    apiClient.get<any>('/handyman/wallet/summary'),
+
+  getPayouts: () =>
+    apiClient.get<any[]>('/handyman/payouts'),
+
+  // Growth
+  getGrowthSummary: () =>
+    apiClient.get<any>('/handyman/growth/summary'),
+
+  getGrowthEvents: () =>
+    apiClient.get<any[]>('/handyman/growth/events'),
+
+  // Profile
+  updateProfile: (data: any) =>
+    apiClient.patch<any>('/contractors/profile', data), // Uses same endpoint as contractor
+
+  uploadProfilePhoto: (file: { uri: string; type: string; name: string }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri.startsWith('file://') ? file.uri : `file://${file.uri}`,
+      type: file.type || 'image/jpeg',
+      name: file.name || 'profile.jpg',
+    } as any);
+    return apiClient.postFormData<any>('/handyman/profile-photo/upload', formData);
+  },
 };
 
 // Contractor API
@@ -406,8 +469,10 @@ export const contractorAPI = {
 
   updateProfile: (profile_data: {
     skills?: string[];
+    specialties?: string[];
     years_experience?: number;
     business_name?: string;
+    provider_intent?: string;
   }) => apiClient.patch<any>('/contractors/profile', profile_data),
 
   // Contractor photo uploads (new proper folder structure)
@@ -442,6 +507,19 @@ export const contractorAPI = {
     return apiClient.postFormData<any>('/contractor/profile-photo/upload', formData);
   },
 
+};
+
+// Customer API
+export const customerAPI = {
+  uploadProfilePhoto: (file: { uri: string; type: string; name: string }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri.startsWith('file://') ? file.uri : `file://${file.uri}`,
+      type: file.type || 'image/jpeg',
+      name: file.name || 'profile.jpg',
+    } as any);
+    return apiClient.postFormData<any>('/customer/profile-photo/upload', formData);
+  },
 };
 
 // Health check

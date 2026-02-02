@@ -35,23 +35,34 @@ class OpenAiProvider(AiProvider):
         """Generate AI-powered quote suggestion using OpenAI."""
 
         try:
-            # Build the prompt
+            # Build the prompt with actual job details
             prompt = f"""
-            Analyze this handyman job request and provide a structured estimate including parts, materials, and labor (base hourly rate $150/hr):
+            Analyze this handyman job request and provide a detailed cost estimate:
 
                 Service Type: {service_type}
                 Customer Description: {description}
                 Photos Provided: {len(photos_metadata or [])} images
 
+                IMPORTANT INSTRUCTIONS:
+                - Base your estimate on the SPECIFIC description provided
+                - Consider materials, labor, and complexity
+                - Base labor rate is $95/hour (adjust hours based on job complexity)
+                - Include materials cost in your base_price_suggestion
+                - If description mentions specific items (faucet, drywall size, paint rooms, etc.), factor those into pricing
+                - Vary your estimate based on job details - don't use generic estimates
+
                 Provide your response in this exact JSON format:
                 {{
-                    "estimated_hours": <number>,
+                    "estimated_hours": <number only, e.g. 2.5>,
                     "suggested_materials": ["material1", "material2", "material3"],
-                    "complexity_rating": <1-5>,
-                    "base_price_suggestion": <number>,
-                    "reasoning": "<detailed explanation>",
-                    "confidence": <0.0-1.0>
+                    "complexity_rating": <integer 1-5 only, NOT text>,
+                    "base_price_suggestion": <number only, e.g. 250>,
+                    "reasoning": "<detailed explanation of how you calculated the estimate>",
+                    "confidence": <decimal 0.0-1.0, e.g. 0.8>
                 }}
+
+                CRITICAL: Use ONLY numbers for estimated_hours, complexity_rating, base_price_suggestion, and confidence.
+                Do NOT use words like "Medium", "High", or descriptive text in numeric fields.
             """
 
             # Run OpenAI request asynchronously via thread offload
@@ -97,22 +108,79 @@ class OpenAiProvider(AiProvider):
             data = json.loads(response_text)
 
             # Map structured response to AiQuoteSuggestion
-            suggestion = AiQuoteSuggestion(
-                estimated_hours=max(0.5, float(data.get("estimated_hours", 2.0))),
-                suggested_materials=data.get("suggested_materials", [])[:5],
-                complexity_rating=max(1, min(5, int(data.get("complexity_rating", 3)))),
-                base_price_suggestion=max(
-                    50, float(data.get("base_price_suggestion", 150))
-                ),
-                reasoning=str(
-                    data.get(
-                        "reasoning", "AI analysis based on service type and description"
-                    )
-                )[:500],
-                confidence=max(0.1, min(1.0, float(data.get("confidence", 0.7)))),
-            )
+            # Add detailed logging for debugging
+            import logging
+            logger = logging.getLogger(__name__)
 
-            return suggestion
+            try:
+                logger.info(f"🔍 Parsing AI response - Raw data keys: {list(data.keys())}")
+                logger.info(f"🔍 estimated_hours raw: {data.get('estimated_hours')}")
+                logger.info(f"🔍 suggested_materials raw: {data.get('suggested_materials')}")
+                logger.info(f"🔍 base_price_suggestion raw: {data.get('base_price_suggestion')}")
+
+                materials = data.get("suggested_materials", []) or []  # Handle None
+                logger.info(f"🔍 materials after get: type={type(materials)}, value={materials}")
+
+                # Process each field individually with logging
+                estimated_hours_value = max(0.5, float(data.get("estimated_hours", 2.0)))
+                logger.info(f"✅ estimated_hours processed: {estimated_hours_value}")
+
+                materials_value = (materials if isinstance(materials, list) else [])[:5]
+                logger.info(f"✅ materials sliced: type={type(materials_value)}, value={materials_value}")
+
+                # Handle complexity_rating - convert string descriptors if needed
+                complexity_raw = data.get("complexity_rating", 3)
+                if isinstance(complexity_raw, str):
+                    # Map common string responses to numbers
+                    complexity_map = {
+                        "low": 2, "simple": 1, "easy": 2,
+                        "medium": 3, "moderate": 3, "average": 3,
+                        "high": 4, "complex": 4, "challenging": 4,
+                        "very high": 5, "expert": 5, "difficult": 5
+                    }
+                    complexity_value = complexity_map.get(complexity_raw.lower(), 3)
+                    logger.warning(f"⚠️ Complexity was string '{complexity_raw}', mapped to {complexity_value}")
+                else:
+                    complexity_value = max(1, min(5, int(complexity_raw)))
+                logger.info(f"✅ complexity_rating processed: {complexity_value}")
+
+                base_price_value = max(50, float(data.get("base_price_suggestion", 150)))
+                logger.info(f"✅ base_price_suggestion processed: {base_price_value}")
+
+                reasoning_value = str(data.get("reasoning", "AI analysis based on service type and description"))[:500]
+                logger.info(f"✅ reasoning processed: length={len(reasoning_value)}")
+
+                # Handle confidence - convert string descriptors if needed
+                confidence_raw = data.get("confidence", 0.7)
+                if isinstance(confidence_raw, str):
+                    # Map common string responses to numbers
+                    confidence_map = {
+                        "low": 0.4, "poor": 0.3, "uncertain": 0.4,
+                        "medium": 0.6, "moderate": 0.6, "fair": 0.6,
+                        "high": 0.85, "good": 0.8, "confident": 0.85,
+                        "very high": 0.95, "excellent": 0.95, "certain": 0.95
+                    }
+                    confidence_value = confidence_map.get(confidence_raw.lower(), 0.7)
+                    logger.warning(f"⚠️ Confidence was string '{confidence_raw}', mapped to {confidence_value}")
+                else:
+                    confidence_value = max(0.1, min(1.0, float(confidence_raw)))
+                logger.info(f"✅ confidence processed: {confidence_value}")
+
+                logger.info("🔧 Creating AiQuoteSuggestion object...")
+                suggestion = AiQuoteSuggestion(
+                    estimated_hours=estimated_hours_value,
+                    suggested_materials=materials_value,
+                    complexity_rating=complexity_value,
+                    base_price_suggestion=base_price_value,
+                    reasoning=reasoning_value,
+                    confidence=confidence_value,
+                )
+                logger.info("✅ AiQuoteSuggestion created successfully!")
+
+                return suggestion
+            except Exception as parse_error:
+                logger.error(f"❌ Error during AI response parsing: {type(parse_error).__name__}: {str(parse_error)}")
+                raise
 
         except Exception as e:
             if self.safety_mode:

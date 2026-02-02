@@ -18,7 +18,7 @@ from .mock_providers import (
     MockMaterialsPricingProvider,
     MockAccountingProvider
 )
-from .ai_provider import OpenAiProvider
+from .openai_provider import OpenAiProvider
 from .google_maps_provider import GoogleMapsProvider
 
 try:

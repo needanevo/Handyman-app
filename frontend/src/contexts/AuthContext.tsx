@@ -100,7 +100,7 @@ export interface RegisterData {
   firstName: string;
   lastName: string;
   phone: string;
-  role?: 'customer' | 'contractor' | 'handyman' | 'admin';
+  role?: 'customer' | 'contractor' | 'admin';
   businessName?: string;
   business_address?: any;
   banking_info?: any;

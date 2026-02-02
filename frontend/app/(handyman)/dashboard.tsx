@@ -13,18 +13,26 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { contractorAPI } from '../../src/services/api';
+import { handymanAPI } from '../../src/services/api';
+import { TrustBanner } from '../../src/components/TrustBanner';
 
 export default function HandymanDashboard() {
   const router = useRouter();
   const { user, logout } = useAuth();
+
+  // Console warning for unverified addresses (Phase 5)
+  React.useEffect(() => {
+    if (user?.addressVerificationStatus && user.addressVerificationStatus !== 'verified') {
+      console.warn('Address not verified — compliance countdown active');
+    }
+  }, [user?.addressVerificationStatus]);
 
   // Fetch real jobs using the SAME query keys as list screens
   // This ensures unified cache across dashboard and job lists
   const { data: availableJobs } = useQuery({
     queryKey: ['handyman-available-jobs'],
     queryFn: async () => {
-      const response: any = await contractorAPI.getAvailableJobs();
+      const response: any = await handymanAPI.getAvailableJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
@@ -33,7 +41,7 @@ export default function HandymanDashboard() {
   const { data: acceptedJobs } = useQuery({
     queryKey: ['handyman-accepted-jobs'],
     queryFn: async () => {
-      const response: any = await contractorAPI.getAcceptedJobs();
+      const response: any = await handymanAPI.getAcceptedJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
@@ -42,7 +50,7 @@ export default function HandymanDashboard() {
   const { data: scheduledJobs } = useQuery({
     queryKey: ['handyman-scheduled-jobs'],
     queryFn: async () => {
-      const response: any = await contractorAPI.getScheduledJobs();
+      const response: any = await handymanAPI.getScheduledJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
@@ -51,7 +59,7 @@ export default function HandymanDashboard() {
   const { data: completedJobs } = useQuery({
     queryKey: ['handyman-completed-jobs'],
     queryFn: async () => {
-      const response: any = await contractorAPI.getCompletedJobs();
+      const response: any = await handymanAPI.getCompletedJobs();
       return response.jobs || [];
     },
     staleTime: 2 * 60 * 1000,
@@ -75,6 +83,16 @@ export default function HandymanDashboard() {
           <View>
             <Text style={styles.greeting}>Welcome back,</Text>
             <Text style={styles.userName}>{user?.firstName || 'Handyman'}</Text>
+            {user?.tier && (
+              <View style={styles.tierBadge}>
+                <Text style={styles.tierBadgeText}>
+                  {user.tier === 'beginner' && 'Beginner Handyman'}
+                  {user.tier === 'verified' && 'Verified Business Handyman'}
+                  {user.tier === 'contractor' && 'Licensed Contractor'}
+                  {user.tier === 'master' && 'Master Contractor'}
+                </Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity
             style={styles.profileButton}
@@ -83,6 +101,16 @@ export default function HandymanDashboard() {
             <Ionicons name="person-circle" size={40} color="#FFA500" />
           </TouchableOpacity>
         </View>
+
+        {/* Trust Banner */}
+        {user && (
+          <TrustBanner
+            providerStatus={user.providerStatus || 'draft'}
+            providerCompleteness={user.providerCompleteness || 0}
+            addressVerificationStatus={user.addressVerificationStatus}
+            role="handyman"
+          />
+        )}
 
         {/* Panel 1: GROWTH PATH (Signature Differentiator) */}
         <View style={styles.panel}>
@@ -325,6 +353,19 @@ const styles = StyleSheet.create({
     ...typography.sizes['2xl'],
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
+  },
+  tierBadge: {
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs / 2,
+    backgroundColor: '#FFA50020',
+    borderRadius: borderRadius.sm,
+    alignSelf: 'flex-start',
+  },
+  tierBadgeText: {
+    ...typography.sizes.xs,
+    color: '#FFA500',
+    fontWeight: typography.weights.semibold,
   },
   profileButton: {
     padding: spacing.xs,

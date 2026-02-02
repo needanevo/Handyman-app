@@ -97,16 +97,21 @@ export function AddressAutocomplete({
       // Construct full address for geocoding
       const fullAddress = `${street}, ${city}, ${state} ${zipCode}, USA`;
 
-      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
+      const apiKey = process.env.EXPO_PUBLIC_RADAR_API_KEY;
 
       if (!apiKey) {
-        throw new Error('Google API key not configured');
+        throw new Error('Radar API key not configured');
       }
 
-      console.log('Verifying address:', fullAddress);
+      console.log('Verifying address with Radar.io:', fullAddress);
 
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${apiKey}`
+        `https://api.radar.io/v1/geocode/forward?query=${encodeURIComponent(fullAddress)}`,
+        {
+          headers: {
+            'Authorization': apiKey,
+          },
+        }
       );
 
       if (!response.ok) {
@@ -115,39 +120,25 @@ export function AddressAutocomplete({
 
       const data = await response.json();
 
-      console.log('Geocoding API response:', data.status);
+      console.log('Radar.io API response:', data);
 
-      if (data.status === 'ZERO_RESULTS') {
+      if (!data.addresses || data.addresses.length === 0) {
         setErrorState('Could not verify this address. Please check spelling and try again.');
         return;
       }
 
-      if (data.status === 'REQUEST_DENIED') {
-        setErrorState('Geocoding API error. Please check API key configuration.');
-        console.error('API Key issue:', data.error_message);
-        return;
-      }
+      const result = data.addresses[0];
 
-      if (data.status !== 'OK' || !data.results || data.results.length === 0) {
-        throw new Error(`Geocoding failed: ${data.status}`);
-      }
-
-      const result = data.results[0];
-      const components = result.address_components || [];
-
-      // Verify the geocoded address matches what user entered
-      const geoStreetNumber = components.find((c: any) => c.types.includes('street_number'))?.long_name || '';
-      const geoRoute = components.find((c: any) => c.types.includes('route'))?.long_name || '';
-      const geoCity = components.find((c: any) => c.types.includes('locality'))?.long_name ||
-                      components.find((c: any) => c.types.includes('sublocality'))?.long_name || '';
-      const geoState = components.find((c: any) => c.types.includes('administrative_area_level_1'))?.short_name || '';
-      const geoZipCode = components.find((c: any) => c.types.includes('postal_code'))?.long_name || '';
-
-      const latitude = result.geometry.location.lat;
-      const longitude = result.geometry.location.lng;
+      // Extract address components from Radar response
+      const latitude = result.latitude;
+      const longitude = result.longitude;
+      const verifiedStreet = result.addressLabel || result.formattedAddress?.split(',')[0] || street;
+      const geoCity = result.city || city;
+      const geoState = result.stateCode || result.state || state;
+      const geoZipCode = result.postalCode || zipCode;
 
       // Check for missing components
-      if (!geoStreetNumber || !geoRoute) {
+      if (!verifiedStreet) {
         setErrorState('Street address not found. Please enter a complete street address.');
         return;
       }
@@ -164,10 +155,7 @@ export function AddressAutocomplete({
         return;
       }
 
-      // Use geocoded values (they're normalized/verified by Google)
-      const verifiedStreet = `${geoStreetNumber} ${geoRoute}`.trim();
-
-      console.log('✅ Address verified with coordinates:', latitude, longitude);
+      console.log('✅ Address verified with Radar.io coordinates:', latitude, longitude);
 
       // Success - pass verified address to parent
       onAddressSelected({
@@ -177,7 +165,7 @@ export function AddressAutocomplete({
         zipCode: geoZipCode,
         latitude,
         longitude,
-        formattedAddress: result.formatted_address,
+        formattedAddress: result.formattedAddress || fullAddress,
       });
 
       setVerified(true);

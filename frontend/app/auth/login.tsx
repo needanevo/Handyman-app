@@ -36,7 +36,7 @@ export default function LoginScreen() {
       }
 
       // Role-based routing - explicit routing for each role
-      if (user.role === 'technician') {
+      if (user.role === 'contractor') {
         console.log('Contractor detected, redirecting to contractor dashboard...');
         router.replace('/(contractor)/dashboard');
       } else if (user.role === 'handyman') {
@@ -49,8 +49,8 @@ export default function LoginScreen() {
         console.log('Admin detected, redirecting to admin dashboard...');
         router.replace('/admin');
       } else {
-        console.log('Unknown role, redirecting to home...');
-        router.replace('/home');
+        console.log('Unknown role, redirecting to welcome...');
+        router.replace('/auth/welcome');
       }
     }
   }, [isAuthenticated, user, params.redirect]);

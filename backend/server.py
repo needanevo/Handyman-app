@@ -1,12 +1,12 @@
 from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Body, Request, UploadFile, File, Form
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from providers import EMAIL_PROVIDERS, AI_PROVIDERS, MAPS_PROVIDERS
 from fastapi.responses import RedirectResponse
 from providers.linode_storage_provider import LinodeObjectStorage
 from providers.quote_email_service import QuoteEmailService
-from models.address import Address
+from models.address import Address, AddressInput
 
 
 
@@ -14,11 +14,15 @@ load_dotenv("backend/providers/providers.env")
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import secrets
 import logging
+import httpx
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta, date
 import uuid
+from utils.provider_completeness import compute_provider_completeness
+from utils.provider_status import compute_new_status
 
 # Import models
 from models import (
@@ -28,6 +32,7 @@ from models import (
     Token,
     UserRole,
     Address,
+    EmbeddedAddress,
     Service,
     ServiceCreate,
     ServiceCategory,
@@ -159,12 +164,46 @@ logger = logging.getLogger(__name__)
 @api_router.post("/auth/register", response_model=Token)
 async def register_user(user_data: UserCreate):
     try:
+        # DEBUG: Log incoming registration data
+        logger.info(f"[REGISTER] Email: {user_data.email}, Role: {user_data.role}")
+        logger.info(f"[REGISTER] Address provided: {user_data.address is not None}")
+        if user_data.address:
+            logger.info(f"[REGISTER] Address data: street={user_data.address.street}, city={user_data.address.city}, state={user_data.address.state}, zip={user_data.address.zipCode}")
+
         # Check if email already exists BEFORE attempting creation
         if await auth_handler.get_user_by_email(user_data.email):
             raise HTTPException(400, detail="Email already registered. Please try logging in or use Forgot Password.")
 
         # Generate user_id FIRST before creating the User object
         user_id = str(uuid.uuid4())
+
+        # Initialize verification tracking and provider status for providers
+        verification_fields = {}
+        if user_data.role in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+            now = datetime.utcnow()
+            verification_fields = {
+                "address_verification_status": "pending",
+                "address_verification_started_at": now,
+                "address_verification_deadline": now + timedelta(days=10),
+                "provider_status": "draft",  # Phase 5B: draft → submitted → active
+                "provider_completeness": 0,
+            }
+
+        # Handle address if provided (typically for customer registration)
+        addresses = []
+        if user_data.address:
+            address_id = str(uuid.uuid4())
+            addresses = [{
+                "id": address_id,
+                "street": user_data.address.street,
+                "city": user_data.address.city,
+                "state": user_data.address.state,
+                "zip_code": user_data.address.zipCode,
+                "is_default": True,
+                "latitude": None,
+                "longitude": None
+            }]
+            logger.info(f"[REGISTER] Created addresses array with {len(addresses)} address(es)")
 
         user = User(
             id=user_id,  # ← Explicitly set the ID
@@ -175,15 +214,27 @@ async def register_user(user_data: UserCreate):
             role=user_data.role,
             marketing_opt_in=user_data.marketingOptIn,
             business_name=user_data.businessName if user_data.businessName else None,
+            addresses=addresses,  # Set addresses during registration
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
+            **verification_fields
         )
 
         user_doc = user.model_dump()
         user_doc["created_at"] = user_doc["created_at"].isoformat()
         user_doc["updated_at"] = user_doc["updated_at"].isoformat()
 
+        # Serialize verification datetime fields if present
+        if user_doc.get("address_verification_started_at"):
+            user_doc["address_verification_started_at"] = user_doc["address_verification_started_at"].isoformat()
+        if user_doc.get("address_verification_deadline"):
+            user_doc["address_verification_deadline"] = user_doc["address_verification_deadline"].isoformat()
+
+        # DEBUG: Log addresses before DB insertion
+        logger.info(f"[REGISTER] user_doc addresses before DB insert: {user_doc.get('addresses', [])}")
+
         await db.users.insert_one(user_doc)
+        logger.info(f"[REGISTER] User {user_id} inserted into database")
         await auth_handler.create_user_password(user_id, user_data.password)
 
         return Token(
@@ -211,6 +262,24 @@ async def login_user(login_data: UserLogin):
         if not user:
             raise HTTPException(401, detail="That email or password didn't match. Please try again or use Forgot Password.")
 
+        # Check and update provider status on login (deadline enforcement)
+        if user.role in ["handyman", "contractor"]:
+            user_dict = user.model_dump()
+            completeness = compute_provider_completeness(user_dict)
+            new_status = compute_new_status(
+                current_status=user_dict.get("provider_status", "draft"),
+                completeness=completeness,
+                address_verification_status=user_dict.get("address_verification_status", "pending"),
+                address_verification_deadline=user_dict.get("address_verification_deadline")
+            )
+
+            # Update status if changed
+            if new_status != user_dict.get("provider_status"):
+                await db.users.update_one(
+                    {"id": user.id},
+                    {"$set": {"provider_status": new_status}}
+                )
+                logger.info(f"Provider status updated on login for {user.id}: {user_dict.get('provider_status')} → {new_status}")
 
         access_token = auth_handler.create_access_token(
             data={"user_id": user.id, "email": user.email, "role": user.role}
@@ -277,6 +346,28 @@ async def get_current_user_info(
     """
     try:
         user_dict = current_user.model_dump()
+
+        # Compute fresh provider_completeness and check status for providers
+        if current_user.role in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
+            completeness = compute_provider_completeness(user_dict)
+            user_dict['provider_completeness'] = completeness
+
+            # Check and update provider_status (including deadline enforcement)
+            new_status = compute_new_status(
+                current_status=user_dict.get("provider_status", "draft"),
+                completeness=completeness,
+                address_verification_status=user_dict.get("address_verification_status", "pending"),
+                address_verification_deadline=user_dict.get("address_verification_deadline")
+            )
+
+            # If status changed, update in database and return dict
+            if new_status != user_dict.get("provider_status"):
+                await db.users.update_one(
+                    {"id": current_user.id},
+                    {"$set": {"provider_status": new_status}}
+                )
+                user_dict['provider_status'] = new_status
+                logger.info(f"Provider status updated for {current_user.id}: {user_dict.get('provider_status')} → {new_status}")
 
         # Define contractor/handyman-specific fields to filter
         contractor_fields = [
@@ -370,6 +461,84 @@ async def refresh_token(refresh: dict = Body(...)):
 
 
 # ==================== CUSTOMER LOCATION VERIFICATION ROUTES ====================
+
+
+
+# ==================== ONBOARDING STEP TRACKING (Phase 5B-1) ====================
+
+class OnboardingStepUpdate(BaseModel):
+    step: int
+
+@api_router.post("/auth/onboarding/step")
+async def update_onboarding_step(
+    data: OnboardingStepUpdate,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Update user's current onboarding step (Phase 5B-1 requirement).
+
+    Call this after each registration step completes successfully.
+    Steps 1-5 for both handymen and contractors.
+    """
+    step = data.step
+
+    if step < 1 or step > 5:
+        raise HTTPException(400, detail="Invalid step number. Must be 1-5.")
+
+    # Only providers need onboarding tracking
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
+        raise HTTPException(400, detail="Onboarding tracking only applies to providers")
+
+    # Update step in database
+    await db.users.update_one(
+        {"id": current_user.id},
+        {
+            "$set": {
+                "onboarding_step": step,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+
+    logger.info(f"User {current_user.id} ({current_user.role}) completed onboarding step {step}")
+
+    return {"success": True, "step": step, "message": f"Step {step} saved"}
+
+
+@api_router.post("/auth/onboarding/complete")
+async def complete_onboarding(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Mark onboarding as fully complete (Phase 5B-1 requirement).
+
+    Call this when user confirms final step (step 5).
+    Sets onboarding_completed=True and onboarding_step=None.
+    """
+    # Only providers need onboarding tracking
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
+        raise HTTPException(400, detail="Onboarding completion only applies to providers")
+
+    # Mark onboarding as complete
+    await db.users.update_one(
+        {"id": current_user.id},
+        {
+            "$set": {
+                "onboarding_completed": True,
+                "onboarding_step": None,  # Clear step since onboarding is done
+                "provider_status": "submitted",  # Auto-advance to submitted status
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+
+    logger.info(f"User {current_user.id} ({current_user.role}) completed full onboarding")
+
+    return {
+        "success": True,
+        "message": "Onboarding complete! Welcome to The Real Johnson.",
+        "provider_status": "submitted"
+    }
 
 
 @api_router.post("/customers/verify-location")
@@ -654,6 +823,10 @@ async def request_quote(
         ai_suggestion_dict = None
         if os.getenv("FEATURE_AI_QUOTE_ENABLED", "true").lower() == "true":
             try:
+                logger.info(f"🤖 Requesting AI quote for: {quote_request.service_category}")
+                logger.info(f"Description: {quote_request.description[:200]}")
+                logger.info(f"Photos: {len(quote_request.photos)} uploaded")
+
                 ai_suggestion = await ai_provider.generate_quote_suggestion(
                     service_type=quote_request.service_category,
                     description=quote_request.description,
@@ -670,22 +843,21 @@ async def request_quote(
                     'confidence': ai_suggestion.confidence
                 }
                 
-                logger.info(f"AI suggestion generated with {ai_suggestion.confidence:.0%} confidence")
+                logger.info(f"✅ AI suggestion generated: ${ai_suggestion.base_price_suggestion:.2f} for {ai_suggestion.estimated_hours}hrs ({ai_suggestion.confidence:.0%} confidence)")
+                logger.info(f"AI reasoning: {ai_suggestion.reasoning[:200]}")
             except Exception as e:
-                logger.warning(f"AI quote generation failed: {e}")
-        
+                logger.warning(f"❌ AI quote generation failed: {e}")
+                logger.info("Using fallback pricing engine instead")
+
         # Step 3: Calculate pricing using AI suggestion or fallback to default
-        base_price = (
-            ai_suggestion.base_price_suggestion
-            if ai_suggestion
-            else pricing_engine.get_base_price(quote_request.service_category)
-        )
-        
-        estimated_hours = (
-            ai_suggestion.estimated_hours
-            if ai_suggestion
-            else pricing_engine.estimate_hours(quote_request.service_category)
-        )
+        if ai_suggestion:
+            base_price = ai_suggestion.base_price_suggestion
+            estimated_hours = ai_suggestion.estimated_hours
+            logger.info(f"Using AI-generated pricing: ${base_price:.2f} ({estimated_hours}hrs)")
+        else:
+            base_price = pricing_engine.get_base_price(quote_request.service_category)
+            estimated_hours = pricing_engine.estimate_hours(quote_request.service_category)
+            logger.info(f"Using fallback pricing for {quote_request.service_category}: ${base_price:.2f} ({estimated_hours}hrs)")
         
         # Calculate totals
         subtotal = base_price
@@ -699,6 +871,7 @@ async def request_quote(
             id=quote_id,
             customer_id=current_user.id,
             address_id=quote_request.address_id,
+            service_category=quote_request.service_category,
             items=[
                 QuoteItem(
                     service_id=str(uuid.uuid4()),
@@ -726,15 +899,18 @@ async def request_quote(
             ai_suggested=ai_suggestion is not None,
             ai_confidence=ai_suggestion.confidence if ai_suggestion else None,
             ai_reasoning=ai_suggestion.reasoning if ai_suggestion else None,
-            status=QuoteStatus.DRAFT,
+            status=QuoteStatus.SENT,  # Auto-send quote so customer can immediately accept
+            sent_at=datetime.utcnow(),  # Set sent timestamp
         )
         
         # Save to database
         quote_dict = quote.model_dump()
-        
+
         # Convert dates to ISO format for MongoDB
         quote_dict["created_at"] = quote_dict["created_at"].isoformat()
         quote_dict["updated_at"] = quote_dict["updated_at"].isoformat()
+        if quote_dict.get("sent_at"):
+            quote_dict["sent_at"] = quote_dict["sent_at"].isoformat()
         if quote_dict.get("preferred_dates"):
             quote_dict["preferred_dates"] = [
                 d.isoformat() for d in quote_dict["preferred_dates"]
@@ -771,7 +947,7 @@ async def request_quote(
             "estimated_hours": estimated_hours,
             "ai_confidence": ai_suggestion.confidence if ai_suggestion else None,
             "photo_urls": photo_urls,
-            "message": "Quote request received! We'll send you a detailed estimate within 24 hours.",
+            "message": "Job posted successfully! Your quote is ready to review and accept.",
         }
         
     except Exception as e:
@@ -1350,7 +1526,7 @@ async def get_job(
 
     # Check authorization
     if (current_user.role == UserRole.CUSTOMER and job["customer_id"] != current_user.id) or \
-       (current_user.role == UserRole.TECHNICIAN and job.get("contractor_id") != current_user.id):
+       (current_user.role == UserRole.CONTRACTOR and job.get("contractor_id") != current_user.id):
         raise HTTPException(403, detail="Not authorized to view this job")
 
     return Job(**job)
@@ -1367,7 +1543,7 @@ async def list_jobs(
     # Filter by user role
     if current_user.role == UserRole.CUSTOMER:
         query["customer_id"] = current_user.id
-    elif current_user.role == UserRole.TECHNICIAN:
+    elif current_user.role == UserRole.CONTRACTOR:
         query["contractor_id"] = current_user.id
     # Admins see all jobs
 
@@ -1419,7 +1595,7 @@ async def update_job(
     if current_user.role == UserRole.CUSTOMER:
         raise HTTPException(403, detail="Customers cannot update jobs")
 
-    if current_user.role == UserRole.TECHNICIAN and job.get("contractor_id") != current_user.id:
+    if current_user.role == UserRole.CONTRACTOR and job.get("contractor_id") != current_user.id:
         raise HTTPException(403, detail="Not authorized to update this job")
 
     # Build update dict (only include non-None fields)
@@ -1447,7 +1623,7 @@ async def get_contractor_dashboard_stats(
     Returns job counts, revenue, expenses, and mileage data.
     """
     # Only contractors can access this endpoint
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access dashboard stats")
 
     # Get current month start and end dates
@@ -1625,7 +1801,7 @@ async def get_available_jobs(
     and are within 50 miles of contractor's business address.
     """
     # Only contractors can access this endpoint
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access available jobs")
 
     # Get contractor's business address
@@ -1818,7 +1994,7 @@ async def verify_address(address_data: dict):
 
 @api_router.post("/profile/addresses")
 async def add_address(
-    address: Address, current_user: User = Depends(get_current_user_dependency)
+    address: AddressInput, current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Add or update address in user profile.
@@ -1847,15 +2023,19 @@ async def add_address(
             logger.warning(f"Geocoding failed: {e}")
 
     # Create address payload for canonical collection
+    # Supports Google Places Autocomplete fields
     address_payload = {
         "street": address.street,
-        "unit_number": getattr(address, "unit_number", None),
+        "line2": getattr(address, "line2", None) or getattr(address, "unit_number", None),  # Support both field names
         "city": address.city,
-        "state": address.state,
+        "state": address.state.upper() if address.state else "",  # Normalize to uppercase
         "zip_code": address.zip_code,
+        "country": getattr(address, "country", "US"),
         "is_default": address.is_default,
         "latitude": address.latitude,
         "longitude": address.longitude,
+        "place_id": getattr(address, "place_id", None),  # Google Places ID
+        "formatted_address": getattr(address, "formatted_address", None),  # Full formatted address
     }
 
     # Create canonical address in addresses collection
@@ -1880,28 +2060,32 @@ async def add_address(
         if existing_default:
             # UPDATE existing default address (replace it completely)
             logger.info(f"Updating existing default address for user {current_user.id}")
-            # Use new_address.id to keep IDs in sync
-            address.id = new_address.id
+            # Use address_payload (not address) and add new_address.id for sync
+            updated_address = address_payload.copy()
+            updated_address["id"] = new_address.id
             await db.users.update_one(
                 {"id": current_user.id, "addresses.is_default": True},
                 {"$set": {
-                    "addresses.$": address.model_dump()  # Replace the matched address
+                    "addresses.$": updated_address  # Replace the matched address
                 }}
             )
         else:
             # No default exists, add this as the first default
             logger.info(f"Adding first default address for user {current_user.id}")
-            address.id = new_address.id
+            # Use address_payload and add new_address.id
+            new_address_doc = address_payload.copy()
+            new_address_doc["id"] = new_address.id
             await db.users.update_one(
                 {"id": current_user.id},
-                {"$push": {"addresses": address.model_dump()}}
+                {"$push": {"addresses": new_address_doc}}
             )
     else:
         # Not a default address, just add it
-        address.id = new_address.id
+        new_address_doc = address_payload.copy()
+        new_address_doc["id"] = new_address.id
         await db.users.update_one(
             {"id": current_user.id},
-            {"$push": {"addresses": address.model_dump()}}
+            {"$push": {"addresses": new_address_doc}}
         )
 
     return {"message": "Address saved successfully", "address_id": new_address.id}
@@ -1942,7 +2126,7 @@ async def update_contractor_documents(
         "insurance": "https://..."  # Insurance certificate (single URL)
     }
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can update documents")
 
     # Validate document URLs
@@ -1985,7 +2169,7 @@ async def update_contractor_portfolio(
         "portfolio_photos": ["https://...", "https://...", ...]
     }
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can update portfolio")
 
     # Validate photo URLs
@@ -2020,7 +2204,7 @@ async def update_contractor_profile(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """
-    Update contractor profile (skills, experience, business info).
+    Update contractor/handyman profile (skills, experience, business info).
 
     Expected structure:
     {
@@ -2029,17 +2213,58 @@ async def update_contractor_profile(
         "business_name": "John's Handyman Services"
     }
     """
-    if current_user.role != UserRole.TECHNICIAN:
-        raise HTTPException(403, detail="Only contractors can update profile")
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only contractors and handymen can update profile")
 
     # Build update dict with only provided fields
     update_fields = {}
     if "skills" in profile_data:
         update_fields["skills"] = profile_data["skills"]
+    if "specialties" in profile_data:
+        update_fields["specialties"] = profile_data["specialties"]
     if "years_experience" in profile_data:
         update_fields["years_experience"] = profile_data["years_experience"]
     if "business_name" in profile_data:
         update_fields["business_name"] = profile_data["business_name"]
+    if "provider_intent" in profile_data:
+        update_fields["provider_intent"] = profile_data["provider_intent"]
+
+    # Handle business_address by adding to addresses array
+    # Supports Google Places Autocomplete fields (place_id, lat/lng, formatted_address)
+    if "business_address" in profile_data:
+        addr_data = profile_data["business_address"]
+        new_address = {
+            "id": str(uuid.uuid4()),
+            "street": addr_data.get("street", ""),
+            "line2": addr_data.get("line2"),  # apt/suite/unit
+            "city": addr_data.get("city", ""),
+            "state": addr_data.get("state", "").upper(),  # Normalize to uppercase
+            "zip_code": addr_data.get("zip_code") or addr_data.get("zip", ""),  # Support both formats
+            "country": addr_data.get("country", "US"),
+            "latitude": addr_data.get("latitude"),
+            "longitude": addr_data.get("longitude"),
+            "place_id": addr_data.get("place_id"),  # Google Places ID
+            "formatted_address": addr_data.get("formatted_address"),
+            "is_default": True
+        }
+        # Add address to addresses array (replace any existing default address)
+        update_fields["addresses"] = [new_address]
+
+    # Handle banking_info (for Stripe Connect or similar)
+    if "banking_info" in profile_data:
+        update_fields["banking_info"] = profile_data["banking_info"]
+
+    # Handle phone verification status
+    if "phone_verified" in profile_data:
+        update_fields["phone_verified"] = profile_data["phone_verified"]
+
+    # Handle license number (for Electrical/Plumbing contractors)
+    if "license_number" in profile_data:
+        update_fields["license_number"] = profile_data["license_number"]
+
+    # Handle insurance policy number
+    if "insurance_policy_number" in profile_data:
+        update_fields["insurance_policy_number"] = profile_data["insurance_policy_number"]
 
     if not update_fields:
         raise HTTPException(400, detail="No fields to update")
@@ -2051,6 +2276,33 @@ async def update_contractor_profile(
         {"id": current_user.id},
         {"$set": update_fields}
     )
+
+    # Recompute provider_completeness and provider_status after update
+    updated_user = await db.users.find_one({"id": current_user.id})
+    if updated_user:
+        # Compute new completeness
+        completeness = compute_provider_completeness(updated_user)
+
+        # Compute new status based on completeness and other factors
+        new_status = compute_new_status(
+            current_status=updated_user.get("provider_status", "draft"),
+            completeness=completeness,
+            address_verification_status=updated_user.get("address_verification_status", "pending"),
+            address_verification_deadline=updated_user.get("address_verification_deadline")
+        )
+
+        # Update both completeness and status
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {
+                "provider_completeness": completeness,
+                "provider_status": new_status
+            }}
+        )
+
+        # Log status transitions
+        if new_status != updated_user.get("provider_status"):
+            logger.info(f"Provider status transition for {current_user.id}: {updated_user.get('provider_status')} → {new_status}")
 
     if result.modified_count > 0:
         logger.info(f"Updated profile for contractor {current_user.id}: {list(update_fields.keys())}")
@@ -2071,7 +2323,7 @@ async def upload_contractor_document(
     Upload contractor document (license, insurance, business license)
     Saves to: contractors/{contractor_id}/profile/{document_type}_{filename}
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload documents")
 
     try:
@@ -2126,7 +2378,7 @@ async def upload_contractor_portfolio_photo(
     Upload contractor portfolio photo
     Saves to: contractors/{contractor_id}/portfolio/{filename}
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload portfolio photos")
 
     try:
@@ -2164,6 +2416,56 @@ async def upload_contractor_portfolio_photo(
         logger.error(f"Upload error: {str(e)}")
         raise HTTPException(500, detail=f"Upload failed: {str(e)}")
 
+
+@api_router.post("/handyman/profile-photo/upload")
+async def upload_handyman_profile_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload handyman profile photo
+    Saves to: handymen/{handyman_id}/profile/profile_{uuid}.{ext}
+    Updates user.profile_photo field in database
+    """
+    if current_user.role != UserRole.HANDYMAN:
+        raise HTTPException(403, detail="Only handymen can upload profile photos to this endpoint")
+
+    try:
+        # Read file data
+        file_data = await file.read()
+
+        # Get file extension
+        filename = file.filename or "profile.jpg"
+        ext = filename.split(".")[-1].lower()
+
+        # Validate file type
+        allowed_extensions = ["jpg", "jpeg", "png", "gif", "webp"]
+        if ext not in allowed_extensions:
+            raise HTTPException(400, detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}")
+
+        # Upload to handyman profile path
+        url = await storage_provider.upload_handyman_profile_photo(
+            file_data=file_data,
+            handyman_id=current_user.id,
+            filename=filename,
+            extension=ext
+        )
+
+        # Update user profile_photo field in database
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"profile_photo": url, "updated_at": datetime.utcnow().isoformat()}}
+        )
+
+        return {"success": True, "url": url, "message": "Profile photo uploaded successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Profile photo upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
 @api_router.post("/contractor/profile-photo/upload")
 async def upload_contractor_profile_photo(
     file: UploadFile = File(...),
@@ -2174,7 +2476,7 @@ async def upload_contractor_profile_photo(
     Saves to: contractors/{contractor_id}/profile/profile_{uuid}.{ext}
     Updates user.profile_photo field in database
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload profile photos")
 
     try:
@@ -2221,6 +2523,62 @@ async def upload_contractor_profile_photo(
 
 
 
+@api_router.post("/customer/profile-photo/upload")
+async def upload_customer_profile_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Upload customer profile photo
+    Saves to: customers/{customer_id}/profile/profile_{uuid}.{ext}
+    Updates user.profile_photo field in database
+    """
+    if current_user.role != UserRole.CUSTOMER:
+        raise HTTPException(403, detail="Only customers can upload profile photos to this endpoint")
+
+    try:
+        # Validate it's an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(400, detail="File must be an image")
+
+        # Read file data
+        file_data = await file.read()
+        if len(file_data) == 0:
+            raise HTTPException(400, detail="Empty file received")
+
+        # Generate filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"profile_{uuid.uuid4().hex[:8]}.{file_extension}"
+
+        # Upload to customer profile path
+        url = await storage_provider.upload_customer_profile_photo(
+            file_data=file_data,
+            customer_id=current_user.id,
+            filename=filename,
+            content_type=file.content_type
+        )
+
+        # Update user profile_photo field in database
+        await db.users.update_one(
+            {"id": current_user.id},
+            {"$set": {"profile_photo": url, "updated_at": datetime.utcnow().isoformat()}}
+        )
+
+        logger.info(f"Customer profile photo uploaded for {current_user.id}")
+
+        return {
+            "success": True,
+            "url": url,
+            "message": "Profile photo uploaded successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Customer profile photo upload error: {str(e)}")
+        raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
 @api_router.post("/contractor/photos/job/{job_id}")
 async def upload_contractor_job_photo(
     job_id: str,
@@ -2231,7 +2589,7 @@ async def upload_contractor_job_photo(
     Upload contractor job photo (progress, completion, etc.)
     Saves to: contractors/{contractor_id}/jobs/{job_id}/{filename}
     """
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload job photos")
 
     try:
@@ -2283,7 +2641,7 @@ async def get_contractor_expenses(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get all expenses for the contractor, optionally filtered by job_id."""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access expenses")
 
     query = {"contractor_id": current_user.id}
@@ -2305,7 +2663,7 @@ async def create_expense(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Create a new expense for the contractor."""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can create expenses")
 
     # Create expense document
@@ -2338,7 +2696,7 @@ async def delete_expense(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Delete an expense."""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can delete expenses")
 
     result = await db.expenses.delete_one({
@@ -2359,7 +2717,7 @@ async def upload_expense_receipt(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Upload receipt photo for an expense"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload receipts")
 
     # Verify expense belongs to this contractor
@@ -2417,7 +2775,7 @@ async def get_accepted_contractor_jobs(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get jobs accepted by this contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     jobs = await db.jobs.find({
@@ -2435,7 +2793,7 @@ async def get_scheduled_contractor_jobs(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get scheduled jobs for this contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     jobs = await db.jobs.find({
@@ -2455,7 +2813,7 @@ async def get_completed_contractor_jobs(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get completed jobs for this contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     query = {
@@ -2479,7 +2837,7 @@ async def get_contractor_job(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get specific job details for contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
@@ -2496,8 +2854,19 @@ async def accept_contractor_job(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Accept/claim a job"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can accept jobs")
+
+    # Check provider_status - only active providers can accept jobs
+    if current_user.provider_status != "active":
+        raise HTTPException(
+            403,
+            detail={
+                "error": "Provider not active",
+                "provider_status": current_user.provider_status,
+                "message": "You must complete your profile and verification to accept jobs"
+            }
+        )
 
     # Find the job
     job = await db.jobs.find_one({"id": job_id})
@@ -2534,7 +2903,7 @@ async def update_contractor_job_status(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Update job status"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can update job status")
 
     # Verify job belongs to this contractor
@@ -2583,7 +2952,7 @@ async def create_contractor_job_photo(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Upload a photo for a job with metadata"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can upload job photos")
 
     # Verify job belongs to this contractor
@@ -2647,7 +3016,7 @@ async def get_contractor_job_photos(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get photos for a job"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access job photos")
 
     # Verify job belongs to this contractor
@@ -2673,7 +3042,7 @@ async def delete_contractor_job_photo(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Delete a job photo"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can delete job photos")
 
     result = await db.job_photos.delete_one({
@@ -2696,7 +3065,7 @@ async def update_contractor_job_photo(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Update photo caption/notes"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can update job photos")
 
     # Verify photo exists and belongs to this contractor
@@ -2736,7 +3105,7 @@ async def get_contractor_mileage_logs(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get mileage logs for contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access mileage logs")
 
     query = {"contractor_id": current_user.id}
@@ -2760,7 +3129,7 @@ async def create_mileage_log(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Create a new mileage log"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can create mileage logs")
 
     log_doc = {
@@ -2791,7 +3160,7 @@ async def delete_mileage_log(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Delete a mileage log"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can delete mileage logs")
 
     result = await db.mileage_logs.delete_one({
@@ -2815,7 +3184,7 @@ async def start_time_log(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Start time tracking for a job"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can start time logs")
 
     # Verify job belongs to this contractor
@@ -2860,7 +3229,7 @@ async def stop_time_log(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Stop time tracking for a job"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can stop time logs")
 
     # Find the active time log
@@ -2906,7 +3275,7 @@ async def get_time_logs(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get all time logs for a job"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access time logs")
 
     # Verify job belongs to this contractor
@@ -2934,7 +3303,7 @@ async def get_monthly_report(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get monthly report for contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access reports")
 
     # Query jobs for the month
@@ -3000,7 +3369,7 @@ async def get_yearly_report(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get yearly report for contractor"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access reports")
 
     start_date = f"{year}-01-01"
@@ -3078,7 +3447,7 @@ async def get_tax_report(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get tax report for contractor (for informational purposes only)"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access reports")
 
     # Get completed jobs
@@ -3139,7 +3508,7 @@ async def export_tax_report_pdf(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Export tax report as PDF (stub - returns JSON for now)"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access reports")
 
     # For now, return the same data as the JSON endpoint
@@ -3210,7 +3579,7 @@ async def approve_warranty_request(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Approve a warranty request (contractor or admin only)"""
-    if current_user.role not in [UserRole.TECHNICIAN, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.ADMIN]:
         raise HTTPException(403, detail="Only contractors or admins can approve warranties")
 
     # Find warranty request
@@ -3219,7 +3588,7 @@ async def approve_warranty_request(
         raise HTTPException(404, detail="Warranty request not found")
 
     # If contractor, verify it's their job
-    if current_user.role == UserRole.TECHNICIAN:
+    if current_user.role == UserRole.CONTRACTOR:
         if warranty.get("contractor_id") != current_user.id:
             raise HTTPException(403, detail="Not your job")
 
@@ -3256,7 +3625,7 @@ async def deny_warranty_request(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Deny a warranty request (contractor or admin only)"""
-    if current_user.role not in [UserRole.TECHNICIAN, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.ADMIN]:
         raise HTTPException(403, detail="Only contractors or admins can deny warranties")
 
     # Find warranty request
@@ -3265,7 +3634,7 @@ async def deny_warranty_request(
         raise HTTPException(404, detail="Warranty request not found")
 
     # If contractor, verify it's their job
-    if current_user.role == UserRole.TECHNICIAN:
+    if current_user.role == UserRole.CONTRACTOR:
         if warranty.get("contractor_id") != current_user.id:
             raise HTTPException(403, detail="Not your job")
 
@@ -3333,7 +3702,7 @@ async def create_change_order(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Create a change order for a job (contractor only)"""
-    if current_user.role != UserRole.TECHNICIAN:
+    if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can create change orders")
 
     # Verify job exists and belongs to this contractor
@@ -3607,7 +3976,7 @@ async def admin_get_system_stats(
     # Count users by role
     total_users = await db.users.count_documents({})
     customers = await db.users.count_documents({"role": UserRole.CUSTOMER})
-    contractors = await db.users.count_documents({"role": UserRole.TECHNICIAN})
+    contractors = await db.users.count_documents({"role": UserRole.CONTRACTOR})
 
     # Count jobs by status
     total_jobs = await db.jobs.count_documents({})
@@ -3787,7 +4156,7 @@ async def update_job_status(
     if current_user.role == UserRole.CUSTOMER:
         if job.customer_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not your job")
-    elif current_user.role in [UserRole.HANDYMAN, UserRole.TECHNICIAN]:
+    elif current_user.role in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
         if job.assigned_contractor_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not assigned to you")
 
@@ -3827,6 +4196,18 @@ async def create_proposal(
     Create a proposal for a job (handyman/contractor only).
     Only valid when job status = published.
     """
+    # Check provider_status - only active providers can create proposals
+    if current_user.role in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
+        if current_user.provider_status != "active":
+            raise HTTPException(
+                403,
+                detail={
+                    "error": "Provider not active",
+                    "provider_status": current_user.provider_status,
+                    "message": "You must complete your profile and verification to submit proposals"
+                }
+            )
+
     try:
         from services.proposal_service import ProposalError
         proposal = await proposal_service.create_proposal(
@@ -4035,14 +4416,55 @@ async def root(): # type: ignore
     }
 
 
+# Basic Auth for n8n health monitoring
+security = HTTPBasic()
+
+def n8n_basic_auth(credentials: HTTPBasicCredentials = Depends(security)):
+    expected_user = os.getenv("N8N_BASIC_USER", "")
+    expected_pass = os.getenv("N8N_BASIC_PASS", "")
+    ok_user = secrets.compare_digest(credentials.username, expected_user)
+    ok_pass = secrets.compare_digest(credentials.password, expected_pass)
+    if not (ok_user and ok_pass):
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return True
+
 @api_router.get("/health")
-async def health_check():
+async def health_check(_: bool = Depends(n8n_basic_auth)):
     """Detailed health check"""
+    # Check Google Places API
+    google_places_status = "unavailable"
+    google_places_api_key = os.getenv("GOOGLE_MAPS_API_KEY", "")
+
+    if google_places_api_key:
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(
+                    "https://maps.googleapis.com/maps/api/place/autocomplete/json",
+                    params={
+                        "input": "test",
+                        "types": "address",
+                        "components": "country:us",
+                        "key": google_places_api_key,
+                    }
+                )
+                data = response.json()
+                if data.get("status") in ["OK", "ZERO_RESULTS"]:
+                    google_places_status = "connected"
+                else:
+                    google_places_status = f"error: {data.get('status', 'unknown')}"
+        except Exception as e:
+            google_places_status = f"error: {str(e)}"
+
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "database": "connected",
         "ai_provider": "connected" if ai_provider else "unavailable",
+        "google_places_api": google_places_status,
     }
 
 

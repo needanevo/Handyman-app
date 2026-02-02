@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Button } from '../../src/components/Button';
 import { Ionicons } from '@expo/vector-icons';
-import { AddressForm } from '../../src/components/AddressForm';
+import { GooglePlacesAddressInput, StructuredAddress } from '../../src/components/GooglePlacesAddressInput';
 import { useForm, Controller } from 'react-hook-form';
 
 interface RegisterForm {
@@ -27,8 +27,7 @@ interface RegisterForm {
   street: string;
   city: string;
   state: string;
-  zipCode: string;
-  unitNumber?: string;
+  zip: string;
 }
 
 const formatPhone = (value: string) => {
@@ -43,15 +42,31 @@ export default function RegisterScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState<StructuredAddress | null>(null);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
     watch,
+    setValue,
   } = useForm<RegisterForm>();
 
   const password = watch('password');
+  const streetValue = watch('street');
+  const cityValue = watch('city');
+  const stateValue = watch('state');
+  const zipValue = watch('zip');
+
+  // Handler for when autocomplete selects an address - auto-fills form fields
+  const handleAddressSelected = (address: StructuredAddress) => {
+    console.log('[Register] Autocomplete address selected:', address);
+    setValue('street', address.street || '');
+    setValue('city', address.city || '');
+    setValue('state', address.state || '');
+    setValue('zip', address.zipCode || '');
+    setSelectedAddress(address);
+  };
 
   // Fix 5.11: Explicit redirect after registration hydration
   useEffect(() => {
@@ -65,12 +80,13 @@ export default function RegisterScreen() {
       return;
     }
 
-    console.log('Registration hydrated - redirecting to dashboard for role:', user.role);
+    console.log('Registration hydrated - redirecting for role:', user.role);
 
     // Explicit role-based redirect
     if (user.role === 'customer') {
-      router.replace('/(customer)/dashboard');
-    } else if (user.role === 'technician') {
+      // Go to step 2 for profile photo (requires auth token)
+      router.replace('/auth/customer/register-step2');
+    } else if (user.role === 'contractor') {
       router.replace('/(contractor)/dashboard');
     } else if (user.role === 'handyman') {
       router.replace('/(handyman)/dashboard');
@@ -88,6 +104,12 @@ export default function RegisterScreen() {
       return;
     }
 
+    // Validate address using form fields
+    if (!data.street || !data.city || !data.state || !data.zip) {
+      Alert.alert('Error', 'Please fill in all address fields');
+      return;
+    }
+
     try {
       setIsLoading(true);
       await register({
@@ -101,8 +123,8 @@ export default function RegisterScreen() {
           street: data.street,
           city: data.city,
           state: data.state,
-          zipCode: data.zipCode,
-          unitNumber: data.unitNumber,
+          zipCode: data.zip,
+          unitNumber: selectedAddress?.line2,
         },
       });
 
@@ -254,11 +276,99 @@ export default function RegisterScreen() {
             {/* Address Fields */}
             <View style={styles.addressSection}>
               <Text style={styles.sectionTitle}>Service Address</Text>
-              <AddressForm
-                control={control}
-                errors={errors}
-                showUnitNumber={true}
+
+              {/* Optional autocomplete helper */}
+              <GooglePlacesAddressInput
+                label="Quick Address Search"
+                onAddressSelected={handleAddressSelected}
+                placeholder="Search for your address..."
               />
+
+              {/* Manual address fields */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Street Address</Text>
+                <Controller
+                  control={control}
+                  name="street"
+                  rules={{ required: 'Street address is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.street && styles.inputError]}
+                      onChangeText={onChange}
+                      value={value}
+                      placeholder="123 Main St"
+                    />
+                  )}
+                />
+                {errors.street && (
+                  <Text style={styles.errorText}>{errors.street.message}</Text>
+                )}
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>City</Text>
+                <Controller
+                  control={control}
+                  name="city"
+                  rules={{ required: 'City is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={[styles.input, errors.city && styles.inputError]}
+                      onChangeText={onChange}
+                      value={value}
+                      placeholder="Austin"
+                    />
+                  )}
+                />
+                {errors.city && (
+                  <Text style={styles.errorText}>{errors.city.message}</Text>
+                )}
+              </View>
+
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>State</Text>
+                  <Controller
+                    control={control}
+                    name="state"
+                    rules={{ required: 'State is required' }}
+                    render={({ field: { onChange, value } }) => (
+                      <TextInput
+                        style={[styles.input, errors.state && styles.inputError]}
+                        onChangeText={(text) => onChange(text.toUpperCase())}
+                        value={value}
+                        placeholder="TX"
+                        maxLength={2}
+                      />
+                    )}
+                  />
+                  {errors.state && (
+                    <Text style={styles.errorText}>{errors.state.message}</Text>
+                  )}
+                </View>
+
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>ZIP Code</Text>
+                  <Controller
+                    control={control}
+                    name="zip"
+                    rules={{ required: 'ZIP code is required' }}
+                    render={({ field: { onChange, value } }) => (
+                      <TextInput
+                        style={[styles.input, errors.zip && styles.inputError]}
+                        onChangeText={onChange}
+                        value={value}
+                        placeholder="78701"
+                        keyboardType="numeric"
+                        maxLength={5}
+                      />
+                    )}
+                  />
+                  {errors.zip && (
+                    <Text style={styles.errorText}>{errors.zip.message}</Text>
+                  )}
+                </View>
+              </View>
             </View>
 
             <View style={styles.inputGroup}>

@@ -186,12 +186,6 @@ EXECUTION RULES:
 - When authentication or role logic is involved, reference Phase 2.
 - When routing or layout guards are involved, reference Phase 3.
 
-Claude, you must NEVER begin a phase without activating PHASE_ACTIVATION.md.
-Claude, you must NEVER mix phases.
-Claude, you must ALWAYS check BUILD_PHASES.md to confirm scope.
-Claude, if tasks drift outside your phase, STOP and warn the manager.
-
-
 MISSION ANCHOR:
 Your job is to execute tasks *within the active phase* using the repo’s current file structure, with BUILD_PHASES.md as your authoritative blueprint.
 

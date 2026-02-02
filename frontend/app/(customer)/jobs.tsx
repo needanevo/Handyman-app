@@ -6,10 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { Button } from '../../src/components/Button';
@@ -35,10 +36,13 @@ export default function JobsListScreen() {
   } = useQuery({
     queryKey: ['customer-jobs'],
     queryFn: async () => {
+      console.log('🔄 Fetching customer jobs...');
       const response = await jobsAPI.getJobs();
+      console.log('📦 Jobs response:', response);
       return response || [];
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 0, // Always refetch on mount
+    refetchOnMount: 'always', // Force refetch when component mounts
   });
 
   // Fetch all customer quotes
@@ -49,16 +53,26 @@ export default function JobsListScreen() {
   } = useQuery({
     queryKey: ['customer-quotes'],
     queryFn: async () => {
+      console.log('🔄 Fetching customer quotes...');
       const response = await jobsAPI.getQuotes();
+      console.log('📦 Quotes response:', response);
       return response || [];
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 0, // Always refetch on mount
+    refetchOnMount: 'always', // Force refetch when component mounts
   });
 
   // Merge jobs and quotes into a single list
   const allJobs = React.useMemo(() => {
+    console.log('🔀 Merging jobs and quotes...');
+    console.log('Jobs count:', jobs?.length || 0);
+    console.log('Quotes count:', quotes?.length || 0);
+
     const jobItems = (jobs || []).map((job: any) => ({ ...job, itemType: 'job' }));
     const quoteItems = (quotes || []).map((quote: any) => ({ ...quote, itemType: 'quote' }));
+
+    console.log('Job items:', jobItems);
+    console.log('Quote items:', quoteItems);
 
     // Merge and sort by created_at (most recent first)
     const merged = [...jobItems, ...quoteItems];
@@ -68,15 +82,57 @@ export default function JobsListScreen() {
       return dateB - dateA; // Descending order
     });
 
+    console.log('✅ Merged list:', merged.length, 'items');
     return merged;
   }, [jobs, quotes]);
 
   const isLoading = jobsLoading || quotesLoading;
+  const queryClient = useQueryClient();
+
+  // Delete job mutation
+  const deleteJobMutation = useMutation({
+    mutationFn: (jobId: string) => jobsAPI.deleteJob(jobId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-quotes'] });
+      Alert.alert('Success', 'Job has been cancelled successfully.');
+    },
+    onError: (error: any) => {
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to cancel job. Please try again.'
+      );
+    },
+  });
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([refetchJobs(), refetchQuotes()]);
     setRefreshing(false);
+  };
+
+  const handleDeleteJob = (job: any) => {
+    // Only allow deleting pending/draft jobs
+    if (job.status !== 'pending' && job.status !== 'draft') {
+      Alert.alert(
+        'Cannot Delete',
+        `Jobs in '${job.status}' status cannot be deleted. Only pending or draft jobs can be cancelled.`
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Cancel Job',
+      'Are you sure you want to cancel this job? This action cannot be undone.',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: () => deleteJobMutation.mutate(job.id),
+        },
+      ]
+    );
   };
 
   const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'neutral' => {
@@ -85,17 +141,33 @@ export default function JobsListScreen() {
     return 'neutral';
   };
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const getDaysAgo = (dateString: string) => {
+    if (!dateString) return 0;
+    const now = new Date();
+    const past = new Date(dateString);
+    const diffTime = Math.abs(now.getTime() - past.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
   const getStatusLabel = (status: string, itemType?: string) => {
-    // Quote statuses
+    // Quote statuses - show as job progress
     if (itemType === 'quote') {
       const quoteLabels: Record<string, string> = {
-        draft: 'Pending Quote',
-        pending: 'Awaiting Response',
+        draft: 'Quote Ready',
+        sent: 'Awaiting Accept',
+        pending: 'Awaiting Accept',
         quoted: 'Quote Received',
-        accepted: 'Quote Accepted',
-        rejected: 'Quote Declined',
+        accepted: 'Accepted',
+        rejected: 'Declined',
       };
-      return quoteLabels[status.toLowerCase()] || 'Pending Quote';
+      return quoteLabels[status.toLowerCase()] || 'Pending';
     }
 
     // Job statuses
@@ -110,17 +182,23 @@ export default function JobsListScreen() {
 
   // Filter items based on selected tab
   const allItems = allJobs || [];
-  const activeItems = allItems.filter((item: any) =>
-    item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'rejected'
-  );
+  const activeItems = allItems.filter((item: any) => {
+    const isActive = item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'rejected';
+    console.log(`Filtering item ${item.id}: status=${item.status}, isActive=${isActive}`);
+    return isActive;
+  });
   const completedItems = allItems.filter((item: any) =>
     item.status === 'completed' || item.status === 'accepted'
   );
+
+  console.log('📊 Filter counts - All:', allItems.length, 'Active:', activeItems.length, 'Completed:', completedItems.length);
 
   const filteredJobs =
     filter === 'active' ? activeItems :
     filter === 'completed' ? completedItems :
     allItems;
+
+  console.log(`🎯 Current filter: ${filter}, Showing ${filteredJobs.length} jobs`);
 
   // Show loading spinner while fetching
   if (isLoading) {
@@ -137,7 +215,7 @@ export default function JobsListScreen() {
         <View style={styles.headerTop}>
           <Button
             title=""
-            onPress={() => router.back()}
+            onPress={() => router.replace('/(customer)/dashboard')}
             variant="ghost"
             size="small"
             icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
@@ -219,7 +297,7 @@ export default function JobsListScreen() {
                 padding="base"
                 onPress={() => {
                   if (job.itemType === 'quote') {
-                    router.push(`/(customer)/quote-detail/${job.id}` as any);
+                    router.push(`/(customer)/quotes/${job.id}` as any);
                   } else {
                     router.push(`/(customer)/job-detail/${job.id}`);
                   }
@@ -230,11 +308,11 @@ export default function JobsListScreen() {
                 <View style={styles.jobHeader}>
                   <View style={styles.jobTitleSection}>
                     <Text style={styles.jobTitle}>
-                      {job.title || job.service_category || 'Service Request'}
+                      {job.description || job.service_category || job.category || job.title || 'Service Request'}
                     </Text>
                     <View style={styles.jobMeta}>
                       <Badge
-                        label={job.category || job.service_category || 'Service'}
+                        label={job.service_category || job.category || 'Service'}
                         variant="neutral"
                         size="sm"
                       />
@@ -272,28 +350,43 @@ export default function JobsListScreen() {
                 {/* Footer */}
                 <View style={styles.jobFooter}>
                   <View style={styles.jobDates}>
-                    <Text style={styles.dateLabel}>
-                      {job.status === 'completed' || job.status === 'accepted' ? 'Completed' : 'Posted'}
-                    </Text>
+                    <Text style={styles.dateLabel}>Posted</Text>
                     <Text style={styles.dateValue}>
-                      {job.status === 'completed' || job.status === 'accepted'
-                        ? (job.completedAt || job.completed_at || job.createdAt || job.created_at)
-                        : (job.createdAt || job.created_at)}
+                      {formatDate(job.created_at || job.createdAt)}
+                    </Text>
+                    <Text style={styles.daysAgo}>
+                      {getDaysAgo(job.created_at || job.createdAt)} days ago
                     </Text>
                   </View>
 
                   <View style={styles.costSection}>
                     <Text style={styles.costLabel}>
-                      {job.itemType === 'quote' ? 'Estimate' : 'Total'}
+                      {job.itemType === 'quote' ? 'Quoted' : 'Total'}
                     </Text>
                     <Text style={styles.costAmount}>
-                      {typeof job.totalCost === 'number'
+                      {typeof job.total_amount === 'number'
+                        ? `$${job.total_amount.toFixed(2)}`
+                        : typeof job.totalCost === 'number'
                         ? `$${job.totalCost.toFixed(2)}`
                         : typeof job.estimated_total === 'number'
                         ? `$${job.estimated_total.toFixed(2)}`
-                        : '$TBD'}
+                        : '$0.00'}
                     </Text>
                   </View>
+
+                  {/* Delete button for jobs (not quotes) in pending/draft status */}
+                  {job.itemType === 'job' && (job.status === 'pending' || job.status === 'draft') && (
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeleteJob(job);
+                      }}
+                      disabled={deleteJobMutation.isPending}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={colors.error.main} />
+                    </TouchableOpacity>
+                  )}
 
                   <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
                 </View>
@@ -433,6 +526,11 @@ const styles = StyleSheet.create({
     ...typography.caption.regular,
     color: colors.neutral[700],
   },
+  daysAgo: {
+    ...typography.caption.small,
+    color: colors.neutral[500],
+    marginTop: spacing.xs / 2,
+  },
   costSection: {
     alignItems: 'flex-end',
     marginRight: spacing.md,
@@ -445,6 +543,10 @@ const styles = StyleSheet.create({
   costAmount: {
     ...typography.headings.h5,
     color: colors.primary.main,
+  },
+  deleteButton: {
+    padding: spacing.sm,
+    marginHorizontal: spacing.xs,
   },
   fab: {
     position: 'absolute',

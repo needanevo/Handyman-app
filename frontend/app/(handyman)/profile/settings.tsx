@@ -146,25 +146,37 @@ export default function HandymanSettings() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.settingsCard}>
-            <TouchableOpacity style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => Alert.alert('Coming Soon', 'Password management is not yet enabled.')}
+            >
               <Ionicons name="lock-closed" size={20} color={colors.neutral[700]} />
               <Text style={styles.actionText}>Change Password</Text>
               <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => Alert.alert('Coming Soon', 'Banking info management is not yet enabled.')}
+            >
               <Ionicons name="card" size={20} color={colors.neutral[700]} />
               <Text style={styles.actionText}>Update Banking Info</Text>
               <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => Alert.alert('Coming Soon', 'Privacy Policy will be available soon.')}
+            >
               <Ionicons name="shield-checkmark" size={20} color={colors.neutral[700]} />
               <Text style={styles.actionText}>Privacy Policy</Text>
               <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => Alert.alert('Coming Soon', 'Terms of Service will be available soon.')}
+            >
               <Ionicons name="document-text" size={20} color={colors.neutral[700]} />
               <Text style={styles.actionText}>Terms of Service</Text>
               <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
@@ -176,19 +188,28 @@ export default function HandymanSettings() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>
           <View style={styles.settingsCard}>
-            <TouchableOpacity style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => Alert.alert('Coming Soon', 'Help Center is not yet available.')}
+            >
               <Ionicons name="help-circle" size={20} color={colors.neutral[700]} />
               <Text style={styles.actionText}>Help Center</Text>
               <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => Alert.alert('Coming Soon', 'Support contact is not yet available.')}
+            >
               <Ionicons name="chatbubble" size={20} color={colors.neutral[700]} />
               <Text style={styles.actionText}>Contact Support</Text>
               <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => Alert.alert('Coming Soon', 'Problem reporting is not yet available.')}
+            >
               <Ionicons name="bug" size={20} color={colors.neutral[700]} />
               <Text style={styles.actionText}>Report a Problem</Text>
               <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />

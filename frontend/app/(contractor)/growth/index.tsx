@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -138,7 +139,7 @@ export default function GrowthCenter() {
           {/* LLC Card */}
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => router.push('/(handyman)/growth/llc')}
+            onPress={() => router.push('/(contractor)/growth/llc')}
           >
             <View style={styles.actionIcon}>
               <Ionicons name="briefcase" size={32} color="#FFA500" />
@@ -159,7 +160,7 @@ export default function GrowthCenter() {
           {/* License Card */}
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => router.push('/(handyman)/growth/license')}
+            onPress={() => router.push('/(contractor)/growth/license')}
           >
             <View style={styles.actionIcon}>
               <Ionicons name="ribbon" size={32} color="#FFA500" />
@@ -180,7 +181,7 @@ export default function GrowthCenter() {
           {/* Insurance Card */}
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => router.push('/(handyman)/growth/insurance')}
+            onPress={() => router.push('/(contractor)/growth/insurance')}
           >
             <View style={styles.actionIcon}>
               <Ionicons name="shield-checkmark" size={32} color="#FFA500" />
@@ -208,7 +209,12 @@ export default function GrowthCenter() {
               Based on your {currentRating}★ rating and {jobsCompleted} completed jobs,
               you can raise prices by {recommendedPriceIncrease}%.
             </Text>
-            <TouchableOpacity style={styles.priceButton}>
+            <TouchableOpacity
+              style={styles.priceButton}
+              onPress={() => {
+                Alert.alert('Coming Soon', 'Dynamic pricing management is not yet enabled.');
+              }}
+            >
               <Text style={styles.priceButtonText}>Update My Rates</Text>
             </TouchableOpacity>
           </View>

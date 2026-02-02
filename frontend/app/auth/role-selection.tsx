@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
-import { Button } from '../../src/components/Button';
 
 export default function RoleSelectionScreen() {
   const router = useRouter();
@@ -31,17 +30,8 @@ export default function RoleSelectionScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Button
-            title=""
-            onPress={() => router.back()}
-            variant="ghost"
-            size="small"
-            icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
-            style={styles.backButton}
-          />
-        </View>
+        {/* Header spacer */}
+        <View style={styles.header} />
 
         {/* Logo & Title */}
         <View style={styles.titleSection}>
@@ -202,9 +192,6 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: spacing.sm,
     marginBottom: spacing.md,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
   },
   titleSection: {
     alignItems: 'center',

@@ -2314,3 +2314,96 @@ Failed to verify route existence before claiming fix was complete. Should have t
 
 **Commit:** 6e02f6b
 **Branch:** dev
+# [2025-12-11] Build Process Realignment
+
+Major architectural decision:
+We are now following a 12-Phase Master Build Process defined in BUILD_PHASES.md. 
+This replaces the earlier ad-hoc routing phases and debugging phases.
+
+KEY PERMANENT RULES:
+1. Phase 1 (Scaffold) must be completed before deep routing fixes.
+2. Phase 2 (Auth Stability) is the foundation for ALL roles, routing, and UI.
+3. Phase 3 (Routing) depends on Phase 2 being stable.
+4. Handyman and Contractor MUST remain in parallel routing structures.
+5. Customer onboarding is a separate funnel and will not be built until Phase 6.
+6. Job matching, workflows, billing, messaging, and AI all occur ONLY after the foundation layers are stable.
+
+ROLE OF THIS HISTORY:
+This file stores irreversible architectural decisions so you (Claude) maintain long-term project memory even across tool-call resets.
+
+---
+
+# [2026-01-21 09:45] Fix — Onboarding Step Endpoint 422 Error
+
+**Commit:** `2629261`  
+**Branch:** `dev2`
+
+## Problem
+
+422 validation error when saving onboarding step progress:
+```
+WARN Failed to save step progress: [AxiosError: Request failed with status code 422]
+```
+
+User successfully registered but step tracking failed, causing resume issues.
+
+## Root Cause
+
+**Parameter Type Mismatch:**
+- Backend endpoint: `step: int` (FastAPI treats as query parameter)
+- Frontend sends: `POST /auth/onboarding/step` with body `{"step": 2}`
+- Backend expected: `POST /auth/onboarding/step?step=2`
+
+Without `Body()` directive or Pydantic model, FastAPI defaults to query parameter for simple types.
+
+## Solution
+
+**File Modified:** `backend/server.py`
+
+**Added Pydantic Model:**
+```python
+class OnboardingStepUpdate(BaseModel):
+    step: int
+```
+
+**Updated Endpoint Signature:**
+```python
+# Before:
+async def update_onboarding_step(
+    step: int,
+    current_user: User = Depends(get_current_user_dependency)
+):
+
+# After:
+async def update_onboarding_step(
+    data: OnboardingStepUpdate,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    step = data.step  # Extract from model
+```
+
+## Result
+
+✅ Backend now correctly accepts body parameter `{"step": 2}`  
+✅ Onboarding step tracking saves successfully  
+✅ Reload-safe onboarding fully functional
+
+## Deployment
+
+**Backend:** ✅ DEPLOYED to production server  
+- Pulled latest dev2 changes
+- Service restarted successfully
+- Status: active (running)
+
+**Command:**
+```bash
+ssh root@172.234.70.157 'cd /srv/app/Handyman-app && git pull origin dev2 && systemctl restart handyman-api'
+```
+
+## Testing
+
+User should retry handyman registration and verify:
+1. Step 1 completes → Step 2 loads
+2. Step 2 saves without 422 errors
+3. Close app → Reopen → Resumes at correct step
+

@@ -31,7 +31,7 @@ export default function AdminLayout() {
       return;
     }
 
-    if (user?.role === 'technician' || user?.role === 'handyman') {
+    if (user?.role === 'contractor' || user?.role === 'handyman') {
       // Redirect contractors/handymen to contractor dashboard
       router.replace('/(contractor)/dashboard');
       return;

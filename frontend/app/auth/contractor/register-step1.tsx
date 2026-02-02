@@ -39,7 +39,7 @@ export default function ContractorRegisterStep1() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const { user, register } = useAuth();
+  const { user, register, login } = useAuth();
 
   const {
     control,
@@ -82,15 +82,22 @@ export default function ContractorRegisterStep1() {
 
         // Register the user immediately with basic info
         // The register function from AuthContext handles token storage and user fetch
-        await register({
+        const registrationPayload = {
           email: data.email,
           password: data.password,
           firstName: data.firstName,
           lastName: data.lastName,
           phone: data.phone,
-          role: 'technician',
-          businessName: data.businessName,
-        });
+          role: 'contractor' as const,
+          marketingOptIn: false,
+          businessName: data.businessName || undefined,
+        };
+
+        console.log('=== CONTRACTOR REGISTRATION PAYLOAD ===');
+        console.log(JSON.stringify(registrationPayload, null, 2));
+        console.log('=======================================');
+
+        await register(registrationPayload);
 
         // Navigate to next step (now authenticated for photo uploads)
         router.push({
@@ -104,10 +111,61 @@ export default function ContractorRegisterStep1() {
       }
     } catch (error: any) {
       console.error('Registration error:', error);
-      Alert.alert(
-        'Registration Failed',
-        error.response?.data?.detail || 'Please try again'
-      );
+      console.error('Error response:', error.response);
+      console.error('Error data:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error headers:', error.response?.headers);
+
+      // TASK 2: Handle "Email already registered" with login attempt
+      const errorDetail = error.response?.data?.detail || '';
+      const isEmailAlreadyRegistered = error.response?.status === 400 &&
+        errorDetail.toLowerCase().includes('email already registered');
+
+      if (isEmailAlreadyRegistered) {
+        try {
+          console.log('[Step1] Email already registered, attempting login...');
+          await login(data.email, data.password);
+          console.log('[Step1] Login successful, redirecting to dashboard...');
+          // Login successful - navigate to contractor dashboard
+          router.replace('/(contractor)/dashboard');
+          Alert.alert('Welcome Back', 'You already have an account. Successfully logged in.');
+          setIsLoading(false);
+          return; // Exit early, don't show error
+        } catch (loginError: any) {
+          console.error('[Step1] Login attempt failed:', loginError);
+          // Login failed - show clear message
+          Alert.alert(
+            'Account Exists',
+            'This email already exists. The password you entered is incorrect. Please try again or use Forgot Password.'
+          );
+          setIsLoading(false);
+          return; // Exit early
+        }
+      }
+
+      // TASK 4: Parse 422 validation errors properly
+      let errorMessage = 'Registration failed. Please try again.';
+
+      if (error.response?.status === 422 && error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+
+        // If detail is an array of validation errors, format them
+        if (Array.isArray(detail) && detail.length > 0) {
+          errorMessage = detail.map((err: any) => {
+            const field = Array.isArray(err.loc) && err.loc.length > 0
+              ? err.loc[err.loc.length - 1] // Get the last element (field name)
+              : 'Unknown field';
+            const message = err.msg || 'Invalid value';
+            return `${field}: ${message}`;
+          }).join('\n');
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        }
+      } else {
+        errorMessage = error.response?.data?.detail || JSON.stringify(error.response?.data) || 'Please try again';
+      }
+
+      Alert.alert('Registration Failed', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -118,6 +176,7 @@ export default function ContractorRegisterStep1() {
     { label: 'Documents', completed: false },
     { label: 'Profile', completed: false },
     { label: 'Portfolio', completed: false },
+    { label: 'Banking', completed: false },
     { label: 'Review', completed: false },
   ];
 
@@ -136,6 +195,11 @@ export default function ContractorRegisterStep1() {
     } else if (stepIndex === 3) {
       router.push({
         pathname: '/auth/contractor/register-step4',
+        params,
+      });
+    } else if (stepIndex === 4) {
+      router.push({
+        pathname: '/auth/contractor/register-step5',
         params,
       });
     }

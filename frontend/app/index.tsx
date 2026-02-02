@@ -25,7 +25,7 @@ export default function Index() {
           console.log('Navigating to customer dashboard');
           router.replace('/(customer)/dashboard');
           break;
-        case 'technician':
+        case 'contractor':
           console.log('Navigating to contractor dashboard');
           router.replace('/(contractor)/dashboard');
           break;
@@ -38,12 +38,12 @@ export default function Index() {
           router.replace('/admin');
           break;
         default:
-          console.log('Unknown role - navigating to welcome');
-          router.replace('/auth/welcome');
+          console.log('Unknown role - navigating to role selection');
+          router.replace('/auth/role-selection');
       }
     } else {
-      console.log('Not authenticated - navigating to welcome');
-      router.replace('/auth/welcome');
+      console.log('Not authenticated - navigating to role selection');
+      router.replace('/auth/role-selection');
     }
   }, [isHydrated, isAuthenticated, user, router]);
 

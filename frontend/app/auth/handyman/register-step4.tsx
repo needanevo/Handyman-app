@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
-import { contractorAPI } from '../../../src/services/api';
+import { handymanAPI, authAPI } from '../../../src/services/api';
 import { useAuth } from '../../../src/contexts/AuthContext';
 
 interface Step4Form {
@@ -27,47 +27,53 @@ interface Step4Form {
 
 export default function HandymanRegisterStep4() {
   const router = useRouter();
-  const { isHydrated, isAuthenticated, user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [registrationComplete, setRegistrationComplete] = useState(false);
 
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors },
     watch,
   } = useForm<Step4Form>();
 
   const accountNumber = watch('accountNumber');
 
-  // Fix 5.11: Explicit redirect after registration completion
+  // Hydrate form with existing banking data
   useEffect(() => {
-    if (!registrationComplete) return;
-    if (!isHydrated) {
-      console.log('Handyman registration complete - waiting for hydration...');
-      return;
-    }
-    if (!isAuthenticated || !user || !user.role) {
-      console.log('Handyman registration complete - waiting for user auth...');
+    console.log('[Step4] useEffect triggered, user:', user ? 'exists' : 'null');
+
+    if (!user) {
+      console.log('[Step4] User not available yet, waiting...');
       return;
     }
 
-    console.log('Handyman registration hydrated - redirecting to dashboard for role:', user.role);
+    const banking = (user as any).banking_info;
+    console.log('[Step4] Banking info from user:', banking);
 
-    // Explicit role-based redirect
-    if (user.role === 'handyman') {
-      router.replace('/(handyman)/dashboard');
-    } else if (user.role === 'technician') {
-      router.replace('/(contractor)/dashboard');
-    } else if (user.role === 'customer') {
-      router.replace('/(customer)/dashboard');
-    } else if (user.role === 'admin') {
-      router.replace('/admin');
+    if (banking) {
+      console.log('[Step4] Hydrating banking fields');
+
+      if (banking.account_holder_name) {
+        console.log('[Step4] Setting account holder name:', banking.account_holder_name);
+        setValue('accountHolderName', banking.account_holder_name);
+      }
+      if (banking.routing_number) {
+        console.log('[Step4] Setting routing number:', banking.routing_number);
+        setValue('routingNumber', banking.routing_number);
+      }
+      if (banking.account_number) {
+        console.log('[Step4] Setting account numbers:', banking.account_number);
+        setValue('accountNumber', banking.account_number);
+        setValue('confirmAccountNumber', banking.account_number);
+      }
+
+      console.log('[Step4] Banking form hydration complete');
     } else {
-      // Unknown role - go to welcome
-      router.replace('/auth/welcome');
+      console.log('[Step4] No banking info found in user data');
     }
-  }, [registrationComplete, isHydrated, isAuthenticated, user, router]);
+  }, [user, setValue]);
 
   const onSubmit = async (data: Step4Form) => {
     if (data.accountNumber !== data.confirmAccountNumber) {
@@ -75,12 +81,12 @@ export default function HandymanRegisterStep4() {
       return;
     }
 
-    setIsLoading(true);
-
     try {
+      setIsLoading(true);
+
       // TODO: Implement banking setup via Stripe Connect or similar
       // For now, just save the bank info to user profile
-      await contractorAPI.updateProfile({
+      await handymanAPI.updateProfile({
         banking_info: {
           account_holder_name: data.accountHolderName,
           routing_number: data.routingNumber,
@@ -89,12 +95,29 @@ export default function HandymanRegisterStep4() {
         },
       } as any);
 
-      // Fix 5.11: Signal registration completion, useEffect will handle redirect
-      console.log('Handyman banking setup complete - waiting for hydration');
-      setRegistrationComplete(true);
+      // Refresh user context
+      try {
+        await refreshUser();
+      } catch (refreshError) {
+        console.warn('Failed to refresh user after save, continuing anyway:', refreshError);
+        // Don't block navigation if refresh fails - data is already saved to backend
+      }
+
+      // Track onboarding step completion (Phase 5B-1)
+      try {
+        await authAPI.updateOnboardingStep(4);
+        console.log('✅ Step 4 progress saved');
+      } catch (stepError) {
+        console.warn('Failed to save step progress:', stepError);
+        // Don't block navigation if step tracking fails
+      }
+
+      // Navigate to Step 5 (Review)
+      router.push('/auth/handyman/register-step5');
     } catch (error) {
       console.error('Banking setup error:', error);
       Alert.alert('Error', 'Failed to save banking information. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -270,12 +293,18 @@ export default function HandymanRegisterStep4() {
 
           <View style={styles.actions}>
             <Button
-              title="Complete Registration"
+              title="Continue to Review"
               onPress={handleSubmit(onSubmit)}
               loading={isLoading}
               size="large"
               fullWidth
-              icon={<Ionicons name="checkmark-circle" size={20} color="#FFF" />}
+            />
+            <Button
+              title="Back"
+              onPress={() => router.back()}
+              variant="outline"
+              size="medium"
+              fullWidth
             />
           </View>
         </ScrollView>

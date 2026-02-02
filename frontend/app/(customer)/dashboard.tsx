@@ -245,6 +245,14 @@ export default function CustomerDashboard() {
 
             <TouchableOpacity
               style={styles.quickLinkCard}
+              onPress={() => router.push('/(customer)/quotes' as any)}
+            >
+              <Ionicons name="document-text-outline" size={32} color={colors.primary.main} />
+              <Text style={styles.quickLinkText}>My Quotes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickLinkCard}
               onPress={() => router.push('/(customer)/warranties')}
             >
               <Ionicons name="shield-checkmark-outline" size={32} color={colors.primary.main} />

@@ -53,17 +53,7 @@
       "Bash(git rm:*)",
       "Bash(grep:*)",
       "Bash(git restore:*)",
-      "Bash(test:*)",
-      "Bash(venv/Scripts/python.exe -m pip install:*)",
-      "Bash(ipconfig:*)",
-      "Bash(cat:*)",
-      "Bash(tasklist:*)",
-      "Bash(/d/handyman-venv/Scripts/python.exe -m uvicorn:*)",
-      "Bash(../venv/Scripts/python.exe:*)",
-      "Bash(venv/Scripts/pip install:*)",
-      "Bash(tar czf:*)",
-      "Bash(xargs:*)",
-      "Bash(if not exist \"C:\\\\Users\\\\Joshua\\\\Desktop\\\\TheRealJohnson.com\\\\Handyman-app-main\\\\frontend\\\\app\\\\auth\\\\customer\" mkdir \"C:\\\\Users\\\\Joshua\\\\Desktop\\\\TheRealJohnson.com\\\\Handyman-app-main\\\\frontend\\\\app\\\\auth\\\\customer\")"
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

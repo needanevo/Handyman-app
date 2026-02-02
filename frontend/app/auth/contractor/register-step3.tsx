@@ -17,9 +17,9 @@ import { colors, spacing, typography, borderRadius } from '../../../src/constant
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
-import { AddressAutocomplete, AddressComponents } from '../../../src/components/AddressAutocomplete';
+import { GooglePlacesAddressInput, StructuredAddress } from '../../../src/components/GooglePlacesAddressInput';
 import { useAuth } from '../../../src/contexts/AuthContext';
-import { profileAPI, contractorAPI } from '../../../src/services/api';
+import { profileAPI, contractorAPI, authAPI } from '../../../src/services/api';
 
 const SERVICE_CATEGORIES = [
   'Drywall',
@@ -36,14 +36,30 @@ const SERVICE_CATEGORIES = [
   'Other',
 ];
 
+const SPECIALTY_CATEGORIES = [
+  'Residential',
+  'Commercial',
+  'Remodeling',
+  'New Construction',
+  'Repair & Maintenance',
+  'Emergency Services',
+];
+
+const PROVIDER_INTENTS = [
+  { value: 'not_hiring', label: 'Working Solo', description: 'I work alone and handle jobs myself' },
+  { value: 'hiring', label: 'Building a Team', description: 'I\'m hiring or plan to hire helpers' },
+  { value: 'mentoring', label: 'Mentoring Others', description: 'I teach and mentor new contractors' },
+];
+
 interface Step3Form {
   skills: string[];
+  specialties: string[];
   yearsExperience: string;
-  businessStreet: string;
-  businessCity: string;
-  businessState: string;
-  businessZip: string;
   customSkills: string;  // Custom skills when "Other" is selected
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
 }
 
 export default function ContractorRegisterStep3() {
@@ -63,7 +79,28 @@ export default function ContractorRegisterStep3() {
     : standardSkills;
 
   const [selectedSkills, setSelectedSkills] = useState<string[]>(initialSelectedSkills);
-  const [verifiedAddress, setVerifiedAddress] = useState<AddressComponents | null>(null);
+  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(user?.specialties || []);
+  const [selectedIntent, setSelectedIntent] = useState<string>(user?.providerIntent || 'not_hiring');
+
+  // Address state for Google Places autocomplete
+  const [selectedAddress, setSelectedAddress] = useState<StructuredAddress | null>(() => {
+    if (user?.addresses && user.addresses.length > 0) {
+      const addr = user.addresses[0];
+      return {
+        street: addr.street || '',
+        line2: addr.line2,
+        city: addr.city || '',
+        state: addr.state || '',
+        zipCode: addr.zipCode || '',
+        country: addr.country || 'US',
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+        placeId: addr.placeId,
+        formattedAddress: addr.formattedAddress,
+      };
+    }
+    return null;
+  });
 
   const {
     control,
@@ -74,14 +111,58 @@ export default function ContractorRegisterStep3() {
   } = useForm<Step3Form>({
     defaultValues: {
       skills: initialSelectedSkills,
-      yearsExperience: user?.yearsExperience?.toString() || '',
-      businessStreet: user?.addresses?.[0]?.street || '',
-      businessCity: user?.addresses?.[0]?.city || '',
-      businessState: user?.addresses?.[0]?.state || '',
-      businessZip: user?.addresses?.[0]?.zipCode || '',
+      specialties: user?.specialties || [],
+      yearsExperience: (user?.yearsExperience !== undefined && user?.yearsExperience !== null) ? String(user.yearsExperience) : '',
       customSkills: customSkills.join(', '),  // Pre-fill custom skills
+      street: user?.addresses?.[0]?.street || '',
+      city: user?.addresses?.[0]?.city || '',
+      state: user?.addresses?.[0]?.state || '',
+      zip: user?.addresses?.[0]?.zipCode || '',
     },
   });
+
+  // Watch address fields for validation
+  const streetValue = watch('street');
+  const cityValue = watch('city');
+  const stateValue = watch('state');
+  const zipValue = watch('zip');
+
+  // Sync state with user context when it changes (ensures persistence)
+  React.useEffect(() => {
+    if (user) {
+      // TASK 5: Null-safe access to user.skills
+      const userSkills = user?.skills || [];
+      const standardSkills = userSkills.filter(skill => SERVICE_CATEGORIES.includes(skill));
+      const customSkills = userSkills.filter(skill => !SERVICE_CATEGORIES.includes(skill) && skill !== 'Other');
+      const initialSelectedSkills = customSkills.length > 0 ? [...standardSkills, 'Other'] : standardSkills;
+
+      setSelectedSkills(initialSelectedSkills);
+      setValue('skills', initialSelectedSkills);
+      setValue('customSkills', customSkills.join(', '));
+    }
+  }, [user?.skills, setValue]);
+
+  React.useEffect(() => {
+    if (user?.specialties) {
+      // TASK 5: Null-safe access to user.specialties
+      setSelectedSpecialties(user.specialties || []);
+      setValue('specialties', user.specialties || []);
+    }
+  }, [user?.specialties, setValue]);
+
+  React.useEffect(() => {
+    if (user?.providerIntent) {
+      setSelectedIntent(user.providerIntent);
+    }
+  }, [user?.providerIntent]);
+
+  // Address hydration is now handled by selectedAddress state initialization
+
+  React.useEffect(() => {
+    if (user?.yearsExperience !== undefined && user.yearsExperience !== null) {
+      setValue('yearsExperience', String(user.yearsExperience));
+    }
+  }, [user?.yearsExperience, setValue]);
 
   // Watch for "Other" selection to show custom skills input
   const skills = watch('skills');
@@ -94,14 +175,35 @@ export default function ContractorRegisterStep3() {
     setValue('skills', newSkills);
   };
 
+  const toggleSpecialty = (specialty: string) => {
+    const newSpecialties = selectedSpecialties.includes(specialty)
+      ? selectedSpecialties.filter((s) => s !== specialty)
+      : [...selectedSpecialties, specialty];
+    setSelectedSpecialties(newSpecialties);
+    setValue('specialties', newSpecialties);
+  };
+
+  // Handler for when autocomplete selects an address - auto-fills form fields
+  const handleAddressSelected = (address: StructuredAddress) => {
+    console.log('[Step3] Autocomplete address selected:', address);
+    // Populate form fields
+    setValue('street', address.street || '');
+    setValue('city', address.city || '');
+    setValue('state', address.state || '');
+    setValue('zip', address.zipCode || '');
+    // Store full address data for metadata (lat/lng, placeId, etc.)
+    setSelectedAddress(address);
+  };
+
   const onSubmit = async (data: Step3Form) => {
     if (selectedSkills.length === 0) {
       Alert.alert('Error', 'Please select at least one skill');
       return;
     }
 
-    if (!verifiedAddress) {
-      Alert.alert('Error', 'Please select and verify your business address');
+    // Validate address using form fields
+    if (!data.street || !data.city || !data.state || !data.zip) {
+      Alert.alert('Error', 'Please fill in all address fields');
       return;
     }
 
@@ -130,24 +232,35 @@ export default function ContractorRegisterStep3() {
       let addressSaved = false;
       let profileSaved = false;
 
-      try {
-        // Step 1: Save business address with verified coordinates
-        await profileAPI.addAddress({
-          street: verifiedAddress.street,
-          city: verifiedAddress.city,
-          state: verifiedAddress.state,
-          zip_code: verifiedAddress.zipCode,  // Backend expects snake_case
-          is_default: true,  // Backend expects snake_case
-          latitude: verifiedAddress.latitude,  // Add verified coordinates
-          longitude: verifiedAddress.longitude,
-        });
-        addressSaved = true;
-        console.log('✅ Address saved successfully');
+      // Build address from form data + optional metadata from autocomplete
+      const addressPayload = {
+        street: data.street,
+        line2: selectedAddress?.line2,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zip,
+        country: selectedAddress?.country || 'US',
+        latitude: selectedAddress?.latitude,
+        longitude: selectedAddress?.longitude,
+        place_id: selectedAddress?.placeId,
+        formatted_address: selectedAddress?.formattedAddress,
+        is_default: true,
+      };
 
-        // Step 2: Save contractor profile (skills, experience, business name)
+      console.log('[Step3] Saving address with data:', addressPayload);
+
+      try {
+        // Step 1: Save business address with Google Places data
+        await profileAPI.addAddress(addressPayload);
+        addressSaved = true;
+        console.log('✅ Business address saved successfully');
+
+        // Step 2: Save contractor profile (skills, specialties, experience, business name, provider intent)
         await contractorAPI.updateProfile({
           skills: allSkills,
+          specialties: selectedSpecialties,
           years_experience: parseInt(data.yearsExperience) || 0,
+          provider_intent: selectedIntent,
           ...(businessName && { business_name: businessName }),
         });
         profileSaved = true;
@@ -173,7 +286,21 @@ export default function ContractorRegisterStep3() {
       }
 
       // Refresh user context to get updated profile
-      await refreshUser();
+      try {
+        await refreshUser();
+      } catch (refreshError) {
+        console.warn('Failed to refresh user after save, continuing anyway:', refreshError);
+        // Don't block navigation if refresh fails - data is already saved to backend
+      }
+
+      // Track onboarding step completion (Phase 5B-1)
+      try {
+        await authAPI.updateOnboardingStep(3);
+        console.log('✅ Step 3 progress saved');
+      } catch (stepError) {
+        console.warn('Failed to save step progress:', stepError);
+        // Don't block navigation if step tracking fails
+      }
 
       // Navigate to next step
       router.push({
@@ -218,6 +345,7 @@ export default function ContractorRegisterStep3() {
     { label: 'Documents', completed: true },
     { label: 'Profile', completed: false },
     { label: 'Portfolio', completed: false },
+    { label: 'Banking', completed: false },
     { label: 'Review', completed: false },
   ];
 
@@ -236,6 +364,11 @@ export default function ContractorRegisterStep3() {
     } else if (stepIndex === 3) {
       router.push({
         pathname: '/auth/contractor/register-step4',
+        params,
+      });
+    } else if (stepIndex === 4) {
+      router.push({
+        pathname: '/auth/contractor/register-step5',
         params,
       });
     }
@@ -331,45 +464,153 @@ export default function ContractorRegisterStep3() {
               </View>
             )}
 
-            <Text style={styles.sectionTitle}>Business Address</Text>
-            <Text style={styles.helpText}>
-              This address determines your 50-mile service radius. We'll verify it and get exact coordinates.
+            {/* Specialty Categories */}
+            <Text style={styles.label}>
+              Specialties
+            </Text>
+            <Text style={styles.helpText}>Select your business focus areas (optional)</Text>
+            <View style={styles.skillsGrid}>
+              {SPECIALTY_CATEGORIES.map((specialty) => (
+                <TouchableOpacity
+                  key={specialty}
+                  style={[
+                    styles.skillChip,
+                    selectedSpecialties.includes(specialty) && styles.skillChipSelected,
+                  ]}
+                  onPress={() => toggleSpecialty(specialty)}
+                >
+                  <Text
+                    style={[
+                      styles.skillChipText,
+                      selectedSpecialties.includes(specialty) && styles.skillChipTextSelected,
+                    ]}
+                  >
+                    {specialty}
+                  </Text>
+                  {selectedSpecialties.includes(specialty) && (
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary.main} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Provider Intent */}
+            <Text style={styles.label}>Business Intent</Text>
+            <Text style={styles.helpText}>Tell us about your business goals</Text>
+            <View style={styles.intentGrid}>
+              {PROVIDER_INTENTS.map((intent) => (
+                <TouchableOpacity
+                  key={intent.value}
+                  style={[
+                    styles.intentCard,
+                    selectedIntent === intent.value && styles.intentCardSelected,
+                  ]}
+                  onPress={() => setSelectedIntent(intent.value)}
+                >
+                  <View style={styles.intentHeader}>
+                    <Text
+                      style={[
+                        styles.intentLabel,
+                        selectedIntent === intent.value && styles.intentLabelSelected,
+                      ]}
+                    >
+                      {intent.label}
+                    </Text>
+                    {selectedIntent === intent.value && (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.primary.main} />
+                    )}
+                  </View>
+                  <Text style={styles.intentDescription}>{intent.description}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Address Section */}
+            <Text style={styles.label}>
+              Business Address <Text style={styles.required}>*</Text>
             </Text>
 
-            <AddressAutocomplete
-              onAddressSelected={(address) => {
-                setVerifiedAddress(address);
-                setValue('businessStreet', address.street);
-                setValue('businessCity', address.city);
-                setValue('businessState', address.state);
-                setValue('businessZip', address.zipCode);
-              }}
-              initialValue={{
-                street: user?.addresses?.[0]?.street || '',
-                city: user?.addresses?.[0]?.city || '',
-                state: user?.addresses?.[0]?.state || '',
-                zipCode: user?.addresses?.[0]?.zipCode || '',
-              }}
-              label=""
-              required={true}
-              error={!verifiedAddress ? (errors.businessStreet?.message || undefined) : undefined}
+            {/* Optional autocomplete helper */}
+            <GooglePlacesAddressInput
+              label="Quick Address Search"
+              onAddressSelected={handleAddressSelected}
+              placeholder="Search for your address..."
             />
 
-            {/* Show verified address summary */}
-            {verifiedAddress && (
-              <View style={styles.verifiedAddressCard}>
-                <View style={styles.verifiedHeader}>
-                  <Ionicons name="checkmark-circle" size={24} color={colors.success.main} />
-                  <Text style={styles.verifiedTitle}>Address Verified</Text>
-                </View>
-                <Text style={styles.verifiedText}>
-                  {verifiedAddress.formattedAddress}
-                </Text>
-                <Text style={styles.verifiedCoords}>
-                  📍 {verifiedAddress.latitude.toFixed(4)}, {verifiedAddress.longitude.toFixed(4)}
-                </Text>
+            {/* Manual address fields */}
+            <Controller
+              control={control}
+              name="street"
+              rules={{ required: 'Street address is required' }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Street Address"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="123 Main St"
+                  error={errors.street?.message}
+                  required
+                  icon="location-outline"
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="city"
+              rules={{ required: 'City is required' }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="City"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Austin"
+                  error={errors.city?.message}
+                  required
+                  icon="business-outline"
+                />
+              )}
+            />
+
+            <View style={styles.row}>
+              <View style={styles.halfWidth}>
+                <Controller
+                  control={control}
+                  name="state"
+                  rules={{ required: 'State is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="State"
+                      value={value}
+                      onChangeText={(text) => onChange(text.toUpperCase())}
+                      placeholder="TX"
+                      maxLength={2}
+                      error={errors.state?.message}
+                      required
+                    />
+                  )}
+                />
               </View>
-            )}
+              <View style={styles.halfWidth}>
+                <Controller
+                  control={control}
+                  name="zip"
+                  rules={{ required: 'ZIP code is required' }}
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="ZIP Code"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="78701"
+                      keyboardType="numeric"
+                      maxLength={5}
+                      error={errors.zip?.message}
+                      required
+                    />
+                  )}
+                />
+              </View>
+            </View>
 
             <Controller
               control={control}
@@ -505,42 +746,46 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.md,
   },
-  verifiedAddressCard: {
-    backgroundColor: colors.success.lightest,
-    borderWidth: 1,
-    borderColor: colors.success.main,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  verifiedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  verifiedTitle: {
-    ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
-    color: colors.success.main,
-  },
-  verifiedText: {
-    ...typography.sizes.sm,
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  verifiedCoords: {
-    ...typography.sizes.xs,
-    color: colors.neutral[600],
-    fontFamily: 'monospace',
-  },
   row: {
     flexDirection: 'row',
     gap: spacing.md,
   },
   halfWidth: {
     flex: 1,
+  },
+  intentGrid: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  intentCard: {
+    padding: spacing.base,
+    backgroundColor: colors.background.secondary,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.neutral[200],
+  },
+  intentCardSelected: {
+    backgroundColor: colors.primary.lightest,
+    borderColor: colors.primary.main,
+  },
+  intentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  intentLabel: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
+  },
+  intentLabelSelected: {
+    color: colors.primary.main,
+  },
+  intentDescription: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    lineHeight: 20,
   },
   actions: {
     gap: spacing.md,

@@ -82,7 +82,11 @@ export default function ActiveJobs() {
         ) : (
           <View style={styles.jobsList}>
             {activeJobs.map((job: any) => (
-              <TouchableOpacity key={job.id} style={styles.jobCard}>
+              <TouchableOpacity
+                key={job.id}
+                style={styles.jobCard}
+                onPress={() => router.push(`/(handyman)/jobs/${job.id}` as any)}
+              >
                 <View style={styles.jobHeader}>
                   <View style={styles.categoryBadge}>
                     <Text style={styles.categoryText}>{job.category}</Text>
@@ -121,7 +125,10 @@ export default function ActiveJobs() {
                     <Text style={styles.payLabel}>Estimated Pay</Text>
                     <Text style={styles.payAmount}>${job.estimatedPay}</Text>
                   </View>
-                  <TouchableOpacity style={styles.actionButton}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => router.push(`/(handyman)/jobs/${job.id}` as any)}
+                  >
                     <Text style={styles.actionButtonText}>View Details</Text>
                     <Ionicons name="arrow-forward" size={16} color="#FFF" />
                   </TouchableOpacity>

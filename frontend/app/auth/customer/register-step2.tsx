@@ -5,15 +5,14 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '../../../src/constants/theme';
+import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { PhotoUploader } from '../../../src/components/PhotoUploader';
+import { Card } from '../../../src/components/Card';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { customerAPI } from '../../../src/services/api';
 
@@ -63,63 +62,79 @@ export default function CustomerRegisterStep2() {
     router.replace('/(customer)/dashboard');
   };
 
+  if (!isHydrated || !user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView contentContainerStyle={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.iconBadge}>
-              <Ionicons name="camera" size={32} color={colors.primary.main} />
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.iconBadge}>
+            <Ionicons name="camera" size={32} color={colors.primary.main} />
+          </View>
+          <Text style={styles.title}>Add Your Profile Photo</Text>
+          <Text style={styles.subtitle}>
+            Help service providers recognize you when they arrive at your location.
+          </Text>
+        </View>
+
+        {/* Photo Upload */}
+        <View style={styles.photoSection}>
+          <PhotoUploader
+            photos={profilePhoto}
+            onPhotosChange={setProfilePhoto}
+            maxPhotos={1}
+            label="Take or upload photo"
+            customUpload={async (file: { uri: string; type: string; name: string }) => {
+              const response = await customerAPI.uploadProfilePhoto(file);
+              return response;
+            }}
+          />
+        </View>
+
+        {/* Info Card */}
+        <Card variant="flat" padding="base" style={styles.infoCard}>
+          <View style={styles.infoContent}>
+            <Ionicons name="shield-checkmark" size={24} color={colors.success.main} />
+            <View style={styles.infoText}>
+              <Text style={styles.infoTitle}>Your photo is secure</Text>
+              <Text style={styles.infoDescription}>
+                Your profile photo is only visible to service providers you book with.
+              </Text>
             </View>
-            <Text style={styles.title}>Add Your Profile Photo</Text>
-            <Text style={styles.subtitle}>
-              Help service providers recognize you when they arrive at your location.
-            </Text>
           </View>
+        </Card>
+      </ScrollView>
 
-          {/* Photo Upload */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              Profile Photo <Text style={styles.requiredLabel}>*</Text>
-            </Text>
-            <Text style={styles.sectionHelp}>
-              Your profile photo is required so contractors and handymen can verify your identity when they arrive at your location. This photo cannot be changed after registration.
-            </Text>
-            <PhotoUploader
-              photos={profilePhoto}
-              onPhotosChange={setProfilePhoto}
-              maxPhotos={1}
-              label="Take or upload photo"
-              customUpload={async (file: { uri: string; type: string; name: string }) => {
-                const response = await customerAPI.uploadProfilePhoto(file);
-                return response;
-              }}
-            />
-          </View>
-
-          {/* Actions - Always visible */}
-          <View style={styles.actions}>
-            <Button
-              title="Continue to Dashboard"
-              onPress={onContinue}
-              loading={isLoading}
-              size="large"
-              fullWidth
-            />
-            <Button
-              title="Skip Photo"
-              onPress={onSkip}
-              variant="outline"
-              size="medium"
-              fullWidth
-            />
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      {/* Buttons pinned at bottom, outside ScrollView */}
+      <View style={styles.fixedBottom}>
+        <Button
+          title="Continue to Dashboard"
+          onPress={onContinue}
+          loading={isLoading}
+          size="large"
+          fullWidth
+        />
+        <Button
+          title="Skip Photo"
+          onPress={onSkip}
+          variant="outline"
+          size="medium"
+          fullWidth
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -129,13 +144,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.primary,
   },
-  keyboardView: {
+  scrollView: {
     flex: 1,
   },
   content: {
-    flexGrow: 1,
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing['2xl'],
+    paddingBottom: spacing.md,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    ...typography.sizes.lg,
+    color: colors.neutral[600],
   },
   header: {
     alignItems: 'center',
@@ -165,24 +188,39 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingHorizontal: spacing.lg,
   },
-  section: {
+  photoSection: {
     marginBottom: spacing.xl,
+    alignItems: 'center',
   },
-  sectionLabel: {
+  infoCard: {
+    marginBottom: spacing.xl,
+    backgroundColor: colors.success.lightest,
+  },
+  infoContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  infoText: {
+    flex: 1,
+  },
+  infoTitle: {
     ...typography.sizes.base,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
-  sectionHelp: {
+  infoDescription: {
     ...typography.sizes.sm,
     color: colors.neutral[600],
-    marginBottom: spacing.md,
+    lineHeight: 20,
   },
-  requiredLabel: {
-    color: colors.error.main,
-  },
-  actions: {
+  fixedBottom: {
     gap: spacing.md,
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+    backgroundColor: colors.background.primary,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
   },
 });

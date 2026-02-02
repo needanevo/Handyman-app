@@ -2,6 +2,7 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 from botocore.config import Config
+import requests
 
 
 from typing import Optional, List
@@ -37,7 +38,7 @@ class LinodeObjectStorage:
             region_name=self.region,
             config=Config(
                 signature_version='s3v4',
-                s3={'addressing_style': 'path'},
+                s3={'addressing_style': 'virtual'},
                 retries={'max_attempts': 3, 'mode': 'adaptive'},
                 connect_timeout=60,  # Increased from 3 to 60 seconds
                 read_timeout=60      # Increased from 9 to 60 seconds
@@ -68,7 +69,53 @@ class LinodeObjectStorage:
             else:
                 logger.error(f"Error checking bucket: {e}")
                 raise
-    
+
+    def _upload_via_presigned_url(
+        self,
+        object_key: str,
+        file_data: bytes,
+        content_type: str = 'image/jpeg'
+    ) -> str:
+        """
+        Upload file using presigned URL + requests (boto3 put_object has bug with Linode)
+        Returns public URL of uploaded file
+        """
+        try:
+            # Generate presigned URL for PUT
+            presigned_url = self.s3_client.generate_presigned_url(
+                'put_object',
+                Params={
+                    'Bucket': self.bucket_name,
+                    'Key': object_key,
+                    'ContentType': content_type,
+                    'ACL': 'public-read'
+                },
+                ExpiresIn=300  # 5 minutes
+            )
+
+            # Upload using requests library (bypasses boto3 response reading bug)
+            # Must include ACL header to match presigned URL signature
+            response = requests.put(
+                presigned_url,
+                data=file_data,
+                headers={
+                    'Content-Type': content_type,
+                    'x-amz-acl': 'public-read'
+                }
+            )
+
+            if response.status_code not in [200, 204]:
+                raise Exception(f"Upload failed with status {response.status_code}: {response.text[:200]}")
+
+            # Generate public URL
+            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
+            logger.info(f"✅ Uploaded via presigned URL: {public_url}")
+            return public_url
+
+        except Exception as e:
+            logger.error(f"Presigned URL upload failed: {e}")
+            raise Exception(f"Photo upload failed: {str(e)}")
+
     async def upload_photo(
         self, 
         photo_data: str, 
@@ -260,60 +307,21 @@ class LinodeObjectStorage:
         content_type: str = 'image/jpeg'
     ) -> str:
         """
-        Upload photo bytes directly to Linode Object Storage
-        No base64 encoding - much faster!
-        
+        Upload photo bytes directly to Linode Object Storage using presigned URLs
+
         Args:
             file_data: Raw image bytes
             customer_id: Customer ID for organizing files
             quote_id: Quote ID for organizing files
             filename: Filename with extension
             content_type: MIME type of the image
-            
+
         Returns:
             Public URL of uploaded photo
         """
-        try:
-            # Create a new client for each upload to avoid issues with async reuse
-            s3_client = boto3.client(
-                's3',
-                aws_access_key_id=self.access_key,
-                aws_secret_access_key=self.secret_key,
-                endpoint_url=self.endpoint_url,
-                region_name=self.region,
-                config=Config(
-                    signature_version='s3v4',
-                    s3={'addressing_style': 'path'},
-                    retries={'max_attempts': 3, 'mode': 'adaptive'},
-                    connect_timeout=60,
-                    read_timeout=60
-                )
-            )
-
-            # Organize files: customers/{customer_id}/quotes/{quote_id}/{filename}
-            object_key = f"customers/{customer_id}/quotes/{quote_id}/{filename}"
-            
-            # Upload to Linode Object Storage
-            s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=file_data,
-                ContentType=content_type,
-                ACL='public-read'  # Make publicly accessible
-            )
-            logger.info(f"📦 PUT -> bucket={self.bucket_name} key={object_key}")
-            s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
-            logger.info("✅ HEAD object ok")
-
-            # Generate public URL - use correct Linode bucket URL format
-            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
-            
-            logger.info(f"Uploaded photo to: {public_url}")
-            return public_url
-            
-        except Exception as e:
-            logger.error(f"Failed to upload photo: {e}")
-            raise Exception(f"Photo upload failed: {str(e)}")
+        # Organize files: customers/{customer_id}/quotes/{quote_id}/{filename}
+        object_key = f"customers/{customer_id}/quotes/{quote_id}/{filename}"
+        return self._upload_via_presigned_url(object_key, file_data, content_type)
 
     async def upload_contractor_document(
         self,
@@ -324,47 +332,12 @@ class LinodeObjectStorage:
         content_type: str = 'image/jpeg'
     ) -> str:
         """
-        Upload contractor document (license, insurance, certifications) to profile folder
-        
+        Upload contractor document (license, insurance, certifications) to profile folder using presigned URLs
+
         Path: contractors/{contractor_id}/profile/{document_type}_{filename}
         """
-        try:
-            s3_client = boto3.client(
-                's3',
-                aws_access_key_id=self.access_key,
-                aws_secret_access_key=self.secret_key,
-                endpoint_url=self.endpoint_url,
-                region_name=self.region,
-                config=Config(
-                    signature_version='s3v4',
-                    s3={'addressing_style': 'path'},
-                    retries={'max_attempts': 3, 'mode': 'adaptive'},
-                    connect_timeout=60,
-                    read_timeout=60
-                )
-            )
-
-            # Organize: contractors/{contractor_id}/profile/{document_type}_{filename}
-            object_key = f"contractors/{contractor_id}/profile/{document_type}_{filename}"
-
-            s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=file_data,
-                ContentType=content_type,
-                ACL='public-read'
-            )
-            logger.info(f"📦 PUT contractor document -> bucket={self.bucket_name} key={object_key}")
-            s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
-            logger.info("✅ HEAD object ok")
-
-            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
-            logger.info(f"Uploaded contractor document to: {public_url}")
-            return public_url
-
-        except Exception as e:
-            logger.error(f"Failed to upload contractor document: {e}")
-            raise Exception(f"Contractor document upload failed: {str(e)}")
+        object_key = f"contractors/{contractor_id}/profile/{document_type}_{filename}"
+        return self._upload_via_presigned_url(object_key, file_data, content_type)
 
     async def upload_contractor_portfolio(
         self,
@@ -374,47 +347,50 @@ class LinodeObjectStorage:
         content_type: str = 'image/jpeg'
     ) -> str:
         """
-        Upload contractor portfolio photo
-        
+        Upload contractor portfolio photo using presigned URLs
+
         Path: contractors/{contractor_id}/portfolio/{filename}
         """
-        try:
-            s3_client = boto3.client(
-                's3',
-                aws_access_key_id=self.access_key,
-                aws_secret_access_key=self.secret_key,
-                endpoint_url=self.endpoint_url,
-                region_name=self.region,
-                config=Config(
-                    signature_version='s3v4',
-                    s3={'addressing_style': 'path'},
-                    retries={'max_attempts': 3, 'mode': 'adaptive'},
-                    connect_timeout=60,
-                    read_timeout=60
-                )
-            )
+        object_key = f"contractors/{contractor_id}/portfolio/{filename}"
+        return self._upload_via_presigned_url(object_key, file_data, content_type)
 
-            # Organize: contractors/{contractor_id}/portfolio/{filename}
-            object_key = f"contractors/{contractor_id}/portfolio/{filename}"
+    async def upload_handyman_profile_photo(
+        self,
+        file_data: bytes,
+        handyman_id: str,
+        filename: str,
+        extension: str,
+        content_type: str = 'image/jpeg'
+    ) -> str:
+        """
+        Upload handyman profile photo using presigned URLs
 
-            s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=file_data,
-                ContentType=content_type,
-                ACL='public-read'
-            )
-            logger.info(f"📦 PUT contractor portfolio -> bucket={self.bucket_name} key={object_key}")
-            s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
-            logger.info("✅ HEAD object ok")
+        Path: handymen/{handyman_id}/profile/profile_{uuid}.{ext}
+        """
+        import uuid
+        unique_filename = f"profile_{uuid.uuid4().hex[:8]}.{extension}"
+        object_key = f"handymen/{handyman_id}/profile/{unique_filename}"
+        return self._upload_via_presigned_url(object_key, file_data, content_type)
 
-            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
-            logger.info(f"Uploaded contractor portfolio photo to: {public_url}")
-            return public_url
 
-        except Exception as e:
-            logger.error(f"Failed to upload contractor portfolio photo: {e}")
-            raise Exception(f"Contractor portfolio upload failed: {str(e)}")
+    async def upload_handyman_profile_photo(
+        self,
+        file_data: bytes,
+        handyman_id: str,
+        filename: str,
+        extension: str,
+        content_type: str = 'image/jpeg'
+    ) -> str:
+        """
+        Upload handyman profile photo using presigned URLs
+
+        Path: handymen/{handyman_id}/profile/profile_{uuid}.{ext}
+        """
+        import uuid
+        unique_filename = f"profile_{uuid.uuid4().hex[:8]}.{extension}"
+        object_key = f"handymen/{handyman_id}/profile/{unique_filename}"
+        return self._upload_via_presigned_url(object_key, file_data, content_type)
+
 
     async def upload_contractor_profile_photo(
         self,
@@ -424,47 +400,27 @@ class LinodeObjectStorage:
         content_type: str = 'image/jpeg'
     ) -> str:
         """
-        Upload contractor profile photo/logo
+        Upload contractor profile photo/logo using presigned URLs
 
         Path: contractors/{contractor_id}/profile/{filename}
         """
-        try:
-            s3_client = boto3.client(
-                's3',
-                aws_access_key_id=self.access_key,
-                aws_secret_access_key=self.secret_key,
-                endpoint_url=self.endpoint_url,
-                region_name=self.region,
-                config=Config(
-                    signature_version='s3v4',
-                    s3={'addressing_style': 'path'},
-                    retries={'max_attempts': 3, 'mode': 'adaptive'},
-                    connect_timeout=60,
-                    read_timeout=60
-                )
-            )
+        object_key = f"contractors/{contractor_id}/profile/{filename}"
+        return self._upload_via_presigned_url(object_key, file_data, content_type)
 
-            # Organize: contractors/{contractor_id}/profile/{filename}
-            object_key = f"contractors/{contractor_id}/profile/{filename}"
+    async def upload_customer_profile_photo(
+        self,
+        file_data: bytes,
+        customer_id: str,
+        filename: str,
+        content_type: str = 'image/jpeg'
+    ) -> str:
+        """
+        Upload customer profile photo using presigned URLs
 
-            s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=file_data,
-                ContentType=content_type,
-                ACL='public-read'
-            )
-            logger.info(f"📦 PUT contractor profile photo -> bucket={self.bucket_name} key={object_key}")
-            s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
-            logger.info("✅ HEAD object ok")
-
-            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
-            logger.info(f"Uploaded contractor profile photo to: {public_url}")
-            return public_url
-
-        except Exception as e:
-            logger.error(f"Failed to upload contractor profile photo: {e}")
-            raise Exception(f"Contractor profile photo upload failed: {str(e)}")
+        Path: customers/{customer_id}/profile/{filename}
+        """
+        object_key = f"customers/{customer_id}/profile/{filename}"
+        return self._upload_via_presigned_url(object_key, file_data, content_type)
 
     async def upload_contractor_job_photo(
         self,
@@ -475,44 +431,9 @@ class LinodeObjectStorage:
         content_type: str = 'image/jpeg'
     ) -> str:
         """
-        Upload contractor job photo (progress, completion, etc.)
-        
+        Upload contractor job photo (progress, completion, etc.) using presigned URLs
+
         Path: contractors/{contractor_id}/jobs/{job_id}/{filename}
         """
-        try:
-            s3_client = boto3.client(
-                's3',
-                aws_access_key_id=self.access_key,
-                aws_secret_access_key=self.secret_key,
-                endpoint_url=self.endpoint_url,
-                region_name=self.region,
-                config=Config(
-                    signature_version='s3v4',
-                    s3={'addressing_style': 'path'},
-                    retries={'max_attempts': 3, 'mode': 'adaptive'},
-                    connect_timeout=60,
-                    read_timeout=60
-                )
-            )
-
-            # Organize: contractors/{contractor_id}/jobs/{job_id}/{filename}
-            object_key = f"contractors/{contractor_id}/jobs/{job_id}/{filename}"
-
-            s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=object_key,
-                Body=file_data,
-                ContentType=content_type,
-                ACL='public-read'
-            )
-            logger.info(f"📦 PUT contractor job photo -> bucket={self.bucket_name} key={object_key}")
-            s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
-            logger.info("✅ HEAD object ok")
-
-            public_url = f"https://{self.bucket_name}.us-iad-10.linodeobjects.com/{object_key}"
-            logger.info(f"Uploaded contractor job photo to: {public_url}")
-            return public_url
-
-        except Exception as e:
-            logger.error(f"Failed to upload contractor job photo: {e}")
-            raise Exception(f"Contractor job photo upload failed: {str(e)}")
+        object_key = f"contractors/{contractor_id}/jobs/{job_id}/{filename}"
+        return self._upload_via_presigned_url(object_key, file_data, content_type)
