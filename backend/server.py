@@ -918,7 +918,35 @@ async def request_quote(
         
         await db.quotes.insert_one(quote_dict)
         logger.info(f"Quote {quote_id} created and saved to database")
-        
+
+        # Step 4b: Create a published Job so contractors/handymen can see it
+        job_id = str(uuid.uuid4())
+        job_doc = {
+            "id": job_id,
+            "quote_id": quote_id,
+            "customer_id": current_user.id,
+            "address_id": quote_request.address_id,
+            "address": {
+                "street": address.street,
+                "city": address.city,
+                "state": address.state,
+                "zip_code": address.zip_code,
+                "latitude": address.latitude,
+                "longitude": address.longitude,
+            },
+            "service_category": quote_request.service_category,
+            "description": quote_request.description,
+            "photos": photo_urls,
+            "urgency": quote_request.urgency,
+            "budget_max": total_amount,
+            "status": "published",
+            "contractor_id": None,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        await db.jobs.insert_one(job_doc)
+        logger.info(f"Job {job_id} published for quote {quote_id}")
+
         # Step 5: Send immediate confirmation email to customer
         try:
             customer_name = f"{current_user.first_name} {current_user.last_name}"
@@ -1631,15 +1659,15 @@ async def get_contractor_dashboard_stats(
     month_start = datetime(now.year, now.month, 1)
     year_start = datetime(now.year, 1, 1)
 
-    # Count available jobs (pending, within 50 miles, matching skills)
-    # For simplicity, we'll count all pending jobs
+    # Count available jobs (published, within 50 miles, matching skills)
+    # For simplicity, we'll count all published jobs
     # The frontend can call /contractor/jobs/available for the exact count
     available_jobs_count = await db.jobs.count_documents({
         "$or": [
             {"contractor_id": None},
             {"contractor_id": {"$exists": False}}
         ],
-        "status": "pending"
+        "status": "published"
     })
 
     # Count accepted jobs (assigned to this contractor, not yet scheduled)
@@ -1825,28 +1853,29 @@ async def get_available_jobs(
     contractor_location = (business_address.latitude, business_address.longitude)
     MAX_DISTANCE_MILES = 50
 
-    # Get all pending jobs (no contractor assigned)
+    # Get all published jobs (no contractor assigned)
     pending_jobs_cursor = db.jobs.find({
         "$or": [
             {"contractor_id": None},
             {"contractor_id": {"$exists": False}}
         ],
-        "status": "pending"
+        "status": "published"
     })
 
     from geopy.distance import geodesic
 
     available_jobs = []
     async for job_doc in pending_jobs_cursor:
-        # Get customer address for this job
-        customer = await db.users.find_one({"id": job_doc["customer_id"]})
-        if not customer or not customer.get("addresses"):
-            continue
-
-        job_address = next(
-            (addr for addr in customer["addresses"] if addr["id"] == job_doc["address_id"]),
-            None
-        )
+        # Use embedded address when available, fall back to customer lookup
+        job_address = job_doc.get("address")
+        if not job_address:
+            customer = await db.users.find_one({"id": job_doc["customer_id"]})
+            if not customer or not customer.get("addresses"):
+                continue
+            job_address = next(
+                (addr for addr in customer["addresses"] if addr["id"] == job_doc.get("address_id")),
+                None
+            )
 
         if not job_address or not job_address.get("latitude") or not job_address.get("longitude"):
             continue

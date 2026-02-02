@@ -20,13 +20,6 @@ export default function HandymanDashboard() {
   const router = useRouter();
   const { user, logout } = useAuth();
 
-  // Console warning for unverified addresses (Phase 5)
-  React.useEffect(() => {
-    if (user?.addressVerificationStatus && user.addressVerificationStatus !== 'verified') {
-      console.warn('Address not verified — compliance countdown active');
-    }
-  }, [user?.addressVerificationStatus]);
-
   // Fetch real jobs using the SAME query keys as list screens
   // This ensures unified cache across dashboard and job lists
   const { data: availableJobs } = useQuery({
@@ -107,7 +100,6 @@ export default function HandymanDashboard() {
           <TrustBanner
             providerStatus={user.providerStatus || 'draft'}
             providerCompleteness={user.providerCompleteness || 0}
-            addressVerificationStatus={user.addressVerificationStatus}
             role="handyman"
           />
         )}
