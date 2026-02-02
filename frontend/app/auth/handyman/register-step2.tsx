@@ -5,8 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -227,257 +225,242 @@ export default function HandymanRegisterStep2() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.header}>
-            <Button
-              title=""
-              onPress={() => router.back()}
-              variant="ghost"
-              size="small"
-              icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
-              style={styles.backButton}
-            />
-          </View>
+        <View style={styles.header}>
+          <Button
+            title=""
+            onPress={() => router.back()}
+            variant="ghost"
+            size="small"
+            icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
+            style={styles.backButton}
+          />
+        </View>
 
-          <View style={styles.progressBar}>
-            <View style={[styles.progressSegment, styles.progressActive]} />
-            <View style={[styles.progressSegment, styles.progressActive]} />
-            <View style={styles.progressSegment} />
-            <View style={styles.progressSegment} />
-          </View>
+        <View style={styles.progressBar}>
+          <View style={[styles.progressSegment, styles.progressActive]} />
+          <View style={[styles.progressSegment, styles.progressActive]} />
+          <View style={styles.progressSegment} />
+          <View style={styles.progressSegment} />
+        </View>
 
-          <View style={styles.titleSection}>
-            <View style={styles.iconBadge}>
-              <Ionicons name="construct" size={32} color="#FFA500" />
-            </View>
-            <Text style={styles.title}>Skills & Service Area</Text>
-            <Text style={styles.subtitle}>
-              Tell us what you can do and where you work
-            </Text>
+        <View style={styles.titleSection}>
+          <View style={styles.iconBadge}>
+            <Ionicons name="construct" size={32} color="#FFA500" />
           </View>
+          <Text style={styles.title}>Skills & Service Area</Text>
+          <Text style={styles.subtitle}>
+            Tell us what you can do and where you work
+          </Text>
+        </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              What can you do? <Text style={styles.required}>*</Text>
-            </Text>
-            <Text style={styles.sectionHelp}>Select all that apply</Text>
-            <View style={styles.skillsGrid}>
-              {serviceCategories.map((skill) => (
-                <TouchableOpacity
-                  key={skill}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            What can you do? <Text style={styles.required}>*</Text>
+          </Text>
+          <Text style={styles.sectionHelp}>Select all that apply</Text>
+          <View style={styles.skillsGrid}>
+            {serviceCategories.map((skill) => (
+              <TouchableOpacity
+                key={skill}
+                style={[
+                  styles.skillChip,
+                  selectedSkills.includes(skill) && styles.skillChipSelected,
+                ]}
+                onPress={() => toggleSkill(skill)}
+              >
+                <Text
                   style={[
-                    styles.skillChip,
-                    selectedSkills.includes(skill) && styles.skillChipSelected,
+                    styles.skillChipText,
+                    selectedSkills.includes(skill) && styles.skillChipTextSelected,
                   ]}
-                  onPress={() => toggleSkill(skill)}
                 >
-                  <Text
-                    style={[
-                      styles.skillChipText,
-                      selectedSkills.includes(skill) && styles.skillChipTextSelected,
-                    ]}
-                  >
-                    {skill}
-                  </Text>
-                  {selectedSkills.includes(skill) && (
-                    <Ionicons name="checkmark-circle" size={18} color="#FFA500" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
+                  {skill}
+                </Text>
+                {selectedSkills.includes(skill) && (
+                  <Ionicons name="checkmark-circle" size={18} color="#FFA500" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
 
-            {/* Custom Skills Input (shown when "Other" is selected) */}
-            {selectedSkills.includes('Other') && (
-              <View style={styles.customSkillsSection}>
-                <Controller
-                  control={control}
-                  name="customSkills"
-                  rules={{
-                    required: selectedSkills.includes('Other') ? 'Please specify your custom skills' : false
-                  }}
-                  render={({ field: { onChange, value } }) => (
-                    <Input
-                      label="Specify Your Skills"
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="e.g., Tile work, Fence installation, Pool maintenance"
-                      error={errors.customSkills?.message}
-                      required={selectedSkills.includes('Other')}
-                      multiline
-                      numberOfLines={3}
-                      icon="create-outline"
-                      helpText="List any additional skills not covered above (comma-separated)"
-                    />
-                  )}
-                />
-              </View>
+          {/* Custom Skills Input (shown when "Other" is selected) */}
+          {selectedSkills.includes('Other') && (
+            <View style={styles.customSkillsSection}>
+              <Controller
+                control={control}
+                name="customSkills"
+                rules={{
+                  required: selectedSkills.includes('Other') ? 'Please specify your custom skills' : false
+                }}
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="Specify Your Skills"
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="e.g., Tile work, Fence installation, Pool maintenance"
+                    error={errors.customSkills?.message}
+                    required={selectedSkills.includes('Other')}
+                    multiline
+                    numberOfLines={3}
+                    icon="create-outline"
+                    helpText="List any additional skills not covered above (comma-separated)"
+                  />
+                )}
+              />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            Profile Photo <Text style={styles.optionalLabel}>(Optional)</Text>
+          </Text>
+          <Text style={styles.sectionHelp}>
+            Add a professional photo to help customers recognize you
+          </Text>
+          <PhotoUploader
+            photos={profilePhoto}
+            onPhotosChange={setProfilePhoto}
+            maxPhotos={1}
+            label="Take or upload photo"
+            customUpload={async (file: { uri: string; type: string; name: string }) => {
+              const response = await handymanAPI.uploadProfilePhoto(file);
+              return response;
+            }}
+          />
+        </View>
+
+        <View style={styles.formSection}>
+          <Controller
+            control={control}
+            name="yearsExperience"
+            rules={{ required: 'Years of experience required' }}
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Years of Experience"
+                value={value}
+                onChangeText={onChange}
+                placeholder="3"
+                keyboardType="numeric"
+                error={errors.yearsExperience?.message}
+                required
+                icon="calendar-outline"
+                helpText="Rough estimate is fine"
+              />
             )}
-          </View>
+          />
 
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              Profile Photo <Text style={styles.optionalLabel}>(Optional)</Text>
-            </Text>
-            <Text style={styles.sectionHelp}>
-              Add a professional photo to help customers recognize you
-            </Text>
-            <PhotoUploader
-              photos={profilePhoto}
-              onPhotosChange={setProfilePhoto}
-              maxPhotos={1}
-              label="Take or upload photo"
-              customUpload={async (file: { uri: string; type: string; name: string }) => {
-                const response = await handymanAPI.uploadProfilePhoto(file);
-                return response;
-              }}
-            />
-          </View>
+          {/* Address Section */}
+          <Text style={styles.sectionLabel}>
+            Home Address <Text style={styles.required}>*</Text>
+          </Text>
 
-          <View style={styles.formSection}>
-            <Controller
-              control={control}
-              name="yearsExperience"
-              rules={{ required: 'Years of experience required' }}
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Years of Experience"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="3"
-                  keyboardType="numeric"
-                  error={errors.yearsExperience?.message}
-                  required
-                  icon="calendar-outline"
-                  helpText="Rough estimate is fine"
-                />
-              )}
-            />
+          {/* Optional autocomplete helper */}
+          <GooglePlacesAddressInput
+            label="Quick Address Search"
+            onAddressSelected={handleAddressSelected}
+            placeholder="Search for your address..."
+          />
 
-            {/* Address Section */}
-            <Text style={styles.sectionLabel}>
-              Home Address <Text style={styles.required}>*</Text>
-            </Text>
+          {/* Manual address fields */}
+          <Controller
+            control={control}
+            name="street"
+            rules={{ required: 'Street address is required' }}
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Street Address"
+                value={value}
+                onChangeText={onChange}
+                placeholder="123 Main St"
+                error={errors.street?.message}
+                required
+                icon="location-outline"
+              />
+            )}
+          />
 
-            {/* Optional autocomplete helper */}
-            <GooglePlacesAddressInput
-              label="Quick Address Search"
-              onAddressSelected={handleAddressSelected}
-              placeholder="Search for your address..."
-            />
+          <Controller
+            control={control}
+            name="city"
+            rules={{ required: 'City is required' }}
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="City"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Austin"
+                error={errors.city?.message}
+                required
+                icon="business-outline"
+              />
+            )}
+          />
 
-            {/* Manual address fields */}
-            <Controller
-              control={control}
-              name="street"
-              rules={{ required: 'Street address is required' }}
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Street Address"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="123 Main St"
-                  error={errors.street?.message}
-                  required
-                  icon="location-outline"
-                />
-              )}
-            />
-
-            <Controller
-              control={control}
-              name="city"
-              rules={{ required: 'City is required' }}
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="City"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="Austin"
-                  error={errors.city?.message}
-                  required
-                  icon="business-outline"
-                />
-              )}
-            />
-
-            <View style={styles.rowFields}>
-              <View style={styles.halfField}>
-                <Controller
-                  control={control}
-                  name="state"
-                  rules={{ required: 'State is required' }}
-                  render={({ field: { onChange, value } }) => (
-                    <Input
-                      label="State"
-                      value={value}
-                      onChangeText={(text) => onChange(text.toUpperCase())}
-                      placeholder="TX"
-                      maxLength={2}
-                      error={errors.state?.message}
-                      required
-                    />
-                  )}
-                />
-              </View>
-              <View style={styles.halfField}>
-                <Controller
-                  control={control}
-                  name="zip"
-                  rules={{ required: 'ZIP code is required' }}
-                  render={({ field: { onChange, value } }) => (
-                    <Input
-                      label="ZIP Code"
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="78701"
-                      keyboardType="numeric"
-                      maxLength={5}
-                      error={errors.zip?.message}
-                      required
-                    />
-                  )}
-                />
-              </View>
+          <View style={styles.rowFields}>
+            <View style={styles.halfField}>
+              <Controller
+                control={control}
+                name="state"
+                rules={{ required: 'State is required' }}
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="State"
+                    value={value}
+                    onChangeText={(text) => onChange(text.toUpperCase())}
+                    placeholder="TX"
+                    maxLength={2}
+                    error={errors.state?.message}
+                    required
+                  />
+                )}
+              />
+            </View>
+            <View style={styles.halfField}>
+              <Controller
+                control={control}
+                name="zip"
+                rules={{ required: 'ZIP code is required' }}
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="ZIP Code"
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="78701"
+                    keyboardType="numeric"
+                    maxLength={5}
+                    error={errors.zip?.message}
+                    required
+                  />
+                )}
+              />
             </View>
           </View>
+        </View>
+      </ScrollView>
 
-          <View style={styles.actions}>
-            <Button
-              title="Continue"
-              onPress={handleSubmit(onSubmit)}
-              loading={isLoading}
-              size="large"
-              fullWidth
-              disabled={selectedSkills.length === 0 || !streetValue || !cityValue || !stateValue || !zipValue}
-            />
-            <Button
-              title="Back"
-              onPress={() => router.back()}
-              variant="outline"
-              size="medium"
-              fullWidth
-            />
-          </View>
-        </ScrollView>
-
-        {/* Fixed bottom button fallback — always visible */}
-        {profilePhoto.length > 0 && (
-          <View style={styles.fixedBottom}>
-            <Button
-              title="Continue"
-              onPress={handleSubmit(onSubmit)}
-              loading={isLoading}
-              size="large"
-              fullWidth
-              disabled={selectedSkills.length === 0 || !streetValue || !cityValue || !stateValue || !zipValue}
-            />
-          </View>
-        )}
-      </KeyboardAvoidingView>
+      {/* Buttons always pinned at bottom, outside ScrollView */}
+      <View style={styles.fixedBottom}>
+        <Button
+          title="Continue"
+          onPress={handleSubmit(onSubmit)}
+          loading={isLoading}
+          size="large"
+          fullWidth
+          disabled={selectedSkills.length === 0 || !streetValue || !cityValue || !stateValue || !zipValue}
+        />
+        <Button
+          title="Back"
+          onPress={() => router.back()}
+          variant="outline"
+          size="medium"
+          fullWidth
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -487,13 +470,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.primary,
   },
-  keyboardView: {
-    flex: 1,
-  },
   content: {
     flexGrow: 1,
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing['2xl'],
+    paddingBottom: spacing.md,
   },
   header: {
     paddingTop: spacing.sm,
@@ -642,11 +622,8 @@ const styles = StyleSheet.create({
   halfField: {
     flex: 1,
   },
-  actions: {
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
-  },
   fixedBottom: {
+    gap: spacing.md,
     padding: spacing.md,
     paddingBottom: spacing.xl,
     backgroundColor: colors.background.primary,
