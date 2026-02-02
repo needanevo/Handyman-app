@@ -5,16 +5,14 @@ import { useRouter } from 'expo-router';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
 
 interface TrustBannerProps {
-  providerStatus: 'draft' | 'submitted' | 'active' | 'restricted';
+  providerStatus: 'draft' | 'submitted' | 'active';
   providerCompleteness: number;
-  addressVerificationStatus?: string;
   role: 'handyman' | 'contractor';
 }
 
 export function TrustBanner({
   providerStatus,
   providerCompleteness,
-  addressVerificationStatus,
   role,
 }: TrustBannerProps) {
   const router = useRouter();
@@ -38,20 +36,6 @@ export function TrustBanner({
           actionRoute: role === 'handyman'
             ? '/auth/handyman/register-step2'
             : '/auth/contractor/register-step2',
-        };
-
-      case 'restricted':
-        return {
-          icon: 'alert-circle' as const,
-          iconColor: colors.error.main,
-          backgroundColor: colors.error.lightest,
-          borderColor: colors.error.main,
-          title: 'Account Restricted',
-          message: addressVerificationStatus === 'failed'
-            ? 'Address verification required. You have 10 days to verify or access will be revoked.'
-            : 'Your account has been restricted. Please contact support or complete verification.',
-          actionText: 'Verify Address',
-          actionRoute: `/(${role})/profile`,
         };
 
       case 'submitted':
