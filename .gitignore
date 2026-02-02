@@ -107,6 +107,11 @@ dist/
  !.env.example
  backend/providers/providers.env
  backend/providers/providers.txt
+.expo/
+backend/*backup*.py
+backend/server_backup_*.py
+backend/test_*.py
+
 
  # Archives
  **/*.zip
