@@ -523,6 +523,83 @@ export default function ContractorProfile() {
           </View>
         )}
 
+        {/* Banking Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Banking Information</Text>
+          <Card style={styles.infoCard}>
+            {(user as any)?.banking_info ? (
+              <>
+                <View style={styles.infoRow}>
+                  <Ionicons name="person-outline" size={20} color={colors.neutral[600]} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Account Holder</Text>
+                    <Text style={styles.infoValue}>
+                      {(user as any).banking_info.account_holder_name || 'Not set'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="git-branch-outline" size={20} color={colors.neutral[600]} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Routing Number</Text>
+                    <Text style={styles.infoValue}>
+                      {(user as any).banking_info.routing_number
+                        ? `****${(user as any).banking_info.routing_number.slice(-4)}`
+                        : 'Not set'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="wallet-outline" size={20} color={colors.neutral[600]} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Account Number</Text>
+                    <Text style={styles.infoValue}>
+                      {(user as any).banking_info.account_number
+                        ? `****${(user as any).banking_info.account_number.slice(-4)}`
+                        : 'Not set'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color={colors.neutral[600]} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Status</Text>
+                    <Text style={styles.infoValue}>
+                      {(user as any).banking_info.verified ? 'Verified' : 'Pending verification'}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="card-outline" size={48} color={colors.neutral[400]} />
+                <Text style={styles.emptyText}>No banking info added</Text>
+                <Text style={styles.emptySubtext}>
+                  Add your bank account to receive payouts
+                </Text>
+              </View>
+            )}
+          </Card>
+          <Button
+            title={(user as any)?.banking_info ? 'Update Banking Info' : 'Add Banking Info'}
+            onPress={() => router.push('/auth/contractor/register-step5')}
+            variant="outline"
+            size="medium"
+            fullWidth
+            icon={<Ionicons name="card-outline" size={18} color={colors.primary.main} />}
+            style={{ marginTop: spacing.md }}
+          />
+        </View>
+
         {/* Registration Management */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Registration</Text>
