@@ -74,7 +74,11 @@ export default function CustomerRegisterStep2() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.iconBadge}>
@@ -112,25 +116,25 @@ export default function CustomerRegisterStep2() {
             </View>
           </View>
         </Card>
-
-        {/* Actions */}
-        <View style={styles.actions}>
-          <Button
-            title="Continue to Dashboard"
-            onPress={onContinue}
-            loading={isLoading}
-            size="large"
-            fullWidth
-          />
-          <Button
-            title="Skip Photo"
-            onPress={onSkip}
-            variant="outline"
-            size="medium"
-            fullWidth
-          />
-        </View>
       </ScrollView>
+
+      {/* Buttons pinned at bottom, outside ScrollView */}
+      <View style={styles.fixedBottom}>
+        <Button
+          title="Continue to Dashboard"
+          onPress={onContinue}
+          loading={isLoading}
+          size="large"
+          fullWidth
+        />
+        <Button
+          title="Skip Photo"
+          onPress={onSkip}
+          variant="outline"
+          size="medium"
+          fullWidth
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -140,10 +144,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.primary,
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
-    flexGrow: 1,
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing['2xl'],
+    paddingBottom: spacing.md,
   },
   loadingContainer: {
     flex: 1,
@@ -209,8 +215,12 @@ const styles = StyleSheet.create({
     color: colors.neutral[600],
     lineHeight: 20,
   },
-  actions: {
+  fixedBottom: {
     gap: spacing.md,
-    paddingTop: spacing.xl,
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+    backgroundColor: colors.background.primary,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
   },
 });
