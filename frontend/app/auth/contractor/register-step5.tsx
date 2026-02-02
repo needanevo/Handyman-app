@@ -95,13 +95,6 @@ export default function ContractorRegisterStep5() {
         },
       } as any);
 
-      // Refresh user context
-      try {
-        await refreshUser();
-      } catch (refreshError) {
-        console.warn('Failed to refresh user after save, continuing anyway:', refreshError);
-      }
-
       // Track onboarding step completion
       try {
         await authAPI.updateOnboardingStep(5);
@@ -110,7 +103,8 @@ export default function ContractorRegisterStep5() {
         console.warn('Failed to save step progress:', stepError);
       }
 
-      // Navigate to Step 6 (Review)
+      // Navigate to Step 6 (Review) — refreshUser() deferred to step 6
+      // to avoid re-render race condition that bounces back here
       router.push('/auth/contractor/register-step6');
     } catch (error) {
       console.error('Banking setup error:', error);

@@ -16,9 +16,14 @@ import { authAPI } from '../../../src/services/api';
 
 export default function ContractorRegisterStep6() {
   const router = useRouter();
-  const { user, isHydrated, isAuthenticated } = useAuth();
+  const { user, isHydrated, isAuthenticated, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [registrationConfirmed, setRegistrationConfirmed] = useState(false);
+
+  // Refresh user data on mount to pick up latest from previous steps
+  useEffect(() => {
+    refreshUser().catch((err) => console.warn('Failed to refresh user on review:', err));
+  }, []);
 
   // Redirect to dashboard ONLY after confirmation
   useEffect(() => {
