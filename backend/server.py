@@ -1209,6 +1209,50 @@ async def respond_to_quote(
     }
 
 
+@api_router.post("/quotes/{quote_id}/accept")
+async def accept_quote(
+    quote_id: str,
+    body: dict = Body(default={}),
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Accept a quote and create a job.
+    
+    This endpoint:
+    1. Validates the quote exists and belongs to the customer
+    2. Updates quote status to 'accepted'
+    3. Creates a job from the accepted quote
+    4. Attempts to auto-assign a contractor
+    5. Returns job_id for tracking
+    """
+    customer_notes = body.get("customer_notes")
+    
+    # Use respond endpoint internally
+    quote_response = QuoteResponse(accept=True, customer_notes=customer_notes)
+    return await respond_to_quote(quote_id, quote_response, current_user)
+
+
+@api_router.post("/quotes/{quote_id}/reject")
+async def reject_quote(
+    quote_id: str,
+    body: dict = Body(default={}),
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Reject a quote.
+    
+    This endpoint:
+    1. Validates the quote exists and belongs to the customer
+    2. Updates quote status to 'rejected'
+    3. Records rejection reason if provided
+    """
+    reason = body.get("reason")
+    
+    # Use respond endpoint internally
+    quote_response = QuoteResponse(accept=False, customer_notes=reason)
+    return await respond_to_quote(quote_id, quote_response, current_user)
+
+
 @api_router.delete("/quotes/{quote_id}")
 async def delete_quote(
     quote_id: str,
@@ -1854,10 +1898,11 @@ async def get_available_jobs(
     MAX_DISTANCE_MILES = 50
 
     # Get all published jobs (no contractor assigned)
+    # FIX: Use correct field name 'assigned_contractor_id' instead of 'contractor_id'
     pending_jobs_cursor = db.jobs.find({
         "$or": [
-            {"contractor_id": None},
-            {"contractor_id": {"$exists": False}}
+            {"assigned_contractor_id": None},
+            {"assigned_contractor_id": {"$exists": False}}
         ],
         "status": "published"
     })
@@ -1895,7 +1940,51 @@ async def get_available_jobs(
                     "state": job_address.get("state", ""),
                     "zip_code": job_address.get("zip_code", "")
                 }
+                job_doc["item_type"] = "job"  # Mark as job
                 available_jobs.append(job_doc)
+
+    # ALSO FETCH QUOTES (open for bids from customers)
+    # Quotes with status 'pending' that are within distance and match skills
+    try:
+        # Get pending quotes
+        quotes_cursor = db.quotes.find({
+            "status": "pending",
+            "contractor_id": {"$exists": False}
+        })
+        
+        async for quote_doc in quotes_cursor:
+            # Get quote address
+            address = await get_address_by_id(quote_doc.get("address_id"))
+            if not address or not address.latitude or not address.longitude:
+                continue
+            
+            # Calculate distance
+            quote_location = (address.latitude, address.longitude)
+            distance = geodesic(contractor_location, quote_location).miles
+            
+            # Only include if within distance
+            if distance <= MAX_DISTANCE_MILES:
+                # Check if contractor has matching skill
+                service_category = quote_doc.get("service_category", "")
+                if service_category in current_user.skills:
+                    # Transform quote to job-like format for frontend
+                    quote_doc["distance_miles"] = round(distance, 2)
+                    quote_doc["customer_address"] = {
+                        "city": address.city,
+                        "state": address.state,
+                        "zip_code": address.zip_code
+                    }
+                    quote_doc["id"] = quote_doc.get("id")  # Ensure id field exists
+                    quote_doc["item_type"] = "quote"  # Mark as quote
+                    quote_doc["customer_id"] = quote_doc.get("customer_id")
+                    quote_doc["description"] = quote_doc.get("description", "")
+                    quote_doc["service_category"] = service_category
+                    quote_doc["title"] = quote_doc.get("title") or f"{service_category} Service"
+                    quote_doc["total_amount"] = quote_doc.get("total_amount", 0)
+                    quote_doc["price"] = quote_doc.get("total_amount", 0)
+                    available_jobs.append(quote_doc)
+    except Exception as e:
+        logger.warning(f"Error fetching quotes for contractor: {e}")
 
     # Sort by distance (closest first)
     available_jobs.sort(key=lambda x: x["distance_miles"])

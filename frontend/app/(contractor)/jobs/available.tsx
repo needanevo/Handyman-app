@@ -43,7 +43,7 @@ export default function AvailableJobs() {
       return jobsData.map((job: any) => ({
         id: job.id,
         customerId: job.customer_id,
-        contractorId: job.contractor_id,
+        contractorId: job.contractor_id || job.assigned_contractor_id,
         quoteId: job.quote_id,
         status: job.status || 'pending',
         title: job.title || job.description || 'Untitled Job',
@@ -53,7 +53,7 @@ export default function AvailableJobs() {
         quotedAmount: job.price || job.total_amount || job.agreed_amount || 0,
         estimatedDuration: job.estimated_hours || 0,
         distance: job.distance_miles || job.distance || 0,
-        itemType: job.item_type, // 'quote' or 'job'
+        itemType: job.item_type || job.itemType || (job.quote_id ? 'quote' : 'job'), // Fallback based on quote_id
         photos: job.photos || [],
         customerPhotos: job.photos || [],
         expenses: [],
