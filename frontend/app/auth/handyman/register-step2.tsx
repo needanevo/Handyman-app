@@ -454,8 +454,29 @@ export default function HandymanRegisterStep2() {
               fullWidth
               disabled={selectedSkills.length === 0 || !streetValue || !cityValue || !stateValue || !zipValue}
             />
+            <Button
+              title="Back"
+              onPress={() => router.back()}
+              variant="outline"
+              size="medium"
+              fullWidth
+            />
           </View>
         </ScrollView>
+
+        {/* Fixed bottom button fallback — always visible */}
+        {profilePhoto.length > 0 && (
+          <View style={styles.fixedBottom}>
+            <Button
+              title="Continue"
+              onPress={handleSubmit(onSubmit)}
+              loading={isLoading}
+              size="large"
+              fullWidth
+              disabled={selectedSkills.length === 0 || !streetValue || !cityValue || !stateValue || !zipValue}
+            />
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -623,5 +644,13 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  fixedBottom: {
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+    backgroundColor: colors.background.primary,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
   },
 });
