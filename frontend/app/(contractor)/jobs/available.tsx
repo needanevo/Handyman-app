@@ -24,14 +24,11 @@ import { Job } from '../../../src/types/contractor';
 import { JobCard } from '../../../src/components/contractor/JobCard';
 import { LoadingSpinner, EmptyState } from '../../../src/components';
 import { contractorAPI } from '../../../src/services/api';
-import { useAuth } from '../../../src/contexts/AuthContext';
 
 export default function AvailableJobs() {
   const router = useRouter();
-  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const isProviderActive = user?.providerStatus === 'active';
 
   // Fetch real available jobs from API
   // Using unified query key for cache synchronization with dashboard
@@ -200,16 +197,6 @@ export default function AvailableJobs() {
         />
       </View>
 
-      {/* Provider status warning */}
-      {!isProviderActive && (
-        <View style={styles.statusWarning}>
-          <Ionicons name="lock-closed" size={16} color={colors.warning.main} />
-          <Text style={styles.statusWarningText}>
-            Complete your profile to accept jobs. You can browse but not submit proposals.
-          </Text>
-        </View>
-      )}
-
       {/* Jobs List */}
       <FlatList
         data={filteredJobs}
@@ -293,21 +280,5 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.base,
     paddingBottom: spacing.xl,
-  },
-  statusWarning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.warning.lightest,
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    gap: spacing.sm,
-  },
-  statusWarningText: {
-    ...typography.sizes.xs,
-    color: colors.neutral[700],
-    flex: 1,
-    lineHeight: 18,
   },
 });

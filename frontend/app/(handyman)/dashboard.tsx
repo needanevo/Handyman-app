@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../src/constants/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { contractorAPI } from '../../src/services/api';
-import { TrustBanner } from '../../src/components/TrustBanner';
 
 export default function HandymanDashboard() {
   const router = useRouter();
@@ -84,15 +83,6 @@ export default function HandymanDashboard() {
             <Ionicons name="person-circle" size={40} color="#FFA500" />
           </TouchableOpacity>
         </View>
-
-        {/* Phase 5B-2: Provider Readiness Banner */}
-        <TrustBanner
-          providerStatus={user?.providerStatus || 'draft'}
-          providerCompleteness={user?.providerCompleteness || 0}
-          addressVerificationStatus={user?.addressVerificationStatus}
-          addressVerificationDeadline={user?.addressVerificationDeadline}
-          role={user?.role || 'handyman'}
-        />
 
         {/* Panel 1: GROWTH PATH (Signature Differentiator) */}
         <View style={styles.panel}>

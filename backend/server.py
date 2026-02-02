@@ -76,11 +76,6 @@ from models import (
 )
 # Job models imported from models/__init__.py above
 
-# Phase 5B-2: Provider readiness utilities
-from utils.provider_completeness import compute_completeness
-from utils.provider_status import compute_provider_status, can_accept_jobs
-from utils.provider_cleanup import ensure_ttl_index, cleanup_inactive_providers
-
 # Import authentication
 from auth.auth_handler import (
     AuthHandler,
@@ -187,15 +182,6 @@ async def register_user(user_data: UserCreate):
         user_doc = user.model_dump()
         user_doc["created_at"] = user_doc["created_at"].isoformat()
         user_doc["updated_at"] = user_doc["updated_at"].isoformat()
-
-        # Phase 5B-2: Initialize provider readiness fields for handyman/technician
-        if user_data.role in (UserRole.HANDYMAN, UserRole.TECHNICIAN):
-            user_doc["provider_status"] = "draft"
-            user_doc["provider_completeness"] = 0
-            user_doc["address_verification_deadline"] = (
-                datetime.utcnow() + timedelta(days=10)
-            ).isoformat()
-            user_doc["address_verification_status"] = "pending"
 
         await db.users.insert_one(user_doc)
         await auth_handler.create_user_password(user_id, user_data.password)
@@ -312,29 +298,8 @@ async def get_current_user_info(
             user_dict.pop('customer_notes', None)
             user_dict.pop('tags', None)
 
-        # For handyman/technician roles, compute provider readiness
-        if current_user.role in (UserRole.HANDYMAN, UserRole.TECHNICIAN):
-            # Fetch raw doc from DB for fields not in Pydantic model yet
-            raw_user = await db.users.find_one({"id": current_user.id})
-            if raw_user:
-                # Compute live completeness and status
-                completeness = compute_completeness(raw_user)
-                new_status = compute_provider_status(raw_user)
-
-                # Persist if changed
-                updates = {}
-                if raw_user.get("provider_completeness") != completeness:
-                    updates["provider_completeness"] = completeness
-                if raw_user.get("provider_status") != new_status:
-                    updates["provider_status"] = new_status
-                if updates:
-                    updates["updated_at"] = datetime.utcnow().isoformat()
-                    await db.users.update_one({"id": current_user.id}, {"$set": updates})
-
-                user_dict["provider_status"] = new_status
-                user_dict["provider_completeness"] = completeness
-                user_dict["address_verification_deadline"] = raw_user.get("address_verification_deadline")
-                user_dict["address_verification_status"] = raw_user.get("address_verification_status")
+        # For handyman/technician roles, include all fields (no filtering needed)
+        # For admin, include all fields as well
 
         return user_dict
     except Exception as e:
@@ -2531,22 +2496,8 @@ async def accept_contractor_job(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Accept/claim a job"""
-    if current_user.role not in (UserRole.TECHNICIAN, UserRole.HANDYMAN):
-        raise HTTPException(403, detail="Only providers can accept jobs")
-
-    # Phase 5B-2: Provider readiness gate
-    raw_user = await db.users.find_one({"id": current_user.id})
-    if raw_user:
-        allowed, reason = can_accept_jobs(raw_user)
-        if not allowed:
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "message": reason,
-                    "provider_status": raw_user.get("provider_status", "draft"),
-                    "provider_completeness": raw_user.get("provider_completeness", 0),
-                }
-            )
+    if current_user.role != UserRole.TECHNICIAN:
+        raise HTTPException(403, detail="Only contractors can accept jobs")
 
     # Find the job
     job = await db.jobs.find_one({"id": job_id})
@@ -3751,50 +3702,6 @@ async def admin_configure_provider_gate(
     }
 
 
-# ==================== PHASE 5B-2: PROVIDER READINESS ====================
-
-
-@api_router.post("/admin/provider-cleanup")
-async def admin_run_provider_cleanup(
-    current_user: User = Depends(require_admin)
-):
-    """
-    Manually trigger provider cleanup (admin only).
-    Soft-deletes restricted providers inactive beyond threshold.
-    """
-    results = await cleanup_inactive_providers(db)
-    logger.info(f"Admin {current_user.email} triggered provider cleanup: {results}")
-    return results
-
-
-@api_router.get("/provider/readiness")
-async def get_provider_readiness(
-    current_user: User = Depends(get_current_user_dependency)
-):
-    """
-    Get current provider's readiness status, completeness, and job acceptance gate.
-    """
-    if current_user.role not in (UserRole.HANDYMAN, UserRole.TECHNICIAN):
-        raise HTTPException(403, detail="Only providers can check readiness")
-
-    raw_user = await db.users.find_one({"id": current_user.id})
-    if not raw_user:
-        raise HTTPException(404, detail="User not found")
-
-    completeness = compute_completeness(raw_user)
-    status_val = compute_provider_status(raw_user)
-    allowed, reason = can_accept_jobs(raw_user)
-
-    return {
-        "provider_status": status_val,
-        "provider_completeness": completeness,
-        "can_accept_jobs": allowed,
-        "gate_reason": reason,
-        "address_verification_status": raw_user.get("address_verification_status"),
-        "address_verification_deadline": raw_user.get("address_verification_deadline"),
-    }
-
-
 # ==================== PHASE 4: JOB FEED & PROPOSALS ====================
 
 
@@ -3919,22 +3826,7 @@ async def create_proposal(
     """
     Create a proposal for a job (handyman/contractor only).
     Only valid when job status = published.
-    Requires active provider status (Phase 5B-2 gate).
     """
-    # Phase 5B-2: Provider readiness gate
-    raw_user = await db.users.find_one({"id": current_user.id})
-    if raw_user:
-        allowed, reason = can_accept_jobs(raw_user)
-        if not allowed:
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "message": reason,
-                    "provider_status": raw_user.get("provider_status", "draft"),
-                    "provider_completeness": raw_user.get("provider_completeness", 0),
-                }
-            )
-
     try:
         from services.proposal_service import ProposalError
         proposal = await proposal_service.create_proposal(
@@ -4211,9 +4103,6 @@ async def startup_event():
         await db.addresses.create_index("user_id")
         await db.addresses.create_index([("user_id", 1), ("is_default", 1)])
         await db.addresses.create_index("id", unique=True)
-
-        # Phase 5B-2: TTL index for soft-deleted providers
-        await ensure_ttl_index(db)
 
         logger.info("Database indexes created successfully")
     except Exception as e:
