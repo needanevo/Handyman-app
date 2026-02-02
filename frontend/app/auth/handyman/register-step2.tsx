@@ -226,6 +226,7 @@ export default function HandymanRegisterStep2() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
@@ -470,8 +471,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.primary,
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
-    flexGrow: 1,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.md,
   },
