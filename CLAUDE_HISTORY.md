@@ -2407,3 +2407,16 @@ User should retry handyman registration and verify:
 2. Step 2 saves without 422 errors
 3. Close app → Reopen → Resumes at correct step
 
+---
+
+[2026-02-02 11:00] Feat — Remove compliance countdown, fix job visibility
+
+- `frontend/app/(contractor)/dashboard.tsx` — Removed verification countdown function, banner JSX, console warning useEffect, addressVerificationStatus prop, and all verification banner styles.
+- `frontend/app/(handyman)/dashboard.tsx` — Removed console warning useEffect and addressVerificationStatus prop from TrustBanner.
+- `frontend/src/components/TrustBanner.tsx` — Removed `restricted` status case and `addressVerificationStatus` prop from interface/destructuring.
+- `backend/server.py` — In `request_quote()`, added job creation in `db.jobs` with status `published` and embedded address after quote insert. Updated `get_available_jobs()` and `get_contractor_dashboard_stats()` to filter by `status: "published"` instead of `"pending"`. Updated address lookup to prefer embedded address on job document.
+
+Commit: `f5b0799` on `dev`
+
+Git housekeeping also performed: merged dev→main, deleted 6 stale local branches. Remote branch deletion blocked by GitHub repository rules (needs admin UI deletion).
+
