@@ -1149,42 +1149,41 @@ async def respond_to_quote(
     job_id = None
     if response.accept:
         try:
-            # Build embedded address from quote data (for distance calculation)
-            # First try to get canonical address, fall back to embedded data
-            address_data = None
+            # Build embedded address from quote data
             address = await get_address_by_id(quote["address_id"])
-            if address:
-                # Use canonical address with coordinates
-                address_data = {
-                    "street": address.street,
-                    "city": address.city,
-                    "state": address.state,
-                    "zip": address.zip_code,
-                    "lat": address.latitude,
-                    "lon": address.longitude,
-                }
-            else:
-                # Fall back to using address_id directly - jobs collection will handle it
-                logger.warning(f"Address {quote['address_id']} not found, using address_id reference")
             
-            # Create job from accepted quote (original structure + embedded address)
-            job = Job(
-                customer_id=current_user.id,
-                service_category=quote["service_category"],
-                description=quote["description"],
-                address=JobAddress(**address_data) if address_data else JobAddress(
+            # Create JobAddress for embedded storage
+            if address and address.latitude and address.longitude:
+                job_address = JobAddress(
+                    street=address.street,
+                    city=address.city,
+                    state=address.state,
+                    zip=address.zip_code,
+                    lat=address.latitude,
+                    lon=address.longitude,
+                )
+            else:
+                # Use quote data directly
+                job_address = JobAddress(
                     street="",
                     city="",
                     state="",
                     zip="",
                     lat=None,
                     lon=None,
-                ),
+                )
+            
+            # Create job from accepted quote
+            job = Job(
+                customer_id=current_user.id,
+                service_category=quote["service_category"],
+                description=quote["description"],
+                address=job_address,
                 budget_max=quote.get("budget_range", {}).get("max") if quote.get("budget_range") else None,
                 urgency=quote.get("urgency", "low"),
             )
 
-            # Store additional fields after creation
+            # Set additional fields directly on the object
             job.quote_id = quote_id
             job.agreed_amount = quote.get("total_amount", 0)
             job.customer_notes = response.customer_notes
@@ -1988,33 +1987,22 @@ async def get_available_jobs(
             
             # All checks passed - include job
             job_doc["distance_miles"] = round(distance, 2)
-            job_doc["customer_address"] = {
+            job_doc["distance"] = round(distance, 2)  # Frontend expects 'distance'
+            job_doc["location"] = {  # Frontend expects 'location'
                 "city": job_address.get("city", ""),
                 "state": job_address.get("state", ""),
-                "zip_code": job_address.get("zip_code", "")
+                "zipCode": job_address.get("zip_code", ""),
+                "latitude": job_address.get("latitude"),
+                "longitude": job_address.get("longitude"),
             }
             job_doc["item_type"] = "job"
             job_doc["title"] = job_doc.get("title") or job_doc.get("description", "Untitled Job")
             job_doc["price"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
             job_doc["total_amount"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
+            job_doc["category"] = job_doc.get("service_category", "")  # Frontend expects 'category'
             available_jobs.append(job_doc)
             logger.info(f"[AVAILABLE_JOBS] Found job {job_doc.get('id')} - {service_category} at {distance:.1f} miles")
-        distance = geodesic(contractor_location, job_location).miles
-
-        # Only include jobs within 50-mile radius
-        if distance <= MAX_DISTANCE_MILES:
-            # Check if contractor has matching skill
-            service_category = job_doc.get("service_category", "")
-            if service_category in current_user.skills:
-                job_doc["distance_miles"] = round(distance, 2)
-                job_doc["customer_address"] = {
-                    "city": job_address.get("city", ""),
-                    "state": job_address.get("state", ""),
-                    "zip_code": job_address.get("zip_code", "")
-                }
-                job_doc["item_type"] = "job"  # Mark as job
-                available_jobs.append(job_doc)
-
+    
     # ALSO FETCH QUOTES (open for bids from customers)
     try:
         quotes_cursor = db.quotes.find({
@@ -2043,16 +2031,20 @@ async def get_available_jobs(
                     continue
                 
                 quote_doc["distance_miles"] = round(distance, 2)
-                quote_doc["customer_address"] = {
+                quote_doc["distance"] = round(distance, 2)  # Frontend expects 'distance'
+                quote_doc["location"] = {  # Frontend expects 'location'
                     "city": address.city,
                     "state": address.state,
-                    "zip_code": address.zip_code
+                    "zipCode": address.zip_code,
+                    "latitude": address.latitude,
+                    "longitude": address.longitude,
                 }
                 quote_doc["id"] = quote_doc.get("id")
                 quote_doc["item_type"] = "quote"
                 quote_doc["customer_id"] = quote_doc.get("customer_id")
                 quote_doc["description"] = quote_doc.get("description", "")
                 quote_doc["service_category"] = service_category
+                quote_doc["category"] = service_category  # Frontend expects 'category'
                 quote_doc["title"] = quote_doc.get("title") or f"{service_category} Service"
                 quote_doc["total_amount"] = quote_doc.get("total_amount", 0)
                 quote_doc["price"] = quote_doc.get("total_amount", 0)
@@ -4280,8 +4272,32 @@ async def get_jobs_feed(
         offset=offset
     )
 
-    # Convert to dict for JSON serialization
-    return [job.model_dump() for job in jobs]
+    # Transform job data to match frontend expectations
+    result = []
+    for job in jobs:
+        job_dict = job.model_dump()
+        # Transform snake_case to camelCase for frontend compatibility
+        transformed = {
+            "id": job_dict.get("id"),
+            "customerId": job_dict.get("customer_id"),
+            "status": job_dict.get("status"),
+            "title": job_dict.get("title") or job_dict.get("description", "Untitled Job"),
+            "description": job_dict.get("description", ""),
+            "category": job_dict.get("service_category", ""),
+            "location": {
+                "city": job_dict.get("address", {}).get("city", ""),
+                "state": job_dict.get("address", {}).get("state", ""),
+                "zipCode": job_dict.get("address", {}).get("zip", ""),
+                "latitude": job_dict.get("address", {}).get("lat"),
+                "longitude": job_dict.get("address", {}).get("lon"),
+            },
+            "quotedAmount": job_dict.get("agreed_amount"),
+            "finalAmount": job_dict.get("budget_max"),
+            "item_type": "job",
+        }
+        result.append(transformed)
+    
+    return result
 
 
 @api_router.get("/handyman/jobs/active")
