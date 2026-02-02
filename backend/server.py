@@ -1149,33 +1149,46 @@ async def respond_to_quote(
     job_id = None
     if response.accept:
         try:
-            # Get address for the job (required for distance calculation)
+            # Build embedded address from quote data (for distance calculation)
+            # First try to get canonical address, fall back to embedded data
+            address_data = None
             address = await get_address_by_id(quote["address_id"])
-            if not address:
-                raise HTTPException(status_code=400, detail="Quote address not found")
+            if address:
+                # Use canonical address with coordinates
+                address_data = {
+                    "street": address.street,
+                    "city": address.city,
+                    "state": address.state,
+                    "zip": address.zip_code,
+                    "lat": address.latitude,
+                    "lon": address.longitude,
+                }
+            else:
+                # Fall back to using address_id directly - jobs collection will handle it
+                logger.warning(f"Address {quote['address_id']} not found, using address_id reference")
             
-            # Build JobAddress from canonical address
-            job_address = JobAddress(
-                street=address.street,
-                city=address.city,
-                state=address.state,
-                zip=address.zip_code,
-                lat=address.latitude,
-                lon=address.longitude,
-            )
-            
-            # Create job from accepted quote
+            # Create job from accepted quote (original structure + embedded address)
             job = Job(
                 customer_id=current_user.id,
                 service_category=quote["service_category"],
                 description=quote["description"],
-                address=job_address,  # Embedded address with coordinates
+                address=JobAddress(**address_data) if address_data else JobAddress(
+                    street="",
+                    city="",
+                    state="",
+                    zip="",
+                    lat=None,
+                    lon=None,
+                ),
                 budget_max=quote.get("budget_range", {}).get("max") if quote.get("budget_range") else None,
                 urgency=quote.get("urgency", "low"),
             )
 
-            # Store quote_id for reference
+            # Store additional fields after creation
             job.quote_id = quote_id
+            job.agreed_amount = quote.get("total_amount", 0)
+            job.customer_notes = response.customer_notes
+            job.address_id = quote["address_id"]
 
             # Attempt contractor routing
             try:
