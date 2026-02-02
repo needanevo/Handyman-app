@@ -24,6 +24,7 @@ interface PhotoUploaderProps {
   required?: boolean;
   aspectRatio?: [number, number];  // For image cropping (e.g., [16, 9] or [8.5, 5.3])
   customUpload?: (file: { uri: string; type: string; name: string }) => Promise<{ url: string }>;  // Custom upload function
+  cameraOnly?: boolean;  // If true, only show camera button (no gallery selection)
 }
 
 export function PhotoUploader({
@@ -35,6 +36,7 @@ export function PhotoUploader({
   required = false,
   aspectRatio = [4, 3],  // Default to 4:3
   customUpload,  // Optional custom upload function
+  cameraOnly = false,  // Default to allowing both camera and gallery
 }: PhotoUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const { user } = useAuth();
@@ -217,22 +219,24 @@ export function PhotoUploader({
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={pickPhoto}
-            disabled={uploading}
-          >
-            {uploading ? (
-              <ActivityIndicator color={colors.primary.main} />
-            ) : (
-              <>
-                <View style={styles.actionIconContainer}>
-                  <Ionicons name="images" size={24} color={colors.primary.main} />
-                </View>
-                <Text style={styles.actionText}>Choose from Library</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {!cameraOnly && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={pickPhoto}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator color={colors.primary.main} />
+              ) : (
+                <>
+                  <View style={styles.actionIconContainer}>
+                    <Ionicons name="images" size={24} color={colors.primary.main} />
+                  </View>
+                  <Text style={styles.actionText}>Choose from Library</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       )}
 

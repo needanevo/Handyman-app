@@ -11,13 +11,14 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,16 +27,33 @@ export default function LoginScreen() {
     if (isAuthenticated && user) {
       console.log('User authenticated, role:', user.role);
 
-      // Role-based routing
-      if (user.role === 'technician') {
+      // Check for redirect parameter first
+      const redirectPath = params.redirect as string;
+      if (redirectPath) {
+        console.log('Redirecting to requested path:', redirectPath);
+        router.replace(redirectPath as any);
+        return;
+      }
+
+      // Role-based routing - explicit routing for each role
+      if (user.role === 'contractor') {
         console.log('Contractor detected, redirecting to contractor dashboard...');
         router.replace('/(contractor)/dashboard');
+      } else if (user.role === 'handyman') {
+        console.log('Handyman detected, redirecting to handyman dashboard...');
+        router.replace('/(handyman)/dashboard');
+      } else if (user.role === 'customer') {
+        console.log('Customer detected, redirecting to customer dashboard...');
+        router.replace('/(customer)/dashboard');
+      } else if (user.role === 'admin') {
+        console.log('Admin detected, redirecting to admin dashboard...');
+        router.replace('/admin');
       } else {
-        console.log('Customer detected, redirecting to home...');
-        router.replace('/home');
+        console.log('Unknown role, redirecting to welcome...');
+        router.replace('/auth/welcome');
       }
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, params.redirect]);
 
   // Cross-platform alert helper
   const showAlert = (title: string, message: string) => {
@@ -144,7 +162,7 @@ export default function LoginScreen() {
             
             <View style={styles.signupContainer}>
               <Text style={styles.signupText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/auth/register')}>
+              <TouchableOpacity onPress={() => router.push('/auth/role-selection')}>
                 <Text style={styles.signupLink}>Sign Up</Text>
               </TouchableOpacity>
             </View>

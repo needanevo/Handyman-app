@@ -2,18 +2,31 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authAPI } from '../services/api';
 import { storage } from '../utils/storage';
 
+export interface LocationVerification {
+  status: 'unverified' | 'verified' | 'mismatch';
+  deviceLat?: number;
+  deviceLon?: number;
+  verifiedAt?: string;
+  autoVerifyEnabled: boolean;
+}
+
 export interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
-  role: 'customer' | 'technician' | 'admin';
+  role: 'customer' | 'contractor' | 'admin' | 'handyman';
   phone: string;
   addresses: Address[];
   isActive: boolean;
+  registrationCompletedDate?: string;
+  registrationExpirationDate?: string;
+  // Customer-specific fields
+  verification?: LocationVerification;
   // Contractor-specific fields (optional)
   businessName?: string;
   skills?: string[];
+  specialties?: string[];
   yearsExperience?: number;
   serviceAreas?: string[];
   documents?: {
@@ -23,22 +36,57 @@ export interface User {
   };
   portfolioPhotos?: string[];
   profilePhoto?: string;
+  stats?: {
+    completedJobs?: number;
+    averageRating?: number;
+    paymentsReceived?: number;
+  };
+  tier?: 'beginner' | 'verified' | 'contractor' | 'master' | null;
+  // Address verification tracking
+  addressVerificationStatus?: 'pending' | 'verified' | 'failed';
+  addressVerificationStartedAt?: string;
+  addressVerificationDeadline?: string;
+  // Provider identity & status (Phase 5B)
+  providerType?: 'individual' | 'business';
+  providerIntent?: 'not_hiring' | 'hiring' | 'mentoring';
+  providerStatus?: 'draft' | 'submitted' | 'active' | 'restricted';
+  providerCompleteness?: number;  // Percentage 0-100
+  // Onboarding tracking (Phase 5B-1)
+  onboardingStep?: number | null;  // Current step (1-5), null if complete
+  onboardingCompleted?: boolean;  // Whether onboarding is fully done
+  // Banking info (for contractor/handyman payouts)
+  banking_info?: {
+    account_holder_name?: string;
+    routing_number?: string;
+    account_number?: string;
+    verified?: boolean;
+  };
+  // Phone verification
+  phoneVerified?: boolean;
+  // License and insurance (contractor)
+  licenseNumber?: string;
+  insurancePolicyNumber?: string;
 }
 
 export interface Address {
   id: string;
   street: string;
+  line2?: string;  // apt/suite/unit (from Google Places)
   city: string;
-  state: string;
+  state: string;  // 2-letter state code
   zipCode: string;
+  country?: string;  // ISO country code (default: US)
   latitude?: number;
   longitude?: number;
+  placeId?: string;  // Google Places place_id
+  formattedAddress?: string;  // Full formatted address from Google
   isDefault: boolean;
 }
 
 export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  isHydrated: boolean; // True when initial auth check is complete
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
@@ -52,7 +100,17 @@ export interface RegisterData {
   firstName: string;
   lastName: string;
   phone: string;
-  role?: 'customer' | 'technician' | 'admin';
+  role?: 'customer' | 'contractor' | 'admin';
+  businessName?: string;
+  business_address?: any;
+  banking_info?: any;
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    unitNumber?: string;
+  };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,6 +118,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
     // Check for stored token on app start
@@ -83,7 +142,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Auth state check failed:', error);
       }
     } finally {
+      console.log('Auth hydration complete');
       setIsLoading(false);
+      setIsHydrated(true);
     }
   };
 
@@ -150,9 +211,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Fetching user data...');
       const userData = await authAPI.getCurrentUser();
       console.log('Raw user data from API:', userData);
-      
+
+      // Validate required fields
+      if (!userData || !userData.id || !userData.email || !userData.role) {
+        console.error('Invalid user data from /auth/me - missing required fields:', userData);
+        throw new Error('Incomplete user data received from server');
+      }
+
+      // Validate role is one of the allowed roles
+      const validRoles = ['customer', 'contractor', 'handyman', 'admin'];
+      if (!validRoles.includes(userData.role)) {
+        console.error('Invalid role received from /auth/me:', userData.role);
+        throw new Error(`Invalid user role: ${userData.role}`);
+      }
+
+      // Warning: Check for addresses (optional but recommended for customers)
+      if (userData.role === 'customer' && (!userData.addresses || userData.addresses.length === 0)) {
+        console.warn('Customer account has no addresses - this may cause issues with job requests');
+      }
+
       // Transform backend data (snake_case) to frontend format (camelCase)
-      const transformedUser: User = {
+      // ROLE-SAFE: Only include fields appropriate for the user's role
+      const baseUser = {
         id: userData.id,
         email: userData.email,
         firstName: userData.first_name,
@@ -162,15 +242,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         addresses: userData.addresses?.map((addr: any) => ({
           id: addr.id,
           street: addr.street,
+          line2: addr.line2,  // apt/suite/unit (Google Places)
           city: addr.city,
           state: addr.state,
-          zipCode: addr.zip_code,  // Transform snake_case to camelCase
+          zipCode: addr.zip_code,
+          country: addr.country || 'US',  // ISO country code
           latitude: addr.latitude,
           longitude: addr.longitude,
-          isDefault: addr.is_default,  // Transform snake_case to camelCase
+          placeId: addr.place_id,  // Google Places ID
+          formattedAddress: addr.formatted_address,  // Full formatted address
+          isDefault: addr.is_default,
         })) || [],
         isActive: userData.is_active,
-        // Contractor-specific fields
+      };
+
+      // Only include contractor/handyman fields if role is contractor or handyman
+      // This prevents field bleeding into customer accounts
+      const transformedUser: User = (userData.role === 'contractor' || userData.role === 'handyman') ? {
+        ...baseUser,
+        // Contractor/Handyman-specific fields (only for contractor/handyman roles)
         businessName: userData.business_name,
         skills: userData.skills,
         yearsExperience: userData.years_experience,
@@ -182,46 +272,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } : undefined,
         portfolioPhotos: userData.portfolio_photos,
         profilePhoto: userData.profile_photo,
+        tier: (userData as any).tier ?? null,
+        // Address verification tracking
+        addressVerificationStatus: (userData as any).address_verification_status,
+        addressVerificationStartedAt: (userData as any).address_verification_started_at,
+        addressVerificationDeadline: (userData as any).address_verification_deadline,
+        // Provider identity & status (Phase 5B)
+        providerType: (userData as any).provider_type,
+        providerIntent: (userData as any).provider_intent,
+        providerStatus: (userData as any).provider_status,
+        providerCompleteness: (userData as any).provider_completeness,
+        // Onboarding tracking (Phase 5B-1)
+        onboardingStep: (userData as any).onboarding_step,
+        onboardingCompleted: (userData as any).onboarding_completed ?? false,
+        // Banking info (for payouts)
+        banking_info: (userData as any).banking_info,
+        // Phone verification
+        phoneVerified: (userData as any).phone_verified ?? false,
+        // License and insurance info
+        licenseNumber: (userData as any).license_number,
+        insurancePolicyNumber: (userData as any).insurance_policy_number,
+      } : {
+        ...baseUser,
+        // Customer-only: No contractor fields included
+        // Customer profile photo (Phase 5B-1)
+        profilePhoto: userData.profile_photo,
+        // Customer-specific: verification field
+        verification: userData.verification ? {
+          status: userData.verification.status,
+          deviceLat: userData.verification.device_lat,
+          deviceLon: userData.verification.device_lon,
+          verifiedAt: userData.verification.verified_at,
+          autoVerifyEnabled: userData.verification.auto_verify_enabled ?? true,
+        } : undefined,
       };
 
-      console.log('Transformed user data:', transformedUser);
+      console.log('Transformed user data (role-safe):', transformedUser);
       setUser(transformedUser);
       console.log('User set in context - isAuthenticated should now be true');
-      
+
     } catch (error: any) {
-      // Silently handle 401 errors (expected when auth fails)
-      if (error.response?.status !== 401) {
-        console.error('Failed to refresh user:', error);
+      console.error('Failed to refresh user:', error);
+
+      // Handle different error types
+      if (error.response?.status === 401) {
+        // Auth token invalid - logout and don't rethrow
+        console.log('Auth token invalid (401), logging out');
+        await logout();
+        return; // Graceful exit after logout
       }
-      // If refresh fails, clear auth state
-      await logout();
-      throw error;
+
+      // If it's a validation error (our checks above), rethrow it
+      if (error.message?.includes('Incomplete user data') || error.message?.includes('Invalid user role')) {
+        console.error('Critical validation error - rethrowing');
+        throw error;
+      }
+
+      // For network errors or other API errors, log but don't crash
+      // This allows the app to continue functioning in degraded mode
+      if (error.response) {
+        console.error(`API error (${error.response.status}): Failed to fetch user data`);
+      } else if (error.request) {
+        console.error('Network error: Unable to reach server');
+      } else {
+        console.error('Unexpected error during user refresh:', error.message);
+      }
+
+      // Don't rethrow - let app continue with current state
+      // User will remain in their current auth state (logged in or logged out)
     }
   };
 
   const logout = async () => {
     try {
-      setIsLoading(true);
-      
+      console.log("Logging out...");
+
       // Clear stored tokens
       await storage.removeItem('accessToken');
       await storage.removeItem('refreshToken');
-      
-      // Clear API token
+
+      // Clear API authorization header
       authAPI.clearAuthToken();
-      
+
       // Clear user state
       setUser(null);
-    } catch (error) {
-      console.error('Logout failed:', error);
-    } finally {
-      setIsLoading(false);
+
+      // Reset hydration state
+      setIsHydrated(false);
+      setTimeout(() => {
+        setIsHydrated(true);
+      }, 50);
+
+      console.log("Logout complete.");
+    } catch (err) {
+      console.error("Logout error:", err);
     }
   };
 
   const value: AuthContextType = {
     user,
     isLoading,
+    isHydrated,
     isAuthenticated: !!user,
     login,
     register,

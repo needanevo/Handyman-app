@@ -17,9 +17,9 @@ import { colors, spacing, typography, borderRadius } from '../../../src/constant
 import { Button } from '../../../src/components/Button';
 import { Input } from '../../../src/components/Input';
 import { StepIndicator } from '../../../src/components/StepIndicator';
-// AddressAutocomplete removed - using manual input fields instead
+import { GooglePlacesAddressInput, StructuredAddress } from '../../../src/components/GooglePlacesAddressInput';
 import { useAuth } from '../../../src/contexts/AuthContext';
-import { contractorAPI } from '../../../src/services/api';
+import { profileAPI, contractorAPI, authAPI } from '../../../src/services/api';
 
 const SERVICE_CATEGORIES = [
   'Drywall',
@@ -36,37 +36,71 @@ const SERVICE_CATEGORIES = [
   'Other',
 ];
 
+const SPECIALTY_CATEGORIES = [
+  'Residential',
+  'Commercial',
+  'Remodeling',
+  'New Construction',
+  'Repair & Maintenance',
+  'Emergency Services',
+];
+
+const PROVIDER_INTENTS = [
+  { value: 'not_hiring', label: 'Working Solo', description: 'I work alone and handle jobs myself' },
+  { value: 'hiring', label: 'Building a Team', description: 'I\'m hiring or plan to hire helpers' },
+  { value: 'mentoring', label: 'Mentoring Others', description: 'I teach and mentor new contractors' },
+];
+
 interface Step3Form {
   skills: string[];
+  specialties: string[];
   yearsExperience: string;
-  businessStreet: string;
-  businessCity: string;
-  businessState: string;
-  businessZip: string;
   customSkills: string;  // Custom skills when "Other" is selected
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
 }
 
 export default function ContractorRegisterStep3() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const { user, refreshUser, isLoading: authLoading } = useAuth();
-  const [selectedSkills, setSelectedSkills] = useState<string[]>(
-    Array.isArray(user?.skills) ? user.skills : []
-  );
+  const { user, refreshUser } = useAuth();
 
-  const businessAddress = user?.addresses && user.addresses.length > 0 ? user.addresses[0] : null;
+  // Separate standard categories from custom skills on mount
+  const userSkills = user?.skills || [];
+  const standardSkills = userSkills.filter(skill => SERVICE_CATEGORIES.includes(skill));
+  const customSkills = userSkills.filter(skill => !SERVICE_CATEGORIES.includes(skill) && skill !== 'Other');
 
-  // Don't render until user is loaded
-  if (authLoading || !user) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text>Loading...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // If there are custom skills, add "Other" to standard skills
+  const initialSelectedSkills = customSkills.length > 0
+    ? [...standardSkills, 'Other']
+    : standardSkills;
+
+  const [selectedSkills, setSelectedSkills] = useState<string[]>(initialSelectedSkills);
+  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(user?.specialties || []);
+  const [selectedIntent, setSelectedIntent] = useState<string>(user?.providerIntent || 'not_hiring');
+
+  // Address state for Google Places autocomplete
+  const [selectedAddress, setSelectedAddress] = useState<StructuredAddress | null>(() => {
+    if (user?.addresses && user.addresses.length > 0) {
+      const addr = user.addresses[0];
+      return {
+        street: addr.street || '',
+        line2: addr.line2,
+        city: addr.city || '',
+        state: addr.state || '',
+        zipCode: addr.zipCode || '',
+        country: addr.country || 'US',
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+        placeId: addr.placeId,
+        formattedAddress: addr.formattedAddress,
+      };
+    }
+    return null;
+  });
 
   const {
     control,
@@ -76,15 +110,59 @@ export default function ContractorRegisterStep3() {
     watch,
   } = useForm<Step3Form>({
     defaultValues: {
-      skills: Array.isArray(user?.skills) ? user.skills : [],
-      yearsExperience: user?.yearsExperience?.toString() || '',
-      businessStreet: businessAddress?.street || '',
-      businessCity: businessAddress?.city || '',
-      businessState: businessAddress?.state || '',
-      businessZip: businessAddress?.zipCode || '',
-      customSkills: '',
+      skills: initialSelectedSkills,
+      specialties: user?.specialties || [],
+      yearsExperience: (user?.yearsExperience !== undefined && user?.yearsExperience !== null) ? String(user.yearsExperience) : '',
+      customSkills: customSkills.join(', '),  // Pre-fill custom skills
+      street: user?.addresses?.[0]?.street || '',
+      city: user?.addresses?.[0]?.city || '',
+      state: user?.addresses?.[0]?.state || '',
+      zip: user?.addresses?.[0]?.zipCode || '',
     },
   });
+
+  // Watch address fields for validation
+  const streetValue = watch('street');
+  const cityValue = watch('city');
+  const stateValue = watch('state');
+  const zipValue = watch('zip');
+
+  // Sync state with user context when it changes (ensures persistence)
+  React.useEffect(() => {
+    if (user) {
+      // TASK 5: Null-safe access to user.skills
+      const userSkills = user?.skills || [];
+      const standardSkills = userSkills.filter(skill => SERVICE_CATEGORIES.includes(skill));
+      const customSkills = userSkills.filter(skill => !SERVICE_CATEGORIES.includes(skill) && skill !== 'Other');
+      const initialSelectedSkills = customSkills.length > 0 ? [...standardSkills, 'Other'] : standardSkills;
+
+      setSelectedSkills(initialSelectedSkills);
+      setValue('skills', initialSelectedSkills);
+      setValue('customSkills', customSkills.join(', '));
+    }
+  }, [user?.skills, setValue]);
+
+  React.useEffect(() => {
+    if (user?.specialties) {
+      // TASK 5: Null-safe access to user.specialties
+      setSelectedSpecialties(user.specialties || []);
+      setValue('specialties', user.specialties || []);
+    }
+  }, [user?.specialties, setValue]);
+
+  React.useEffect(() => {
+    if (user?.providerIntent) {
+      setSelectedIntent(user.providerIntent);
+    }
+  }, [user?.providerIntent]);
+
+  // Address hydration is now handled by selectedAddress state initialization
+
+  React.useEffect(() => {
+    if (user?.yearsExperience !== undefined && user.yearsExperience !== null) {
+      setValue('yearsExperience', String(user.yearsExperience));
+    }
+  }, [user?.yearsExperience, setValue]);
 
   // Watch for "Other" selection to show custom skills input
   const skills = watch('skills');
@@ -98,68 +176,132 @@ export default function ContractorRegisterStep3() {
     setValue('skills', newSkills);
   };
 
+  const toggleSpecialty = (specialty: string) => {
+    const newSpecialties = selectedSpecialties.includes(specialty)
+      ? selectedSpecialties.filter((s) => s !== specialty)
+      : [...selectedSpecialties, specialty];
+    setSelectedSpecialties(newSpecialties);
+    setValue('specialties', newSpecialties);
+  };
+
+  // Handler for when autocomplete selects an address - auto-fills form fields
+  const handleAddressSelected = (address: StructuredAddress) => {
+    console.log('[Step3] Autocomplete address selected:', address);
+    // Populate form fields
+    setValue('street', address.street || '');
+    setValue('city', address.city || '');
+    setValue('state', address.state || '');
+    setValue('zip', address.zipCode || '');
+    // Store full address data for metadata (lat/lng, placeId, etc.)
+    setSelectedAddress(address);
+  };
+
   const onSubmit = async (data: Step3Form) => {
     if (!selectedSkills || selectedSkills.length === 0) {
       Alert.alert('Error', 'Please select at least one skill');
       return;
     }
 
-    if (!data.businessStreet || !data.businessCity || !data.businessState || !data.businessZip) {
-      Alert.alert('Error', 'Please fill in all business address fields');
+    // Validate address using form fields
+    if (!data.street || !data.city || !data.state || !data.zip) {
+      Alert.alert('Error', 'Please fill in all address fields');
       return;
     }
 
     setIsLoading(true);
+
     try {
-      const { profileAPI } = await import('../../../src/services/api');
-
-      // Always update business address (uses PUT to replace, not add duplicates)
-      console.log('Updating business address...');
-      try {
-        await profileAPI.updateBusinessAddress({
-          street: data.businessStreet,
-          city: data.businessCity,
-          state: data.businessState,
-          zip_code: data.businessZip,
-          is_default: true,
-        });
-        console.log('Address updated successfully');
-      } catch (addressError: any) {
-        console.error('Address update failed:', addressError);
-        console.error('Address error details:', addressError.response?.data);
-        throw new Error(`Address update failed: ${addressError.response?.data?.detail || addressError.message}`);
-      }
-
-      // Save contractor profile (skills, experience, business name)
+      // Get business name from params (set in Step 1) or user context
       const businessName = (params.businessName as string) || user?.businessName;
 
-      // Combine selected skills with custom skills (if "Other" is selected)
-      const allSkills = [...selectedSkills];
-      if (selectedSkills.includes('Other') && data.customSkills) {
-        const customSkillsList = data.customSkills
-          .split(',')
-          .map(s => s.trim())
-          .filter(s => s.length > 0);
-        allSkills.push(...customSkillsList);
-      }
+      // Build final skills array: standard categories + custom skills (excluding "Other")
+      // Remove "Other" placeholder - only keep actual skill names
+      const standardSkills = selectedSkills.filter(skill => skill !== 'Other');
 
-      console.log('Updating contractor profile...', { allSkills, yearsExperience: data.yearsExperience, businessName });
+      // Parse custom skills if "Other" was selected
+      const customSkillsList = selectedSkills.includes('Other') && data.customSkills
+        ? data.customSkills
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+        : [];
+
+      // Combine and deduplicate (in case user re-enters same skill)
+      const allSkills = [...new Set([...standardSkills, ...customSkillsList])];
+
+      // Save both address and profile in one try block with clear error handling
+      let addressSaved = false;
+      let profileSaved = false;
+
+      // Build address from form data + optional metadata from autocomplete
+      const addressPayload = {
+        street: data.street,
+        line2: selectedAddress?.line2,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zip,
+        country: selectedAddress?.country || 'US',
+        latitude: selectedAddress?.latitude,
+        longitude: selectedAddress?.longitude,
+        place_id: selectedAddress?.placeId,
+        formatted_address: selectedAddress?.formattedAddress,
+        is_default: true,
+      };
+
+      console.log('[Step3] Saving address with data:', addressPayload);
+
       try {
+        // Step 1: Save business address with Google Places data
+        await profileAPI.addAddress(addressPayload);
+        addressSaved = true;
+        console.log('✅ Business address saved successfully');
+
+        // Step 2: Save contractor profile (skills, specialties, experience, business name, provider intent)
         await contractorAPI.updateProfile({
           skills: allSkills,
+          specialties: selectedSpecialties,
           years_experience: parseInt(data.yearsExperience) || 0,
+          provider_intent: selectedIntent,
           ...(businessName && { business_name: businessName }),
         });
-        console.log('Profile updated successfully');
-      } catch (profileError: any) {
-        console.error('Profile update failed:', profileError);
-        console.error('Profile error details:', profileError.response?.data);
-        throw new Error(`Profile update failed: ${profileError.response?.data?.detail || profileError.message}`);
+        profileSaved = true;
+        console.log('✅ Profile saved successfully');
+
+      } catch (saveError: any) {
+        console.error('Save error:', saveError);
+
+        // Provide clear feedback about what succeeded and what failed
+        if (addressSaved && !profileSaved) {
+          Alert.alert(
+            'Partial Save',
+            'Your business address was saved, but profile update failed. Please contact support or try again.\n\nError: ' +
+            (saveError.response?.data?.detail || saveError.message || 'Unknown error'),
+            [{ text: 'OK' }]
+          );
+          // Don't throw - address is saved, let user continue or retry
+          throw saveError; // Re-throw to prevent navigation
+        } else {
+          // Address save failed - this is critical
+          throw saveError;
+        }
       }
 
       // Refresh user context to get updated profile
-      console.log('Refreshing user data...');
-      await refreshUser();
+      try {
+        await refreshUser();
+      } catch (refreshError) {
+        console.warn('Failed to refresh user after save, continuing anyway:', refreshError);
+        // Don't block navigation if refresh fails - data is already saved to backend
+      }
+
+      // Track onboarding step completion (Phase 5B-1)
+      try {
+        await authAPI.updateOnboardingStep(3);
+        console.log('✅ Step 3 progress saved');
+      } catch (stepError) {
+        console.warn('Failed to save step progress:', stepError);
+        // Don't block navigation if step tracking fails
+      }
 
       // Navigate to next step
       console.log('Navigating to step 4...');
@@ -171,11 +313,29 @@ export default function ContractorRegisterStep3() {
           yearsExperience: data.yearsExperience
         },
       });
+
     } catch (error: any) {
       console.error('Profile save error:', error);
+
+      // Extract detailed error message
+      let errorMessage = 'Failed to save profile information. Please try again.';
+
+      if (error.response?.data?.detail) {
+        if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        } else if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail
+            .map((err: any) => err.msg || JSON.stringify(err))
+            .join('\n');
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       Alert.alert(
         'Error',
-        error.message || error.response?.data?.detail || 'Failed to save profile information'
+        errorMessage,
+        [{ text: 'OK' }]
       );
     } finally {
       setIsLoading(false);
@@ -187,6 +347,8 @@ export default function ContractorRegisterStep3() {
     { label: 'Documents', completed: true },
     { label: 'Profile', completed: false },
     { label: 'Portfolio', completed: false },
+    { label: 'Banking', completed: false },
+    { label: 'Review', completed: false },
   ];
 
   const handleStepPress = (stepIndex: number) => {
@@ -204,6 +366,11 @@ export default function ContractorRegisterStep3() {
     } else if (stepIndex === 3) {
       router.push({
         pathname: '/auth/contractor/register-step4',
+        params,
+      });
+    } else if (stepIndex === 4) {
+      router.push({
+        pathname: '/auth/contractor/register-step5',
         params,
       });
     }
@@ -302,14 +469,83 @@ export default function ContractorRegisterStep3() {
               </View>
             )}
 
-            <Text style={styles.sectionTitle}>Business Address</Text>
-            <Text style={styles.helpText}>
-              This address determines your 50-mile service radius. We'll geocode it automatically.
+            {/* Specialty Categories */}
+            <Text style={styles.label}>
+              Specialties
+            </Text>
+            <Text style={styles.helpText}>Select your business focus areas (optional)</Text>
+            <View style={styles.skillsGrid}>
+              {SPECIALTY_CATEGORIES.map((specialty) => (
+                <TouchableOpacity
+                  key={specialty}
+                  style={[
+                    styles.skillChip,
+                    selectedSpecialties.includes(specialty) && styles.skillChipSelected,
+                  ]}
+                  onPress={() => toggleSpecialty(specialty)}
+                >
+                  <Text
+                    style={[
+                      styles.skillChipText,
+                      selectedSpecialties.includes(specialty) && styles.skillChipTextSelected,
+                    ]}
+                  >
+                    {specialty}
+                  </Text>
+                  {selectedSpecialties.includes(specialty) && (
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary.main} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Provider Intent */}
+            <Text style={styles.label}>Business Intent</Text>
+            <Text style={styles.helpText}>Tell us about your business goals</Text>
+            <View style={styles.intentGrid}>
+              {PROVIDER_INTENTS.map((intent) => (
+                <TouchableOpacity
+                  key={intent.value}
+                  style={[
+                    styles.intentCard,
+                    selectedIntent === intent.value && styles.intentCardSelected,
+                  ]}
+                  onPress={() => setSelectedIntent(intent.value)}
+                >
+                  <View style={styles.intentHeader}>
+                    <Text
+                      style={[
+                        styles.intentLabel,
+                        selectedIntent === intent.value && styles.intentLabelSelected,
+                      ]}
+                    >
+                      {intent.label}
+                    </Text>
+                    {selectedIntent === intent.value && (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.primary.main} />
+                    )}
+                  </View>
+                  <Text style={styles.intentDescription}>{intent.description}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Address Section */}
+            <Text style={styles.label}>
+              Business Address <Text style={styles.required}>*</Text>
             </Text>
 
+            {/* Optional autocomplete helper */}
+            <GooglePlacesAddressInput
+              label="Quick Address Search"
+              onAddressSelected={handleAddressSelected}
+              placeholder="Search for your address..."
+            />
+
+            {/* Manual address fields */}
             <Controller
               control={control}
-              name="businessStreet"
+              name="street"
               rules={{ required: 'Street address is required' }}
               render={({ field: { onChange, value } }) => (
                 <Input
@@ -317,9 +553,26 @@ export default function ContractorRegisterStep3() {
                   value={value}
                   onChangeText={onChange}
                   placeholder="123 Main St"
-                  error={errors.businessStreet?.message}
+                  error={errors.street?.message}
                   required
-                  icon="home-outline"
+                  icon="location-outline"
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="city"
+              rules={{ required: 'City is required' }}
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="City"
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Austin"
+                  error={errors.city?.message}
+                  required
+                  icon="business-outline"
                 />
               )}
             />
@@ -328,17 +581,17 @@ export default function ContractorRegisterStep3() {
               <View style={styles.halfWidth}>
                 <Controller
                   control={control}
-                  name="businessCity"
-                  rules={{ required: 'City is required' }}
+                  name="state"
+                  rules={{ required: 'State is required' }}
                   render={({ field: { onChange, value } }) => (
                     <Input
-                      label="City"
+                      label="State"
                       value={value}
-                      onChangeText={onChange}
-                      placeholder="Baltimore"
-                      error={errors.businessCity?.message}
+                      onChangeText={(text) => onChange(text.toUpperCase())}
+                      placeholder="TX"
+                      maxLength={2}
+                      error={errors.state?.message}
                       required
-                      icon="business-outline"
                     />
                   )}
                 />
@@ -346,48 +599,23 @@ export default function ContractorRegisterStep3() {
               <View style={styles.halfWidth}>
                 <Controller
                   control={control}
-                  name="businessState"
-                  rules={{ required: 'State is required' }}
+                  name="zip"
+                  rules={{ required: 'ZIP code is required' }}
                   render={({ field: { onChange, value } }) => (
                     <Input
-                      label="State"
+                      label="ZIP Code"
                       value={value}
                       onChangeText={onChange}
-                      placeholder="MD"
-                      error={errors.businessState?.message}
+                      placeholder="78701"
+                      keyboardType="numeric"
+                      maxLength={5}
+                      error={errors.zip?.message}
                       required
-                      icon="map-outline"
-                      maxLength={2}
                     />
                   )}
                 />
               </View>
             </View>
-
-            <Controller
-              control={control}
-              name="businessZip"
-              rules={{
-                required: 'ZIP code is required',
-                pattern: {
-                  value: /^\d{5}$/,
-                  message: 'ZIP code must be 5 digits'
-                }
-              }}
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="ZIP Code"
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="21201"
-                  keyboardType="numeric"
-                  error={errors.businessZip?.message}
-                  required
-                  icon="location-outline"
-                  maxLength={5}
-                />
-              )}
-            />
 
             <Controller
               control={control}
@@ -523,42 +751,46 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.md,
   },
-  verifiedAddressCard: {
-    backgroundColor: colors.success.lightest,
-    borderWidth: 1,
-    borderColor: colors.success.main,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  verifiedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  verifiedTitle: {
-    ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
-    color: colors.success.main,
-  },
-  verifiedText: {
-    ...typography.sizes.sm,
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  verifiedCoords: {
-    ...typography.sizes.xs,
-    color: colors.neutral[600],
-    fontFamily: 'monospace',
-  },
   row: {
     flexDirection: 'row',
     gap: spacing.md,
   },
   halfWidth: {
     flex: 1,
+  },
+  intentGrid: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  intentCard: {
+    padding: spacing.base,
+    backgroundColor: colors.background.secondary,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.neutral[200],
+  },
+  intentCardSelected: {
+    backgroundColor: colors.primary.lightest,
+    borderColor: colors.primary.main,
+  },
+  intentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  intentLabel: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
+  },
+  intentLabelSelected: {
+    color: colors.primary.main,
+  },
+  intentDescription: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    lineHeight: 20,
   },
   actions: {
     gap: spacing.md,

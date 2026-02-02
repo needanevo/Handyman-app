@@ -16,10 +16,13 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { Expense, ExpenseCategory } from '../../../src/types/contractor';
@@ -27,45 +30,23 @@ import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
 import { Badge } from '../../../src/components/Badge';
 import { PhotoCapture } from '../../../src/components/contractor/PhotoCapture';
-import { AppHeader } from '../../../src/components/AppHeader';
-import { exportExpensesToPDF, ExpenseExportData } from '../../../src/utils/pdfExport';
+import { contractorAPI } from '../../../src/services/api';
 
 export default function ExpensesScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | 'ALL'>('ALL');
+  const [selectedReceiptPhotos, setSelectedReceiptPhotos] = useState<string[]>([]);
+  const [showReceiptViewer, setShowReceiptViewer] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
-  // Mock data - replace with API
+  // Fetch expenses from API
   const { data: expenses } = useQuery<Expense[]>({
     queryKey: ['contractor', 'expenses'],
     queryFn: async () => {
-      return [
-        {
-          id: 'e1',
-          jobId: 'j1',
-          category: 'MATERIALS' as const,
-          description: 'Delta Faucet Model XYZ',
-          amount: 89.99,
-          receiptPhotos: ['https://placeholder.com/200'],
-          date: '2025-11-14',
-          vendor: 'Home Depot',
-          notes: 'Customer requested specific model',
-          createdAt: '2025-11-14T10:30:00',
-          updatedAt: '2025-11-14T10:30:00',
-        },
-        {
-          id: 'e2',
-          jobId: 'j1',
-          category: 'MATERIALS' as const,
-          description: 'Plumber\'s tape and washers',
-          amount: 12.50,
-          receiptPhotos: [],
-          date: '2025-11-14',
-          vendor: 'Ace Hardware',
-          createdAt: '2025-11-14T11:15:00',
-          updatedAt: '2025-11-14T11:15:00',
-        },
-      ];
+      const response = await contractorAPI.getExpenses();
+      return response;
     },
   });
 
@@ -103,11 +84,27 @@ export default function ExpensesScreen() {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
       year: 'numeric',
     });
+  };
+
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const dateStr = date.toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+    });
+    const timeStr = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `${dateStr}, ${timeStr}`;
   };
 
   const getCategoryIcon = (category: ExpenseCategory) => {
@@ -245,20 +242,43 @@ export default function ExpensesScreen() {
                 <Text style={styles.categoryIcon}>{getCategoryIcon(item.category)}</Text>
                 <View style={styles.expenseInfo}>
                   <Text style={styles.expenseDescription}>{item.description}</Text>
-                  <Text style={styles.expenseDate}>{formatDate(item.date)}</Text>
+                  <Text style={styles.expenseDate}>
+                    {formatDate(item.date)}
+                  </Text>
+                  {item.createdAt && (
+                    <Text style={styles.expenseTimestamp}>
+                      Added: {formatDateTime(item.createdAt)}
+                    </Text>
+                  )}
                 </View>
               </View>
-              <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>
+              <View style={styles.expenseAmountContainer}>
+                <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>
+              </View>
             </View>
 
-            {item.vendor && (
+            {(item.vendor || (item.receiptPhotos && item.receiptPhotos.length > 0)) && (
               <View style={styles.expenseFooter}>
-                <Text style={styles.vendorLabel}>Vendor:</Text>
-                <Text style={styles.vendorValue}>{item.vendor}</Text>
-                {item.receiptPhotos.length > 0 && (
-                  <View style={styles.receiptBadge}>
-                    <Text style={styles.receiptBadgeText}>📸 Receipt</Text>
+                {item.vendor && (
+                  <View style={styles.vendorContainer}>
+                    <Text style={styles.vendorLabel}>Vendor:</Text>
+                    <Text style={styles.vendorValue}>{item.vendor}</Text>
                   </View>
+                )}
+                {item.receiptPhotos && item.receiptPhotos.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.receiptButton}
+                    onPress={() => {
+                      setSelectedReceiptPhotos(item.receiptPhotos);
+                      setCurrentPhotoIndex(0);
+                      setShowReceiptViewer(true);
+                    }}
+                  >
+                    <Ionicons name="image" size={16} color={colors.background.primary} style={styles.receiptIcon} />
+                    <Text style={styles.receiptButtonText}>
+                      {item.receiptPhotos.length} {item.receiptPhotos.length === 1 ? 'Photo' : 'Photos'}
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
             )}
@@ -280,12 +300,72 @@ export default function ExpensesScreen() {
       <AddExpenseModal
         visible={showAddExpense}
         onClose={() => setShowAddExpense(false)}
+        queryClient={queryClient}
       />
+
+      {/* Receipt Photo Viewer Modal */}
+      <Modal
+        visible={showReceiptViewer}
+        animationType="fade"
+        onRequestClose={() => setShowReceiptViewer(false)}
+      >
+        <SafeAreaView style={styles.receiptViewerContainer} edges={['top', 'bottom']}>
+          <View style={styles.receiptViewerHeader}>
+            <Text style={styles.receiptViewerTitle}>Receipt Photo</Text>
+            <TouchableOpacity onPress={() => setShowReceiptViewer(false)}>
+              <Ionicons name="close" size={32} color={colors.neutral[900]} />
+            </TouchableOpacity>
+          </View>
+
+          {selectedReceiptPhotos.length > 0 && (
+            <View style={styles.receiptViewerContent}>
+              <Image
+                source={{ uri: selectedReceiptPhotos[currentPhotoIndex] }}
+                style={styles.receiptImage}
+                resizeMode="contain"
+              />
+
+              {selectedReceiptPhotos.length > 1 && (
+                <View style={styles.receiptViewerPagination}>
+                  <TouchableOpacity
+                    onPress={() => setCurrentPhotoIndex(Math.max(0, currentPhotoIndex - 1))}
+                    disabled={currentPhotoIndex === 0}
+                    style={styles.paginationButton}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={24}
+                      color={currentPhotoIndex === 0 ? colors.neutral[400] : colors.primary.main}
+                    />
+                  </TouchableOpacity>
+
+                  <Text style={styles.paginationText}>
+                    {currentPhotoIndex + 1} / {selectedReceiptPhotos.length}
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={() => setCurrentPhotoIndex(Math.min(selectedReceiptPhotos.length - 1, currentPhotoIndex + 1))}
+                    disabled={currentPhotoIndex === selectedReceiptPhotos.length - 1}
+                    style={styles.paginationButton}
+                  >
+                    <Ionicons
+                      name="chevron-forward"
+                      size={24}
+                      color={currentPhotoIndex === selectedReceiptPhotos.length - 1 ? colors.neutral[400] : colors.primary.main}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function AddExpenseModal({ visible, onClose, queryClient }: { visible: boolean; onClose: () => void; queryClient: any }) {
+  const insets = useSafeAreaInsets();
   const [category, setCategory] = useState<ExpenseCategory>('MATERIALS');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -304,15 +384,98 @@ function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () =
     { value: 'OTHER', label: 'Other', icon: '💰' },
   ];
 
-  const handleSave = () => {
+  // Use mutation for optimistic updates
+  const addExpenseMutation = useMutation({
+    mutationFn: (newExpense: {
+      jobId: string;
+      category: string;
+      description: string;
+      amount: number;
+      date: string;
+      vendor?: string;
+      notes?: string;
+    }) => contractorAPI.addExpense(newExpense),
+    onMutate: async (newExpense) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries(['contractor', 'expenses']);
+
+      // Snapshot previous value
+      const previousExpenses = queryClient.getQueryData(['contractor', 'expenses']) as Expense[] | undefined;
+
+      // Optimistically update with temporary expense
+      const now = new Date().toISOString();
+      const optimisticExpense: Expense = {
+        id: `temp-${Date.now()}`,
+        jobId: newExpense.jobId,
+        category: newExpense.category as ExpenseCategory,
+        description: newExpense.description,
+        amount: newExpense.amount,
+        date: newExpense.date,
+        vendor: newExpense.vendor,
+        notes: newExpense.notes,
+        receiptPhotos: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      queryClient.setQueryData(
+        ['contractor', 'expenses'],
+        (old: any) => [optimisticExpense, ...(old || [])]
+      );
+
+      return { previousExpenses };
+    },
+    onError: (error: any, newExpense, context: any) => {
+      // Rollback on error
+      if (context?.previousExpenses) {
+        queryClient.setQueryData(['contractor', 'expenses'], context.previousExpenses);
+      }
+      console.error('Save expense error:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to save expense. Please try again.'
+      );
+    },
+    onSuccess: (data) => {
+      // Replace temporary expense with real one from server
+      queryClient.setQueryData(
+        ['contractor', 'expenses'],
+        (old: any) => {
+          const filtered = (old || []).filter((exp: any) => !exp.id.startsWith('temp-'));
+          return [data, ...filtered];
+        }
+      );
+
+      // Close modal and reset form
+      onClose();
+      setDescription('');
+      setAmount('');
+      setVendor('');
+      setNotes('');
+      setReceiptPhotos([]);
+      setCategory('MATERIALS');
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries(['contractor', 'expenses']);
+    },
+  });
+
+  const handleSave = async () => {
     if (!description || !amount) {
       Alert.alert('Missing Information', 'Please enter description and amount');
       return;
     }
 
-    // In production, save to backend
-    console.log('Saving expense:', { category, description, amount, vendor, notes, receiptPhotos });
-    onClose();
+    addExpenseMutation.mutate({
+      jobId: '', // TODO: Add job selection
+      category,
+      description,
+      amount: parseFloat(amount),
+      date: new Date().toISOString(),
+      vendor: vendor || undefined,
+      notes: notes || undefined,
+    });
   };
 
   const handlePhotoCapture = (photo: any) => {
@@ -322,18 +485,29 @@ function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () =
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={onClose}>
+      <SafeAreaView style={styles.modalContainer} edges={['bottom']}>
+        <View style={[styles.modalHeader, { paddingTop: insets.top + spacing.md }]}>
+          <TouchableOpacity onPress={onClose} disabled={addExpenseMutation.isPending}>
             <Text style={styles.modalClose}>✕</Text>
           </TouchableOpacity>
           <Text style={styles.modalTitle}>Add Expense</Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text style={styles.modalSave}>Save</Text>
+          <TouchableOpacity onPress={handleSave} disabled={addExpenseMutation.isPending}>
+            <Text style={[styles.modalSave, addExpenseMutation.isPending && styles.modalSaveDisabled]}>
+              {addExpenseMutation.isPending ? 'Saving...' : 'Save'}
+            </Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.modalContent}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={0}
+        >
+          <ScrollView
+            style={styles.modalContent}
+            contentContainerStyle={styles.modalContentContainer}
+            keyboardShouldPersistTaps="handled"
+          >
           {/* Category Selection */}
           <Text style={styles.label}>Category</Text>
           <ScrollView
@@ -413,7 +587,8 @@ function AddExpenseModal({ visible, onClose }: { visible: boolean; onClose: () =
             variant="outline"
             size="medium"
           />
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
         {/* Photo Capture Modal */}
         {showPhotoCapture && (
@@ -559,6 +734,17 @@ const styles = StyleSheet.create({
   expenseDate: {
     ...typography.sizes.sm,
     color: colors.neutral[600],
+    marginBottom: spacing.xs / 2,
+  },
+  expenseTimestamp: {
+    ...typography.sizes.xs,
+    color: colors.neutral[500],
+    fontStyle: 'italic',
+  },
+  expenseAmountContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginLeft: spacing.md,
   },
   expenseAmount: {
     ...typography.sizes.lg,
@@ -568,11 +754,18 @@ const styles = StyleSheet.create({
   expenseFooter: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.neutral[200],
-    gap: spacing.sm,
+    gap: spacing.md,
+  },
+  vendorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing.xs,
   },
   vendorLabel: {
     ...typography.sizes.xs,
@@ -584,15 +777,21 @@ const styles = StyleSheet.create({
     color: colors.neutral[700],
     flex: 1,
   },
-  receiptBadge: {
-    backgroundColor: colors.success.lightest,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
+  receiptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary.main,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
   },
-  receiptBadgeText: {
+  receiptIcon: {
+    marginRight: spacing.xs / 2,
+  },
+  receiptButtonText: {
     ...typography.sizes.xs,
-    color: colors.success.dark,
+    color: colors.background.primary,
     fontWeight: typography.weights.semibold,
   },
   emptyContainer: {
@@ -624,7 +823,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
   },
@@ -645,9 +844,18 @@ const styles = StyleSheet.create({
     width: 60,
     textAlign: 'right',
   },
+  modalSaveDisabled: {
+    color: colors.neutral[400],
+  },
+  keyboardView: {
+    flex: 1,
+  },
   modalContent: {
     flex: 1,
     padding: spacing.base,
+  },
+  modalContentContainer: {
+    paddingBottom: spacing['4xl'], // Extra space at bottom for better scrolling
   },
   label: {
     ...typography.sizes.sm,
@@ -732,7 +940,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.md + 16,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
   },
@@ -744,5 +953,53 @@ const styles = StyleSheet.create({
   photoModalContent: {
     flex: 1,
     padding: spacing.base,
+  },
+  receiptViewerContainer: {
+    flex: 1,
+    backgroundColor: colors.neutral[900],
+  },
+  receiptViewerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  receiptViewerTitle: {
+    ...typography.sizes.xl,
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
+  },
+  receiptViewerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  receiptImage: {
+    width: '100%',
+    height: '100%',
+  },
+  receiptViewerPagination: {
+    position: 'absolute',
+    bottom: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    gap: spacing.lg,
+    ...shadows.lg,
+  },
+  paginationButton: {
+    padding: spacing.xs,
+  },
+  paginationText: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
   },
 });

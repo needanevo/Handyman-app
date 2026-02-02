@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -6,23 +6,37 @@ import uuid
 
 class UserRole(str, Enum):
     CUSTOMER = "customer"
-    TECHNICIAN = "technician"
+    HANDYMAN = "handyman"  # Unlicensed, starting business
+    CONTRACTOR = "contractor"  # Licensed contractor (formerly "technician")
     ADMIN = "admin"
 
 class Address(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    street: str
+    street: str  # line1 - primary street address
+    line2: Optional[str] = None  # apt/suite/unit number
     city: str
-    state: str
-    zip_code: str
+    state: str  # 2-letter state code (normalized)
+    zip_code: str  # postal_code
+    country: str = "US"  # ISO country code
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    place_id: Optional[str] = None  # Google Places place_id for future verification
+    formatted_address: Optional[str] = None  # Full formatted address from Google
     is_default: bool = False
+
+class LocationVerification(BaseModel):
+    """Customer location verification status"""
+    status: str = "unverified"  # "unverified" | "verified" | "mismatch"
+    device_lat: Optional[float] = None
+    device_lon: Optional[float] = None
+    verified_at: Optional[datetime] = None
+    auto_verify_enabled: bool = True
 
 class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
     phone: str
+    phone_verified: bool = False  # Whether phone number has been verified via SMS
     first_name: str
     last_name: str
     role: UserRole
@@ -35,9 +49,10 @@ class User(BaseModel):
     # Customer specific fields
     customer_notes: Optional[str] = None
     tags: List[str] = []  # VIP, repeat, warranty, etc.
+    verification: Optional[LocationVerification] = None  # Customer location verification
     
-    # Technician specific fields
-    business_name: Optional[str] = None  # Business/company name for contractors
+    # Technician/Handyman specific fields (shared by both)
+    business_name: Optional[str] = None  # Business/company name
     hourly_rate: Optional[float] = None
     skills: List[str] = []  # drywall, painting, electrical, etc.
     available_hours: Optional[dict] = None  # weekly schedule
@@ -46,7 +61,51 @@ class User(BaseModel):
     documents: Optional[dict] = None  # license, insurance, etc.
     portfolio_photos: List[str] = []  # Portfolio photo URLs
     profile_photo: Optional[str] = None  # Profile picture/logo URL
+    banking_info: Optional[dict] = None  # Banking information for payouts
+
+    # Business growth tracking
+    has_llc: bool = False  # Whether they've formed an LLC
+    llc_formation_date: Optional[datetime] = None
+    is_licensed: bool = False  # Whether they have trade license
+    license_number: Optional[str] = None
+    license_state: Optional[str] = None
+    license_expiry: Optional[datetime] = None
+    is_insured: bool = False  # Whether they have liability insurance
+    insurance_policy_number: Optional[str] = None
+    insurance_expiry: Optional[datetime] = None
+
+    # Growth milestone tracking
+    upgrade_to_technician_date: Optional[datetime] = None  # When handyman became licensed
+    registration_completed_date: Optional[datetime] = None
+    registration_status: Optional[str] = "ACTIVE"  # ACTIVE, PENDING, SUSPENDED
+
+    # Address verification tracking (for contractors/handymen)
+    address_verification_status: Optional[str] = "pending"  # "pending" | "verified" | "failed"
+    address_verification_started_at: Optional[datetime] = None
+    address_verification_deadline: Optional[datetime] = None
+
+    # Provider identity & status (Phase 5B)
+    provider_type: Optional[str] = "individual"  # "individual" | "business"
+    provider_intent: Optional[str] = "not_hiring"  # "not_hiring" | "hiring" | "mentoring"
+    provider_status: Optional[str] = "draft"  # "draft" | "submitted" | "active" | "restricted"
+    provider_completeness: Optional[int] = 0  # Percentage 0-100
+    specialties: List[str] = []  # Contractor-only specialties (e.g., commercial, residential, remodeling)
+    license_info: Optional[dict] = None  # Structured license data placeholder
+    insurance_info: Optional[dict] = None  # Structured insurance data placeholder
+
+    # Onboarding tracking (Phase 5B-1)
+    onboarding_step: Optional[int] = None  # Last completed step (1-5)
+    onboarding_completed: bool = False  # Whether onboarding is fully complete
     
+class AddressInput(BaseModel):
+    """Address input for registration"""
+    street: str
+    city: str
+    state: str
+    zipCode: str
+    unitNumber: Optional[str] = None
+    is_default: bool = True  # Default to True for registration address
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -56,6 +115,15 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.CUSTOMER
     marketingOptIn: bool = False
     businessName: Optional[str] = None  # For contractors
+    address: Optional[AddressInput] = None  # For customer registration
+
+    @field_validator('role', mode='before')
+    @classmethod
+    def normalize_role(cls, v):
+        """Normalize legacy 'technician' to 'contractor' for backward compatibility"""
+        if isinstance(v, str) and v.lower() == "technician":
+            return "contractor"
+        return v
 
 class UserLogin(BaseModel):
     email: EmailStr

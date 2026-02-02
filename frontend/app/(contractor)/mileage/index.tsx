@@ -16,10 +16,13 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { MileageLog } from '../../../src/types/contractor';
 import { Card } from '../../../src/components/Card';
@@ -113,15 +116,16 @@ export default function MileageTracker() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Mileage Tracker</Text>
-          <TouchableOpacity onPress={() => router.push('/(contractor)/mileage/map')}>
-            <Ionicons name="map" size={24} color={colors.primary.main} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Mileage Tracker</Text>
+        <TouchableOpacity onPress={() => router.push('/(contractor)/mileage/map')}>
+          <Text style={styles.mapLink}>🗺️ Map View</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Summary Cards */}
@@ -274,7 +278,16 @@ function AddMileageModal({ visible, onClose }: { visible: boolean; onClose: () =
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.modalContent}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+          keyboardVerticalOffset={0}
+        >
+          <ScrollView
+            style={styles.modalContent}
+            contentContainerStyle={styles.modalContentContainer}
+            keyboardShouldPersistTaps="handled"
+          >
           {/* Date */}
           <Text style={styles.label}>Date</Text>
           <TextInput
@@ -329,7 +342,8 @@ function AddMileageModal({ visible, onClose }: { visible: boolean; onClose: () =
               Detailed trip purposes help support tax deductions
             </Text>
           </View>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
@@ -346,13 +360,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
     ...shadows.sm,
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   backButton: {
-    padding: spacing.sm,
+    padding: spacing.xs,
   },
   headerTitle: {
     ...typography.sizes['2xl'],
@@ -567,6 +576,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
   },
+  keyboardView: {
+    flex: 1,
+  },
   modalClose: {
     fontSize: 28,
     color: colors.neutral[600],
@@ -587,6 +599,9 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: spacing.base,
+  },
+  modalContentContainer: {
+    paddingBottom: spacing['4xl'],
   },
   label: {
     ...typography.sizes.sm,

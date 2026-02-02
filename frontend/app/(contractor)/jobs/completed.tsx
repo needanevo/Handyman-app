@@ -1,3 +1,9 @@
+/**
+ * Completed Jobs Screen
+ *
+ * View all jobs that have been marked as completed.
+ */
+
 import React from 'react';
 import {
   View,
@@ -11,70 +17,90 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
+import { Card } from '../../../src/components/Card';
+import { Badge } from '../../../src/components/Badge';
+import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
+import { EmptyState } from '../../../src/components/EmptyState';
 import { contractorAPI } from '../../../src/services/api';
-import { AppHeader } from '../../../src/components/AppHeader';
 
 export default function CompletedJobsScreen() {
   const router = useRouter();
 
-  const { data: jobs, isLoading, error } = useQuery({
-    queryKey: ['contractor', 'jobs', 'completed'],
-    queryFn: () => contractorAPI.getCompletedJobs(),
+  // Fetch completed jobs
+  // Using unified query key for cache synchronization with dashboard
+  const { data: jobs, isLoading } = useQuery({
+    queryKey: ['contractor-completed-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getCompletedJobs() as any;
+      return response.data.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
   });
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="checkmark-circle-outline" size={80} color={colors.neutral[300]} />
-      <Text style={styles.emptyTitle}>No Completed Jobs</Text>
-      <Text style={styles.emptyText}>
-        Completed jobs will appear here once you finish your first job.
-      </Text>
-    </View>
-  );
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
 
-  const renderJob = ({ item }: any) => (
-    <TouchableOpacity
-      style={styles.jobCard}
-      onPress={() => router.push(`/(contractor)/jobs/${item.id}`)}
-    >
-      <View style={styles.jobHeader}>
-        <Text style={styles.jobTitle}>{item.service_category || 'Job'}</Text>
-        <Text style={styles.jobAmount}>${item.agreed_amount || 0}</Text>
-      </View>
-      <Text style={styles.jobDescription} numberOfLines={2}>
-        {item.description || 'No description'}
-      </Text>
-      <View style={styles.jobFooter}>
-        <View style={styles.jobMeta}>
-          <Ionicons name="calendar-outline" size={16} color={colors.neutral[500]} />
-          <Text style={styles.jobMetaText}>
-            {item.completed_at ? new Date(item.completed_at).toLocaleDateString() : 'N/A'}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+  if (isLoading) {
+    return <LoadingSpinner fullScreen text="Loading completed jobs..." />;
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <AppHeader title="Completed Jobs" showBack={true} showDashboard={true} />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Completed Jobs</Text>
+        <View style={{ width: 40 }} />
+      </View>
 
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color={colors.error.main} />
-          <Text style={styles.errorText}>Failed to load completed jobs</Text>
-        </View>
-      ) : (
+      {jobs && jobs.length > 0 ? (
         <FlatList
-          data={jobs || []}
-          renderItem={renderJob}
-          keyExtractor={(item) => item.id}
+          data={jobs}
+          keyExtractor={(item: any) => item.id}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={renderEmptyState}
+          renderItem={({ item }: any) => (
+            <Card
+              style={styles.jobCard}
+              onPress={() => router.push(`/(contractor)/jobs/${item.id}`)}
+            >
+              <View style={styles.jobHeader}>
+                <View style={styles.jobInfo}>
+                  <Text style={styles.jobTitle}>{item.title || 'Job Details'}</Text>
+                  <Text style={styles.jobLocation}>{item.location || 'Location TBD'}</Text>
+                  {item.completedDate && (
+                    <Text style={styles.completedDate}>
+                      ✅ Completed {new Date(item.completedDate).toLocaleDateString()}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.statusContainer}>
+                  <Badge variant="success" label="Completed" />
+                  {item.payout && (
+                    <Text style={styles.payoutAmount}>
+                      {formatCurrency(item.payout)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </Card>
+          )}
+        />
+      ) : (
+        <EmptyState
+          icon="checkmark-done-outline"
+          title="No Completed Jobs"
+          description="Finished jobs will appear here for your records"
+          actionLabel="View Available Jobs"
+          onAction={() => router.push('/(contractor)/jobs/available')}
         />
       )}
     </SafeAreaView>
@@ -84,89 +110,67 @@ export default function CompletedJobsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background.secondary,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.lg,
     backgroundColor: colors.background.primary,
+    ...shadows.sm,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  backButton: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
-  },
-  loadingText: {
-    ...typography.sizes.base,
-    color: colors.neutral[600],
-  },
-  errorContainer: {
-    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.md,
   },
-  errorText: {
-    ...typography.sizes.base,
-    color: colors.error.main,
+  headerTitle: {
+    ...typography.sizes['2xl'],
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
   },
   listContent: {
-    padding: spacing.lg,
-    gap: spacing.md,
+    padding: spacing.base,
   },
   jobCard: {
-    backgroundColor: 'white',
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    ...shadows.sm,
+    padding: spacing.base,
+    marginBottom: spacing.md,
   },
   jobHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: spacing.sm,
+  },
+  jobInfo: {
+    flex: 1,
+    marginRight: spacing.md,
   },
   jobTitle: {
-    ...typography.sizes.base,
+    ...typography.sizes.lg,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[900],
-    flex: 1,
+    marginBottom: spacing.xs,
   },
-  jobAmount: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
-    color: colors.success.main,
-  },
-  jobDescription: {
+  jobLocation: {
     ...typography.sizes.sm,
     color: colors.neutral[600],
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
-  jobFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  completedDate: {
+    ...typography.sizes.sm,
+    color: colors.success.dark,
+    fontWeight: typography.weights.medium,
   },
-  jobMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+  statusContainer: {
+    alignItems: 'flex-end',
   },
-  jobMetaText: {
-    ...typography.sizes.xs,
-    color: colors.neutral[500],
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: spacing['3xl'],
-    gap: spacing.md,
-  },
-  emptyTitle: {
-    ...typography.sizes.xl,
+  payoutAmount: {
+    ...typography.sizes.lg,
     fontWeight: typography.weights.bold,
-    color: colors.neutral[700],
-  },
-  emptyText: {
-    ...typography.sizes.base,
-    color: colors.neutral[500],
-    textAlign: 'center',
-    maxWidth: 250,
+    color: colors.success.dark,
+    marginTop: spacing.sm,
   },
 });

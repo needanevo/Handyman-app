@@ -91,15 +91,22 @@ const apiClient = new APIClient();
 export const authAPI = {
   login: (credentials: { email: string; password: string }) =>
     apiClient.post<{ access_token: string; refresh_token: string; token_type: string }>('/auth/login', credentials),
-  
+
   register: (userData: any) =>
     apiClient.post<{ access_token: string; refresh_token: string; token_type: string }>('/auth/register', userData),
-  
+
   getCurrentUser: () => apiClient.get<any>('/auth/me'),
-  
+
   setAuthToken: (token: string) => apiClient.setAuthToken(token),
-  
+
   clearAuthToken: () => apiClient.clearAuthToken(),
+
+  // Onboarding step tracking (Phase 5B-1)
+  updateOnboardingStep: (step: number) =>
+    apiClient.post<{ success: boolean; step: number; message: string }>('/auth/onboarding/step', { step }),
+
+  completeOnboarding: () =>
+    apiClient.post<{ success: boolean; message: string; provider_status: string }>('/auth/onboarding/complete', {}),
 };
 
 // Services API
@@ -115,14 +122,17 @@ export const servicesAPI = {
 export const jobsAPI = {
   createJob: (jobData: {
     service_category: string;
-    address_id: string;
+    address: {
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+    };
     description: string;
     photos: string[];
-    preferred_dates: string[];
-    budget_min: number;
-    budget_max: number;
+    preferred_timing?: string | null;
+    budget_max?: number | null;
     urgency: string;
-    source: string;
     status: string;
   }) => apiClient.post<{
     job_id: string;
@@ -134,8 +144,14 @@ export const jobsAPI = {
   getJobs: (status?: string) =>
     apiClient.get<any[]>('/jobs', status ? { status_filter: status } : undefined),
 
+  getQuotes: (status?: string) =>
+    apiClient.get<any[]>('/quotes', status ? { status_filter: status } : undefined),
+
   getJob: (id: string) =>
     apiClient.get<any>(`/jobs/${id}`),
+
+  deleteJob: (id: string) =>
+    apiClient.delete<any>(`/jobs/${id}`),
 
   updateJobStatus: (id: string, status: string) =>
     apiClient.patch<any>(`/jobs/${id}/status`, { status }),
@@ -190,8 +206,14 @@ export const quotesAPI = {
     return apiClient.postFormData<any>('/photos/upload', formData);
   },
   
-  respondToQuote: (id: string, response: { accept: boolean; customer_notes?: string }) => 
+  respondToQuote: (id: string, response: { accept: boolean; customer_notes?: string }) =>
     apiClient.post<any>(`/quotes/${id}/respond`, response),
+
+  acceptQuote: (id: string, notes?: string) =>
+    apiClient.post<any>(`/quotes/${id}/accept`, { customer_notes: notes }),
+
+  rejectQuote: (id: string, reason?: string) =>
+    apiClient.post<any>(`/quotes/${id}/reject`, { reason }),
 };
 
 // Profile API
@@ -199,11 +221,69 @@ export const profileAPI = {
   addAddress: (address: any) =>
     apiClient.post<any>('/profile/addresses', address),
 
-  updateBusinessAddress: (address: any) =>
-    apiClient.put<any>('/profile/addresses/business', address),
-
   getAddresses: () =>
     apiClient.get<any[]>('/profile/addresses'),
+};
+
+// Customer Verification API
+export const verificationAPI = {
+  verifyLocation: (deviceLat: number, deviceLon: number) =>
+    apiClient.post<{ success: boolean; verification: any }>('/customers/verify-location', {
+      device_lat: deviceLat,
+      device_lon: deviceLon,
+    }),
+
+  updatePreferences: (autoVerifyEnabled: boolean) =>
+    apiClient.patch<{ success: boolean; verification: any }>('/customers/verification-preferences', {
+      auto_verify_enabled: autoVerifyEnabled,
+    }),
+};
+
+// Handyman API (for handyman role)
+export const handymanAPI = {
+  // Jobs
+  getAvailableJobs: (filters?: any) =>
+    apiClient.get<any[]>('/handyman/jobs/feed', filters),
+
+  getAcceptedJobs: () =>
+    apiClient.get<any[]>('/handyman/jobs/active'),
+
+  getScheduledJobs: () =>
+    apiClient.get<any[]>('/handyman/jobs/active'), // Same as accepted for handyman
+
+  getCompletedJobs: (filters?: { startDate?: string; endDate?: string }) =>
+    apiClient.get<any[]>('/handyman/jobs/history', filters),
+
+  getJob: (id: string) =>
+    apiClient.get<any>(`/handyman/jobs/${id}`),
+
+  // Wallet
+  getWalletSummary: () =>
+    apiClient.get<any>('/handyman/wallet/summary'),
+
+  getPayouts: () =>
+    apiClient.get<any[]>('/handyman/payouts'),
+
+  // Growth
+  getGrowthSummary: () =>
+    apiClient.get<any>('/handyman/growth/summary'),
+
+  getGrowthEvents: () =>
+    apiClient.get<any[]>('/handyman/growth/events'),
+
+  // Profile
+  updateProfile: (data: any) =>
+    apiClient.patch<any>('/contractors/profile', data), // Uses same endpoint as contractor
+
+  uploadProfilePhoto: (file: { uri: string; type: string; name: string }) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri.startsWith('file://') ? file.uri : `file://${file.uri}`,
+      type: file.type || 'image/jpeg',
+      name: file.name || 'profile.jpg',
+    } as any);
+    return apiClient.postFormData<any>('/handyman/profile-photo/upload', formData);
+  },
 };
 
 // Contractor API
@@ -271,10 +351,25 @@ export const contractorAPI = {
     apiClient.put<any>(`/contractor/jobs/${jobId}/photos/${photoId}`, { caption, notes }),
 
   // Expenses
-  getExpenses: (jobId?: string) =>
-    apiClient.get<any[]>('/contractor/expenses', jobId ? { job_id: jobId } : undefined),
+  getExpenses: async (jobId?: string) => {
+    const expenses = await apiClient.get<any[]>('/contractor/expenses', jobId ? { job_id: jobId } : undefined);
+    // Transform snake_case to camelCase
+    return expenses.map((exp: any) => ({
+      id: exp.id,
+      jobId: exp.job_id,
+      category: exp.category,
+      description: exp.description,
+      amount: exp.amount,
+      receiptPhotos: exp.receipt_photos || [],
+      date: exp.date,
+      vendor: exp.vendor,
+      notes: exp.notes,
+      createdAt: exp.created_at,
+      updatedAt: exp.updated_at,
+    }));
+  },
 
-  addExpense: (expense: {
+  addExpense: async (expense: {
     jobId: string;
     category: string;
     description: string;
@@ -282,7 +377,23 @@ export const contractorAPI = {
     date: string;
     vendor?: string;
     notes?: string;
-  }) => apiClient.post<any>('/contractor/expenses', expense),
+  }) => {
+    const response = await apiClient.post<any>('/contractor/expenses', expense);
+    // Transform snake_case to camelCase
+    return {
+      id: response.id,
+      jobId: response.job_id,
+      category: response.category,
+      description: response.description,
+      amount: response.amount,
+      receiptPhotos: response.receipt_photos || [],
+      date: response.date,
+      vendor: response.vendor,
+      notes: response.notes,
+      createdAt: response.created_at,
+      updatedAt: response.updated_at,
+    };
+  },
 
   uploadReceiptPhoto: async (expenseId: string, photo: { uri: string; type: string; name: string }) => {
     const formData = new FormData();
@@ -358,8 +469,10 @@ export const contractorAPI = {
 
   updateProfile: (profile_data: {
     skills?: string[];
+    specialties?: string[];
     years_experience?: number;
     business_name?: string;
+    provider_intent?: string;
   }) => apiClient.patch<any>('/contractors/profile', profile_data),
 
   // Contractor photo uploads (new proper folder structure)
@@ -394,14 +507,18 @@ export const contractorAPI = {
     return apiClient.postFormData<any>('/contractor/profile-photo/upload', formData);
   },
 
-  uploadJobPhoto: (jobId: string, file: { uri: string; type: string; name: string }) => {
+};
+
+// Customer API
+export const customerAPI = {
+  uploadProfilePhoto: (file: { uri: string; type: string; name: string }) => {
     const formData = new FormData();
     formData.append('file', {
       uri: file.uri.startsWith('file://') ? file.uri : `file://${file.uri}`,
       type: file.type || 'image/jpeg',
-      name: file.name || 'job_photo.jpg',
+      name: file.name || 'profile.jpg',
     } as any);
-    return apiClient.postFormData<any>(`/contractor/photos/job/${jobId}`, formData);
+    return apiClient.postFormData<any>('/customer/profile-photo/upload', formData);
   },
 };
 

@@ -1,0 +1,636 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useForm, Controller } from 'react-hook-form';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
+import { Button } from '../../../src/components/Button';
+import { Input } from '../../../src/components/Input';
+import { PhotoUploader } from '../../../src/components/PhotoUploader';
+import { GooglePlacesAddressInput, StructuredAddress } from '../../../src/components/GooglePlacesAddressInput';
+import { handymanAPI, authAPI } from '../../../src/services/api';
+import { useAuth } from '../../../src/contexts/AuthContext';
+
+interface Step2Form {
+  yearsExperience: string;
+  customSkills: string;
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+}
+
+const serviceCategories = [
+  'Drywall', 'Painting', 'Electrical', 'Plumbing', 'Carpentry',
+  'HVAC', 'Flooring', 'Roofing', 'Landscaping', 'Appliance',
+  'Windows & Doors', 'Other',
+];
+
+// Handymen don't need business intent - they work solo by definition
+// Only contractors have team-building/mentoring options
+
+export default function HandymanRegisterStep2() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const { user, refreshUser } = useAuth();
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [profilePhoto, setProfilePhoto] = useState<string[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<StructuredAddress | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<Step2Form>();
+
+  // Watch address fields for button disabled state
+  const streetValue = watch('street');
+  const cityValue = watch('city');
+  const stateValue = watch('state');
+  const zipValue = watch('zip');
+
+  // Hydrate form with existing user data
+  useEffect(() => {
+    console.log('[Step2] useEffect triggered, user:', user ? 'exists' : 'null');
+
+    if (!user) {
+      console.log('[Step2] User not available yet, waiting...');
+      return;
+    }
+
+    console.log('[Step2] Hydrating form with user data:', {
+      skills: user.skills,
+      yearsExperience: user.yearsExperience,
+      addresses: user.addresses,
+      profilePhoto: user.profilePhoto
+    });
+
+    // Populate skills
+    if (user.skills && user.skills.length > 0) {
+      console.log('[Step2] Setting skills:', user.skills);
+      setSelectedSkills(user.skills);
+    }
+
+    // Populate years of experience
+    if (user.yearsExperience != null) {
+      console.log('[Step2] Setting years experience:', user.yearsExperience);
+      setValue('yearsExperience', user.yearsExperience.toString());
+    }
+
+    // Populate address from existing user data - both state and form fields
+    if (user.addresses && user.addresses.length > 0) {
+      const addr = user.addresses[0];
+      console.log('[Step2] Setting address:', addr);
+
+      // Set form field values
+      setValue('street', addr.street || '');
+      setValue('city', addr.city || '');
+      setValue('state', addr.state || '');
+      setValue('zip', addr.zipCode || '');
+
+      // Also set state for Google Places metadata (lat/lng, placeId, etc.)
+      setSelectedAddress({
+        street: addr.street || '',
+        line2: (addr as any).line2,
+        city: addr.city || '',
+        state: addr.state || '',
+        zipCode: addr.zipCode || '',
+        country: (addr as any).country || 'US',
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+        placeId: (addr as any).placeId,
+        formattedAddress: (addr as any).formattedAddress,
+      });
+    }
+
+    // Populate profile photo
+    if (user.profilePhoto) {
+      console.log('[Step2] Setting profile photo:', user.profilePhoto);
+      setProfilePhoto([user.profilePhoto]);
+    }
+
+    console.log('[Step2] Form hydration complete');
+  }, [user, setValue]);
+
+  const toggleSkill = (skill: string) => {
+    if (selectedSkills.includes(skill)) {
+      setSelectedSkills(selectedSkills.filter(s => s !== skill));
+    } else {
+      setSelectedSkills([...selectedSkills, skill]);
+    }
+  };
+
+  // Handler for when autocomplete selects an address - auto-fills form fields
+  const handleAddressSelected = (address: StructuredAddress) => {
+    console.log('[Step2] Autocomplete address selected:', address);
+    // Populate form fields
+    setValue('street', address.street || '');
+    setValue('city', address.city || '');
+    setValue('state', address.state || '');
+    setValue('zip', address.zipCode || '');
+    // Store full address data for metadata (lat/lng, placeId, etc.)
+    setSelectedAddress(address);
+  };
+
+  const onSubmit = async (data: Step2Form) => {
+    if (selectedSkills.length === 0) {
+      Alert.alert('Error', 'Please select at least one skill');
+      return;
+    }
+
+    // Validate address using form fields
+    if (!data.street || !data.city || !data.state || !data.zip) {
+      Alert.alert('Error', 'Please fill in all address fields');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Build final skills array: standard categories + custom skills (excluding "Other")
+      const standardSkills = selectedSkills.filter(skill => skill !== 'Other');
+
+      // Parse custom skills if "Other" was selected
+      const customSkillsList = selectedSkills.includes('Other') && data.customSkills
+        ? data.customSkills
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+        : [];
+
+      // Combine and deduplicate
+      const allSkills = [...new Set([...standardSkills, ...customSkillsList])];
+
+      // Build address from form data + optional metadata from autocomplete
+      const addressPayload = {
+        street: data.street,
+        line2: selectedAddress?.line2,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zip,
+        country: selectedAddress?.country || 'US',
+        latitude: selectedAddress?.latitude,
+        longitude: selectedAddress?.longitude,
+        place_id: selectedAddress?.placeId,
+        formatted_address: selectedAddress?.formattedAddress,
+      };
+
+      console.log('[Step2] Saving profile with address:', addressPayload);
+
+      await handymanAPI.updateProfile({
+        skills: allSkills,
+        years_experience: parseInt(data.yearsExperience),
+        business_address: addressPayload,
+      } as any);
+
+      // Track onboarding step completion (Phase 5B-1)
+      try {
+        await authAPI.updateOnboardingStep(2);
+        console.log('✅ Step 2 progress saved');
+      } catch (stepError) {
+        console.warn('Failed to save step progress:', stepError);
+        // Don't block navigation if step tracking fails
+      }
+
+      // Refresh user context so address persists across screens
+      try {
+        await refreshUser();
+        console.log('✅ User context refreshed with new address');
+      } catch (refreshError) {
+        console.warn('Failed to refresh user context:', refreshError);
+      }
+
+      router.push('/auth/handyman/register-step3');
+    } catch (error: any) {
+      console.error('[Step2] Update error:', error);
+      console.error('[Step2] Error response:', error?.response?.data);
+      console.error('[Step2] Error message:', error?.message);
+
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to save information. Please try again.';
+      Alert.alert('Update Error', errorMessage);
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <Button
+            title=""
+            onPress={() => router.back()}
+            variant="ghost"
+            size="small"
+            icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
+            style={styles.backButton}
+          />
+        </View>
+
+        <View style={styles.progressBar}>
+          <View style={[styles.progressSegment, styles.progressActive]} />
+          <View style={[styles.progressSegment, styles.progressActive]} />
+          <View style={styles.progressSegment} />
+          <View style={styles.progressSegment} />
+        </View>
+
+        <View style={styles.titleSection}>
+          <View style={styles.iconBadge}>
+            <Ionicons name="construct" size={32} color="#FFA500" />
+          </View>
+          <Text style={styles.title}>Skills & Service Area</Text>
+          <Text style={styles.subtitle}>
+            Tell us what you can do and where you work
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            What can you do? <Text style={styles.required}>*</Text>
+          </Text>
+          <Text style={styles.sectionHelp}>Select all that apply</Text>
+          <View style={styles.skillsGrid}>
+            {serviceCategories.map((skill) => (
+              <TouchableOpacity
+                key={skill}
+                style={[
+                  styles.skillChip,
+                  selectedSkills.includes(skill) && styles.skillChipSelected,
+                ]}
+                onPress={() => toggleSkill(skill)}
+              >
+                <Text
+                  style={[
+                    styles.skillChipText,
+                    selectedSkills.includes(skill) && styles.skillChipTextSelected,
+                  ]}
+                >
+                  {skill}
+                </Text>
+                {selectedSkills.includes(skill) && (
+                  <Ionicons name="checkmark-circle" size={18} color="#FFA500" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Custom Skills Input (shown when "Other" is selected) */}
+          {selectedSkills.includes('Other') && (
+            <View style={styles.customSkillsSection}>
+              <Controller
+                control={control}
+                name="customSkills"
+                rules={{
+                  required: selectedSkills.includes('Other') ? 'Please specify your custom skills' : false
+                }}
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="Specify Your Skills"
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="e.g., Tile work, Fence installation, Pool maintenance"
+                    error={errors.customSkills?.message}
+                    required={selectedSkills.includes('Other')}
+                    multiline
+                    numberOfLines={3}
+                    icon="create-outline"
+                    helpText="List any additional skills not covered above (comma-separated)"
+                  />
+                )}
+              />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            Profile Photo <Text style={styles.optionalLabel}>(Optional)</Text>
+          </Text>
+          <Text style={styles.sectionHelp}>
+            Add a professional photo to help customers recognize you
+          </Text>
+          <PhotoUploader
+            photos={profilePhoto}
+            onPhotosChange={setProfilePhoto}
+            maxPhotos={1}
+            label="Take or upload photo"
+            customUpload={async (file: { uri: string; type: string; name: string }) => {
+              const response = await handymanAPI.uploadProfilePhoto(file);
+              return response;
+            }}
+          />
+        </View>
+
+        <View style={styles.formSection}>
+          <Controller
+            control={control}
+            name="yearsExperience"
+            rules={{ required: 'Years of experience required' }}
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Years of Experience"
+                value={value}
+                onChangeText={onChange}
+                placeholder="3"
+                keyboardType="numeric"
+                error={errors.yearsExperience?.message}
+                required
+                icon="calendar-outline"
+                helpText="Rough estimate is fine"
+              />
+            )}
+          />
+
+          {/* Address Section */}
+          <Text style={styles.sectionLabel}>
+            Home Address <Text style={styles.required}>*</Text>
+          </Text>
+
+          {/* Optional autocomplete helper */}
+          <GooglePlacesAddressInput
+            label="Quick Address Search"
+            onAddressSelected={handleAddressSelected}
+            placeholder="Search for your address..."
+          />
+
+          {/* Manual address fields */}
+          <Controller
+            control={control}
+            name="street"
+            rules={{ required: 'Street address is required' }}
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Street Address"
+                value={value}
+                onChangeText={onChange}
+                placeholder="123 Main St"
+                error={errors.street?.message}
+                required
+                icon="location-outline"
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="city"
+            rules={{ required: 'City is required' }}
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="City"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Austin"
+                error={errors.city?.message}
+                required
+                icon="business-outline"
+              />
+            )}
+          />
+
+          <View style={styles.rowFields}>
+            <View style={styles.halfField}>
+              <Controller
+                control={control}
+                name="state"
+                rules={{ required: 'State is required' }}
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="State"
+                    value={value}
+                    onChangeText={(text) => onChange(text.toUpperCase())}
+                    placeholder="TX"
+                    maxLength={2}
+                    error={errors.state?.message}
+                    required
+                  />
+                )}
+              />
+            </View>
+            <View style={styles.halfField}>
+              <Controller
+                control={control}
+                name="zip"
+                rules={{ required: 'ZIP code is required' }}
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="ZIP Code"
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="78701"
+                    keyboardType="numeric"
+                    maxLength={5}
+                    error={errors.zip?.message}
+                    required
+                  />
+                )}
+              />
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Buttons always pinned at bottom, outside ScrollView */}
+      <View style={styles.fixedBottom}>
+        <Button
+          title="Continue"
+          onPress={handleSubmit(onSubmit)}
+          loading={isLoading}
+          size="large"
+          fullWidth
+          disabled={selectedSkills.length === 0 || !streetValue || !cityValue || !stateValue || !zipValue}
+        />
+        <Button
+          title="Back"
+          onPress={() => router.back()}
+          variant="outline"
+          size="medium"
+          fullWidth
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background.primary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.md,
+  },
+  header: {
+    paddingTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+  },
+  progressBar: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  progressSegment: {
+    flex: 1,
+    height: 4,
+    backgroundColor: colors.neutral[200],
+    borderRadius: 2,
+  },
+  progressActive: {
+    backgroundColor: '#FFA500',
+  },
+  titleSection: {
+    alignItems: 'center',
+    marginBottom: spacing['2xl'],
+  },
+  iconBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: borderRadius.full,
+    backgroundColor: '#FFA50020',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  title: {
+    ...typography.sizes['2xl'],
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  subtitle: {
+    ...typography.sizes.base,
+    color: colors.neutral[600],
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  section: {
+    marginBottom: spacing.xl,
+  },
+  sectionLabel: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
+    marginBottom: spacing.xs,
+  },
+  sectionHelp: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    marginBottom: spacing.md,
+  },
+  required: {
+    color: colors.error.main,
+  },
+  optionalLabel: {
+    color: colors.neutral[500],
+    fontWeight: typography.weights.regular,
+  },
+  customSkillsSection: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  skillsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  skillChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.base,
+    backgroundColor: colors.background.secondary,
+    borderRadius: borderRadius.full,
+    borderWidth: 2,
+    borderColor: colors.neutral[200],
+  },
+  skillChipSelected: {
+    backgroundColor: '#FFA50020',
+    borderColor: '#FFA500',
+  },
+  skillChipText: {
+    ...typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    color: colors.neutral[700],
+  },
+  skillChipTextSelected: {
+    color: '#FFA500',
+    fontWeight: typography.weights.semibold,
+  },
+  intentGrid: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  intentCard: {
+    padding: spacing.base,
+    backgroundColor: colors.background.secondary,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.neutral[200],
+  },
+  intentCardSelected: {
+    backgroundColor: '#FFA50020',
+    borderColor: '#FFA500',
+  },
+  intentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  intentLabel: {
+    ...typography.sizes.base,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
+  },
+  intentLabelSelected: {
+    color: '#FFA500',
+  },
+  intentDescription: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    lineHeight: 20,
+  },
+  formSection: {
+    gap: spacing.base,
+    marginBottom: spacing.xl,
+    zIndex: 1000, // Ensure address autocomplete dropdown appears above other elements
+  },
+  rowFields: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  halfField: {
+    flex: 1,
+  },
+  fixedBottom: {
+    gap: spacing.md,
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+    backgroundColor: colors.background.primary,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
+  },
+});

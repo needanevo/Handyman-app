@@ -1,755 +1,623 @@
-# Admin Dashboard Guide
+# The Real Johnson Handyman Services - Admin Guide
 
-**The Real Johnson Handyman Services - Administrator Documentation**
+**Version**: 1.0
+**Last Updated**: 2025-11-20
+**Audience**: Non-technical administrators and business owners
 
 ---
 
 ## Table of Contents
 
-1. [Creating an Admin Account](#creating-an-admin-account)
-2. [Logging In as Admin](#logging-in-as-admin)
-3. [Admin Dashboard Overview](#admin-dashboard-overview)
-4. [Contractor Management](#contractor-management)
-5. [Customer Management](#customer-management)
-6. [Jobs Management](#jobs-management)
-7. [Common Tasks & Workflows](#common-tasks--workflows)
-8. [API Endpoints Reference](#api-endpoints-reference)
+1. [Introduction](#introduction)
+2. [Getting Started - First Time Setup](#getting-started---first-time-setup)
+3. [Connecting to Your Database](#connecting-to-your-database)
+4. [Common Administrative Tasks](#common-administrative-tasks)
+5. [Troubleshooting](#troubleshooting)
+6. [Understanding Your Data](#understanding-your-data)
 
 ---
 
-## Creating an Admin Account
+## Introduction
 
-### Method 1: Using MongoDB Compass (Recommended)
+This guide will show you how to view and manage your handyman business data using **MongoDB Compass** - a free desktop application that lets you see customer information, contractor profiles, job requests, and quotes.
 
-1. **Open MongoDB Compass** and connect to your MongoDB Atlas cluster:
+**What You'll Be Able to Do:**
+- View all registered customers and contractors
+- Check quote requests and their status
+- Verify contractor registration information
+- Search for specific users by email or phone
+- Monitor job activity and quotes
+
+**What You'll Need:**
+- A Windows, Mac, or Linux computer
+- Internet connection
+- Your database connection information (provided below)
+
+---
+
+## Getting Started - First Time Setup
+
+### Step 1: Download MongoDB Compass
+
+1. **Open your web browser** (Chrome, Edge, Firefox, or Safari)
+
+2. **Go to this website:**
    ```
-   mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?appName=Cluster0&w=majority&tlsAllowInvalidCertificates=true
-   ```
-
-2. **Navigate to the `users` collection**:
-   - Database: `handyman_app` (or your configured DB name)
-   - Collection: `users`
-
-3. **Insert a new admin user document**:
-   ```json
-   {
-     "id": "admin-user-001",
-     "email": "admin@therealjohnson.com",
-     "first_name": "Admin",
-     "last_name": "User",
-     "phone": "+1234567890",
-     "role": "ADMIN",
-     "addresses": [],
-     "created_at": { "$date": "2025-11-20T00:00:00.000Z" },
-     "updated_at": { "$date": "2025-11-20T00:00:00.000Z" }
-   }
-   ```
-
-4. **Create password in `user_passwords` collection**:
-   ```json
-   {
-     "user_id": "admin-user-001",
-     "password_hash": "$2b$12$YOUR_BCRYPT_HASH_HERE"
-   }
+   https://www.mongodb.com/try/download/compass
    ```
 
-   **To generate a bcrypt hash**, use this Python script:
-   ```python
-   import bcrypt
+3. **The website will automatically detect your operating system:**
+   - If you're on Windows, it will show "MongoDB Compass for Windows"
+   - If you're on Mac, it will show "MongoDB Compass for macOS"
+   - If you're on Linux, it will show "MongoDB Compass for Linux"
 
-   password = "YourSecurePassword123!"
-   hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-   print(hashed.decode('utf-8'))
+4. **Click the green "Download" button**
+   - The file will download to your computer (usually to your "Downloads" folder)
+   - The file will be named something like:
+     - Windows: `mongodb-compass-1.40.4-win32-x64.exe`
+     - Mac: `mongodb-compass-1.40.4-darwin-x64.dmg`
+
+### Step 2: Install MongoDB Compass
+
+**For Windows:**
+
+1. **Find the downloaded file** in your Downloads folder
+2. **Double-click the file** (the one ending in `.exe`)
+3. **If Windows shows a security warning** ("Windows protected your PC"):
+   - Click "More info"
+   - Click "Run anyway"
+4. **The installer will open**
+5. **Click "Next"** on each screen
+6. **Click "Install"** when prompted
+7. **Wait for installation to complete** (takes 1-2 minutes)
+8. **Click "Finish"**
+9. **MongoDB Compass will open automatically**
+
+**For Mac:**
+
+1. **Find the downloaded file** in your Downloads folder
+2. **Double-click the file** (the one ending in `.dmg`)
+3. **A window will open showing the MongoDB Compass icon**
+4. **Drag the MongoDB Compass icon to the Applications folder**
+5. **Wait for the copy to complete**
+6. **Open your Applications folder**
+7. **Double-click "MongoDB Compass"**
+8. **If Mac shows a security warning** ("MongoDB Compass cannot be opened"):
+   - Click "OK"
+   - Open "System Preferences"
+   - Click "Security & Privacy"
+   - Click "Open Anyway"
+   - Click "Open" when asked to confirm
+
+---
+
+## Connecting to Your Database
+
+### Step 1: Open MongoDB Compass
+
+1. **Find MongoDB Compass on your computer:**
+   - **Windows**: Start Menu → Search for "MongoDB Compass"
+   - **Mac**: Applications folder → MongoDB Compass
+   - **Or**: Look for the MongoDB Compass icon on your desktop
+
+2. **Double-click to open it**
+   - The application will open to a screen titled "New Connection"
+
+### Step 2: Choose Your Connection Method
+
+MongoDB Compass offers two ways to connect. **Method 2 (Manual Configuration) is recommended for fixing TLS errors.**
+
+#### Method 1: Using Connection String (Quick but may have TLS errors)
+
+You'll see a large text box at the top of the window labeled "URI" or "Connection String"
+
+1. **Click inside this text box**
+   - It might already have some text in it (like `mongodb://localhost:27017`)
+   - If so, select all the text (Ctrl+A on Windows, Cmd+A on Mac) and delete it
+
+2. **Copy this connection string** (click the copy button on the right):
+
+   **Option 1 (Recommended - Most Compatible):**
+   ```
+   mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true
    ```
 
-### Method 2: Using Python Script
+   **Option 2 (If Option 1 fails):**
+   ```
+   mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?ssl=true&authSource=admin
+   ```
 
-Create a file `backend/create_admin_user.py`:
+3. **Paste it into the text box:**
+   - **Windows**: Right-click → Paste (or Ctrl+V)
+   - **Mac**: Right-click → Paste (or Cmd+V)
 
-```python
-import asyncio
-import bcrypt
-from motor.motor_asyncio import AsyncIOMotorClient
-from datetime import datetime
-import uuid
+4. **Verify the connection string is correct:**
+   - It should start with `mongodb+srv://`
+   - It should include `needanevo:$1Jennifer`
+   - It should end with `&tlsAllowInvalidCertificates=true`
 
-async def create_admin_user():
-    # Connect to MongoDB
-    client = AsyncIOMotorClient("mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?appName=Cluster0&w=majority&tlsAllowInvalidCertificates=true")
-    db = client["handyman_app"]
+3. **Click the green "Connect" button** at the bottom of the screen
+   - You'll see a loading spinner for 3-10 seconds
+   - If you get a TLS/SSL error, skip to **Method 2** below
 
-    # Admin user details
-    admin_id = str(uuid.uuid4())
-    email = "admin@therealjohnson.com"
-    password = "AdminPassword123!"  # Change this!
+#### Method 2: Manual Configuration (RECOMMENDED - Fixes TLS Errors)
 
-    # Check if admin already exists
-    existing = await db.users.find_one({"email": email})
-    if existing:
-        print(f"Admin user with email {email} already exists!")
-        return
+**Use this method if you got an error with Method 1, or if you want to avoid TLS errors entirely.**
 
-    # Create admin user
-    admin_user = {
-        "id": admin_id,
-        "email": email,
-        "first_name": "Admin",
-        "last_name": "User",
-        "phone": "+1234567890",
-        "role": "ADMIN",
-        "addresses": [],
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
-    }
+1. **In MongoDB Compass, look for "Advanced Connection Options"**
+   - This is below the connection string box
+   - It might already be expanded, or you may need to click it to expand
 
-    # Hash password
-    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+2. **You'll see these tabs across the top:**
+   - General
+   - Authentication
+   - TLS/SSL
+   - Proxy/SSH
+   - In-Use Encryption
+   - Advanced
 
-    # Insert user
-    await db.users.insert_one(admin_user)
+3. **Configure the "General" tab:**
+   - Click on **"General"** tab
+   - **Scheme**: Select **"mongodb+srv"** from dropdown (NOT "mongodb")
+   - **Host**: Enter `cluster0.d5iqsxn.mongodb.net`
+   - **Direct Connection**: Leave **UNCHECKED**
+   - All other fields: Leave blank/default
 
-    # Insert password
-    await db.user_passwords.insert_one({
-        "user_id": admin_id,
-        "password_hash": password_hash
-    })
+4. **Configure the "Authentication" tab:**
+   - Click on **"Authentication"** tab
+   - **Authentication**: Select **"Username / Password"** from dropdown
+   - **Username**: Type `needanevo`
+   - **Password**: Type `$1Jennifer` (must include the dollar sign and 1)
+   - **Authentication Database**: Type `admin`
+   - **Authentication Mechanism**: Leave as default (should show "Default" or "SCRAM-SHA-256")
 
-    print(f"✅ Admin user created successfully!")
-    print(f"Email: {email}")
-    print(f"Password: {password}")
-    print(f"User ID: {admin_id}")
-    print(f"\n⚠️  IMPORTANT: Change the password after first login!")
+5. **Configure the "TLS/SSL" tab (THIS FIXES YOUR ERROR):**
+   - Click on **"TLS/SSL"** tab
+   - **SSL/TLS**: Change dropdown to **"On"** (not "Default", not "Off")
+   - **Certificate Authority**: Leave blank (don't browse for a file)
+   - **Client Certificate**: Leave blank
+   - **Client Private Key**: Leave blank
+   - **Client Key Password**: Leave blank
+   - **TLS Allow Invalid Certificates**: **✓ CHECK THIS BOX**
+   - **TLS Allow Invalid Hostnames**: **✓ CHECK THIS BOX**
+   - **TLS Insecure**: Leave **UNCHECKED**
 
-if __name__ == "__main__":
-    asyncio.run(create_admin_user())
-```
+6. **Leave other tabs at their defaults:**
+   - **Proxy/SSH** tab: Leave as "None"
+   - **In-Use Encryption** tab: Leave all fields blank
+   - **Advanced** tab: Leave all fields at default
 
-**Run the script**:
-```bash
-cd backend
-python create_admin_user.py
-```
+7. **Click the green "Connect" button** at the bottom
 
----
+8. **Wait 5-10 seconds for connection**
+   - You'll see a loading spinner
+   - The connection may take longer the first time
 
-## Logging In as Admin
+### Step 3: Verify Successful Connection
 
-1. **Open the app** (web or mobile)
-2. **Navigate to Login screen**
-3. **Enter admin credentials**:
-   - Email: `admin@therealjohnson.com`
-   - Password: `AdminPassword123!` (or your chosen password)
-4. **Tap "Sign In"**
+**After clicking Connect (from either method above):**
 
-**✅ You will be automatically redirected to the Admin Dashboard**
+1. **Wait for the connection to complete**
+   - If successful, you'll see a new screen with a list of databases on the left side
 
----
+2. **You should see a database named `handyman`**
+   - If you see this, congratulations! You're connected.
+   - You may also see other databases like: `admin`, `config`, `local`, `sample_mflix` (ignore these)
 
-## Admin Dashboard Overview
+**If you don't see `handyman`:**
+- Click the small refresh icon (circular arrow) at the top left
+- If still not visible, see the [Troubleshooting](#troubleshooting) section below
 
-The Admin Dashboard is the central hub for managing your handyman platform. It displays real-time statistics and provides quick access to all management tools.
+**About `oplog.rs`:**
+- If you see `oplog.rs` in the `local` database, ignore it
+- This is a MongoDB system collection (replication log), not related to your business data
 
-### Dashboard Sections
+### Step 4: Open Your Database
 
-#### 1. **Users Statistics** 📊
+1. **Click on `handyman`** in the left sidebar
+   - It will expand to show a list of "collections" (these are like folders for different types of data)
 
-Displays comprehensive user metrics:
-
-| Metric | Description | Icon |
-|--------|-------------|------|
-| **Total Customers** | Count of all registered customer accounts | 👥 People |
-| **Total Contractors** | Count of all registered contractor accounts | 🔨 Construct |
-| **Active Contractors** | Contractors with ACTIVE registration status | ✅ Checkmark Circle |
-| **New Customers (Week)** | Customers who registered in the last 7 days | 📈 Trending Up |
-| **New Contractors (Week)** | Contractors who registered in the last 7 days | 📈 Trending Up |
-
-**What to look for:**
-- Steady growth in new customers and contractors
-- High percentage of active contractors (indicates healthy platform)
-- Compare weekly growth trends
+2. **You should see these collections:**
+   - `users` - Customer and contractor accounts
+   - `user_passwords` - Encrypted passwords (don't open this)
+   - `quotes` - Quote requests from customers
+   - `services` - Service categories (Drywall, Painting, etc.)
+   - `jobs` - Active jobs and bookings
+   - `photos` - Photo metadata and URLs
+   - `events` - Activity log
 
 ---
 
-#### 2. **Jobs Statistics** 📋
+## Common Administrative Tasks
 
-Track all jobs on the platform:
+### Task 1: View All Customers
 
-| Metric | Description | Status |
-|--------|-------------|--------|
-| **Total Jobs** | All jobs ever created | All statuses |
-| **Pending** | Jobs awaiting contractor acceptance | ⏰ Needs attention |
-| **In Progress** | Jobs currently being worked on | 🔨 Active |
-| **Completed** | Successfully finished jobs | ✅ Done |
-| **Completed This Month** | Jobs finished in current month | 📅 Monthly KPI |
-| **Completed This Week** | Jobs finished in last 7 days | 📅 Weekly KPI |
+**Purpose**: See a list of all registered customers
 
-**What to look for:**
-- High completion rate (completed / total)
-- Low number of pending jobs (shows contractors are responsive)
-- Increasing monthly/weekly completions (growth indicator)
+1. **Make sure you're connected** (see "Connecting to Your Database" above)
+2. **Click on `handyman_app`** in the left sidebar (if not already open)
+3. **Click on the `users` collection**
+4. **You'll see a list of user accounts** with information like:
+   - `_id` - Unique ID for each user
+   - `email` - User's email address
+   - `first_name` - User's first name
+   - `last_name` - User's last name
+   - `phone` - User's phone number
+   - `role` - Either "CUSTOMER" or "TECHNICIAN" (contractor)
 
----
+5. **To see only customers**, use a filter:
+   - Find the "Filter" box at the top (it has a funnel icon)
+   - Click inside the filter box
+   - Type exactly: `{ "role": "CUSTOMER" }`
+   - Press Enter
+   - Now you'll see only customer accounts
 
-#### 3. **Revenue Statistics** 💰
+6. **To clear the filter and see all users again:**
+   - Click the small "X" next to the filter box
 
-Monitor platform earnings:
+### Task 2: View All Contractors
 
-| Metric | Description |
-|--------|-------------|
-| **Total Revenue** | All-time earnings from completed jobs |
-| **This Month** | Revenue generated in current month |
+**Purpose**: See all registered contractors and their information
 
-**What to look for:**
-- Consistent monthly revenue growth
-- Revenue per completed job (total revenue / completed jobs)
+1. **Click on the `users` collection** (in the left sidebar)
+2. **In the Filter box** (at the top), type:
+   ```
+   { "role": "TECHNICIAN" }
+   ```
+3. **Press Enter**
+4. **You'll see all contractor accounts**, including:
+   - Contact information (name, email, phone)
+   - `business_name` - Their business name
+   - `skills` - Array of services they provide
+   - `years_experience` - How many years of experience
+   - `registration_status` - ACTIVE, EXPIRED, etc.
+   - `registration_expiration_date` - When their registration expires
 
----
+### Task 3: Find a Specific User by Email
 
-#### 4. **Management Quick Links** 🔗
+**Purpose**: Look up a customer or contractor by their email address
 
-Three main management sections accessible from dashboard:
+1. **Click on the `users` collection**
+2. **In the Filter box**, type (replace the email with the one you're searching for):
+   ```
+   { "email": "customer@example.com" }
+   ```
+3. **Press Enter**
+4. **You'll see the user's complete profile** (if they exist)
+5. **If you see "No documents"**, that email address is not registered
 
-1. **Contractors** 🔨
-   - Manage contractor accounts and assignments
-   - View contractor performance and statistics
+### Task 4: Find a User by Phone Number
 
-2. **Customers** 👥
-   - View customer accounts and history
-   - Track customer spending and engagement
+**Purpose**: Look up someone by their phone number
 
-3. **Jobs** 💼
-   - View and manage all jobs
-   - Filter by status and assign contractors
+1. **Click on the `users` collection**
+2. **In the Filter box**, type (use the exact phone number format as stored):
+   ```
+   { "phone": "555-1234" }
+   ```
+3. **Press Enter**
+4. **You'll see the user's profile** (if found)
 
----
+**Note**: Phone numbers might be stored in different formats:
+- Try: `"555-1234"`
+- Try: `"5551234"`
+- Try: `"+1-555-1234"`
 
-## Contractor Management
+### Task 5: View All Quote Requests
 
-**Path**: Admin Dashboard → Contractors
+**Purpose**: See all customer quote requests and their status
 
-### Features
+1. **Click on the `quotes` collection** (in the left sidebar)
+2. **You'll see a list of all quote requests**, including:
+   - `customer_id` - Who requested the quote
+   - `service_category` - What type of work (Drywall, Painting, etc.)
+   - `description` - Customer's description of the work
+   - `status` - DRAFT, SENT, VIEWED, ACCEPTED, REJECTED
+   - `created_at` - When the quote was requested
+   - `estimated_total` - Quote amount in dollars
 
-#### Search & Filter
-- **Search bar**: Find contractors by name, email, or business name
-- **Filter buttons**:
-  - **All**: Show all contractors
-  - **Active**: Only show contractors with active registration
-  - **Expired**: Only show contractors with expired registration
+3. **To see only pending quotes (waiting for response):**
+   - In the Filter box, type: `{ "status": "SENT" }`
+   - Press Enter
 
-#### Contractor Cards
+4. **To see only accepted quotes:**
+   - In the Filter box, type: `{ "status": "ACCEPTED" }`
+   - Press Enter
 
-Each contractor card displays:
+### Task 6: View Quotes for a Specific Customer
 
-```
-┌─────────────────────────────────────────────┐
-│ John Smith                    [ACTIVE]      │
-│ John's Handyman Services                    │
-│ john@example.com                            │
-│                                             │
-│ 💼 12 total jobs  ✅ 10 completed          │
-│ 💰 $4,500 earned                           │
-│                                             │
-│ Skills: Drywall, Painting, Electrical +2   │
-└─────────────────────────────────────────────┘
-```
+**Purpose**: See all quotes for one customer
 
-**Card Information:**
-- **Name**: Contractor's first and last name
-- **Business Name**: Their registered business name
-- **Email**: Contact email address
-- **Status Badge**: ACTIVE or EXPIRED (color coded)
-- **Total Jobs**: All jobs ever assigned to this contractor
-- **Completed Jobs**: Successfully finished jobs
-- **Total Revenue**: Sum of all earnings from completed jobs
-- **Skills**: First 3 skills shown, with "+X more" indicator
+1. **First, find the customer's ID:**
+   - Go to the `users` collection
+   - Search for the customer by email (see Task 3)
+   - Copy their `_id` value (it looks like: `6733d4f2e9b8a1b2c3d4e5f6`)
 
-#### What You Can Do
+2. **Go to the `quotes` collection**
+3. **In the Filter box**, type (paste the customer's ID):
+   ```
+   { "customer_id": "6733d4f2e9b8a1b2c3d4e5f6" }
+   ```
+4. **Press Enter**
+5. **You'll see all quotes for that customer**
 
-1. **Search for specific contractors**
-   - Type name, email, or business name in search bar
-   - Results filter in real-time
+### Task 7: Check Contractor Documents
 
-2. **Filter by registration status**
-   - Tap "Active" to see only active contractors
-   - Tap "Expired" to identify contractors needing renewal
-   - Tap "All" to see everyone
+**Purpose**: Verify a contractor uploaded their license, insurance, and portfolio
 
-3. **View contractor details** (future feature)
-   - Tap on a contractor card to see full profile
-   - View all jobs assigned to this contractor
-   - See registration documents and portfolio
+1. **Find the contractor in the `users` collection** (see Task 2)
+2. **Scroll down in their user record to find:**
+   - `license` - URL to their contractor license photo
+   - `insurance` - URL to their insurance certificate
+   - `business_licenses` - Array of business license URLs
+   - `portfolio_photos` - Array of portfolio work photos
 
-4. **Monitor contractor performance**
-   - Compare completed jobs vs total jobs (completion rate)
-   - Track earnings per contractor
-   - Identify top performers
+3. **To view a document:**
+   - Click on the URL (it will be a long text starting with `https://photos.us-iad-10.linodeobjects.com/`)
+   - Copy the URL
+   - Paste it into your web browser's address bar
+   - Press Enter
+   - The photo/document will open in your browser
 
----
+### Task 8: Export Data to Excel
 
-## Customer Management
+**Purpose**: Create a spreadsheet of customers, contractors, or quotes
 
-**Path**: Admin Dashboard → Customers
-
-### Features
-
-#### Search
-- **Search bar**: Find customers by name, email, or phone number
-
-#### Customer Cards
-
-Each customer card displays:
-
-```
-┌─────────────────────────────────────────────┐
-│ Jane Doe                                    │
-│ jane@example.com                            │
-│ +1 (555) 123-4567                          │
-│                                             │
-│ 💼 5 total jobs  ✅ 4 completed            │
-│ 💰 $2,300 spent                            │
-│                                             │
-│ 📍 Milford, DE                             │
-└─────────────────────────────────────────────┘
-```
-
-**Card Information:**
-- **Name**: Customer's first and last name
-- **Email**: Contact email address
-- **Phone**: Phone number (if provided)
-- **Total Jobs**: All jobs this customer has requested
-- **Completed Jobs**: Successfully finished jobs
-- **Total Spent**: Sum of all payments for completed jobs
-- **Location**: City and state from primary address
-
-#### What You Can Do
-
-1. **Search for specific customers**
-   - Type name, email, or phone number
-   - Results filter in real-time
-
-2. **Monitor customer activity**
-   - See which customers are most active (high job count)
-   - Track high-value customers (high total spent)
-   - Identify customers with incomplete jobs
-
-3. **View customer details** (future feature)
-   - Tap on customer card for full profile
-   - See complete job history
-   - View all addresses and contact information
+1. **Navigate to the collection you want to export** (users, quotes, etc.)
+2. **Apply any filters if needed** (e.g., only customers, only active quotes)
+3. **Click the "Export Data" button** at the top right
+   - It looks like an arrow pointing out of a box
+4. **Choose "Export Full Collection"** or "Export Query Results"
+5. **Select "JSON" or "CSV" format**
+   - **CSV** is best for opening in Excel
+   - **JSON** is best for developers
+6. **Click "Export"**
+7. **Choose where to save the file** on your computer
+8. **Open the file:**
+   - **CSV**: Right-click → Open with → Microsoft Excel
+   - **JSON**: Can be opened with a text editor or developer tools
 
 ---
 
-## Jobs Management
+## Understanding Your Data
 
-**Path**: Admin Dashboard → Jobs
+### User Roles
 
-### Features
+Every user has a `role` field that determines what they can do:
 
-#### Status Filters
+- **CUSTOMER**: Regular homeowners who request quotes and book jobs
+- **TECHNICIAN**: Contractors who provide services (also called "contractors")
+- **ADMIN**: You (the business owner) - full access to everything
 
-Filter jobs by status using horizontal scroll buttons:
+### Quote Statuses
 
-| Filter | Shows Jobs With Status | Color |
-|--------|------------------------|-------|
-| **All** | All statuses | - |
-| **Requested** | Customer submitted, awaiting quote | 🟡 Yellow |
-| **Quoted** | Contractor provided quote | 🔵 Blue |
-| **Accepted** | Customer accepted quote | 🟢 Green |
-| **In Progress** | Work currently underway | 🟢 Green |
-| **Completed** | Work finished successfully | 🟢 Green |
-| **Cancelled** | Job was cancelled | ⚪ Gray |
+Quotes go through several stages. The `status` field shows where each quote is:
 
-#### Job Cards
+- **DRAFT**: Customer started but hasn't submitted yet
+- **SENT**: Quote sent to customer, waiting for their response
+- **VIEWED**: Customer opened the quote email
+- **ACCEPTED**: Customer accepted the quote (ready to schedule)
+- **REJECTED**: Customer declined the quote
+- **EXPIRED**: Quote was not accepted within the time limit
 
-Each job card displays:
+### Contractor Registration Status
 
-```
-┌─────────────────────────────────────────────┐
-│ Kitchen Faucet Replacement    [IN PROGRESS] │
-│                                             │
-│ Replace old leaky faucet with new modern... │
-│                                             │
-│ 👤 Jane Doe                                │
-│ 🔨 John Smith                              │
-│                                             │
-│ 📅 Nov 15, 2025              $350          │
-└─────────────────────────────────────────────┘
-```
+Contractors must renew their registration annually. The `registration_status` field shows:
 
-**Card Information:**
-- **Service Category**: Type of service (e.g., "Plumbing", "Electrical")
-- **Status Badge**: Current job status with color coding
-- **Description**: First 2 lines of job description
-- **Customer Name**: Who requested the job
-- **Contractor Name**: Who is assigned (if assigned)
-- **Created Date**: When job was requested
-- **Estimated Amount**: Quote amount or estimated total
+- **ACTIVE**: Contractor is current and can accept jobs
+- **EXPIRING_SOON**: Registration expires in less than 30 days
+- **EXPIRED**: Registration expired, cannot accept new jobs
+- **GRACE_PERIOD**: Expired but has active jobs, must renew soon
 
-#### What You Can Do
+### Important Date Fields
 
-1. **Filter jobs by status**
-   - Tap any status button to filter
-   - Scroll horizontally to see all status options
-   - Tap "All" to clear filter
+Dates are stored in ISO format (e.g., `2025-11-20T14:30:00.000Z`):
 
-2. **Monitor job pipeline**
-   - See how many jobs are pending (need attention)
-   - Track jobs in progress
-   - Review completed jobs
+- The date is: `2025-11-20` (November 20, 2025)
+- The time is: `14:30:00` (2:30 PM)
+- The `Z` means UTC time (may differ from your local time zone)
 
-3. **Identify bottlenecks**
-   - High "Requested" count = not enough contractors responding
-   - High "Quoted" count = customers not accepting quotes
-   - High "In Progress" count = jobs taking too long
-
-4. **Assign jobs to contractors** (future feature)
-   - Manually assign unassigned jobs to specific contractors
-   - Override contractor assignments if needed
-
----
-
-## Common Tasks & Workflows
-
-### Task 1: Monitor Platform Health
-
-**Daily Check** (5 minutes):
-1. Open Admin Dashboard
-2. Check **Pending Jobs** count
-   - ⚠️ If high: Contact contractors to claim jobs
-3. Check **New Users This Week**
-   - 📈 Track growth trends
-4. Review **Revenue This Month**
-   - 💰 Compare to previous months
-
----
-
-### Task 2: Find Top Performing Contractors
-
-1. Navigate to **Contractors**
-2. Tap **Active** filter
-3. Scroll through list and note:
-   - Contractors with highest **completed jobs**
-   - Contractors with highest **total revenue**
-4. Click on top performers to see details (future)
-
----
-
-### Task 3: Identify High-Value Customers
-
-1. Navigate to **Customers**
-2. Scroll through list and note customers with:
-   - High **total spent** amount
-   - High **total jobs** count
-3. These are your VIP customers - ensure quality service
-
----
-
-### Task 4: Review Expired Contractors
-
-1. Navigate to **Contractors**
-2. Tap **Expired** filter
-3. Review list of contractors needing renewal
-4. Contact them via email/phone to renew registration
-
----
-
-### Task 5: Track Job Completion Rate
-
-1. Navigate to **Jobs**
-2. Tap **All** to see total jobs
-3. Note total count (e.g., 50 jobs)
-4. Tap **Completed** to see finished jobs
-5. Note completed count (e.g., 35 jobs)
-6. Calculate: `35/50 = 70% completion rate`
-7. **Target**: 80%+ completion rate
-
----
-
-### Task 6: Weekly Performance Report
-
-**Every Monday**:
-1. Open Admin Dashboard
-2. Record these metrics:
-   - New customers this week
-   - New contractors this week
-   - Jobs completed this week
-   - Revenue this month
-3. Compare to previous week's numbers
-4. Identify trends (growth, decline, plateau)
-
----
-
-## API Endpoints Reference
-
-### Admin Authentication
-
-All admin endpoints require authentication with admin role.
-
-**Request Header:**
-```
-Authorization: Bearer {your_admin_jwt_token}
-```
-
----
-
-### Dashboard Statistics
-
-**Endpoint**: `GET /api/admin/dashboard/stats`
-
-**Response**:
-```json
-{
-  "users": {
-    "total_customers": 150,
-    "total_contractors": 25,
-    "active_contractors": 20,
-    "new_customers_this_week": 12,
-    "new_contractors_this_week": 3
-  },
-  "jobs": {
-    "total": 200,
-    "pending": 15,
-    "in_progress": 8,
-    "completed": 165,
-    "cancelled": 12,
-    "completed_this_month": 45,
-    "completed_this_week": 12
-  },
-  "revenue": {
-    "total": 85000.00,
-    "this_month": 12500.00
-  }
-}
-```
-
----
-
-### List All Contractors
-
-**Endpoint**: `GET /api/admin/contractors`
-
-**Query Parameters**:
-- `status` (optional): Filter by registration status
-- `skills` (optional): Filter by skill keyword
-- `min_rating` (optional): Minimum rating (future)
-
-**Response**:
-```json
-[
-  {
-    "id": "contractor-id-123",
-    "first_name": "John",
-    "last_name": "Smith",
-    "email": "john@example.com",
-    "business_name": "John's Handyman Services",
-    "registration_status": "ACTIVE",
-    "skills": ["Drywall", "Painting", "Electrical"],
-    "total_jobs": 12,
-    "completed_jobs": 10,
-    "total_revenue": 4500.00
-  }
-]
-```
-
----
-
-### List All Customers
-
-**Endpoint**: `GET /api/admin/customers`
-
-**Query Parameters**:
-- `min_jobs` (optional): Minimum job count
-- `min_spent` (optional): Minimum spending amount
-
-**Response**:
-```json
-[
-  {
-    "id": "customer-id-456",
-    "first_name": "Jane",
-    "last_name": "Doe",
-    "email": "jane@example.com",
-    "phone": "+15551234567",
-    "addresses": [
-      {
-        "street": "123 Main St",
-        "city": "Milford",
-        "state": "DE",
-        "zip_code": "19963"
-      }
-    ],
-    "total_jobs": 5,
-    "completed_jobs": 4,
-    "total_spent": 2300.00
-  }
-]
-```
-
----
-
-### List All Jobs
-
-**Endpoint**: `GET /api/admin/jobs`
-
-**Query Parameters**:
-- `status_filter` (optional): Filter by status
-- `contractor_id` (optional): Filter by contractor
-- `customer_id` (optional): Filter by customer
-
-**Response**:
-```json
-[
-  {
-    "id": "job-id-789",
-    "service_category": "Plumbing",
-    "description": "Replace kitchen faucet",
-    "status": "in_progress",
-    "customer_id": "customer-id-456",
-    "customer_first_name": "Jane",
-    "customer_last_name": "Doe",
-    "contractor_id": "contractor-id-123",
-    "contractor_first_name": "John",
-    "contractor_last_name": "Smith",
-    "estimated_total": 350.00,
-    "created_at": "2025-11-15T10:30:00Z"
-  }
-]
-```
-
----
-
-### Update Contractor Status
-
-**Endpoint**: `PATCH /api/admin/contractors/{contractor_id}`
-
-**Request Body**:
-```json
-{
-  "registration_status": "ACTIVE",
-  "is_active": true,
-  "notes": "Verified license and insurance"
-}
-```
-
-**Response**:
-```json
-{
-  "message": "Contractor updated successfully",
-  "contractor_id": "contractor-id-123"
-}
-```
-
----
-
-### Manually Assign Job to Contractor
-
-**Endpoint**: `PATCH /api/admin/jobs/{job_id}/assign`
-
-**Request Body**:
-```json
-{
-  "contractor_id": "contractor-id-123"
-}
-```
-
-**Response**:
-```json
-{
-  "message": "Job assigned successfully",
-  "job_id": "job-id-789",
-  "contractor_id": "contractor-id-123"
-}
-```
-
----
-
-## Security Best Practices
-
-### Password Security
-- ✅ Use strong passwords (12+ characters, mixed case, numbers, symbols)
-- ✅ Never share admin credentials
-- ✅ Change default password after first login
-- ✅ Use unique password (not used elsewhere)
-
-### Access Control
-- ✅ Limit admin accounts to trusted staff only
-- ✅ Create separate accounts for each admin (don't share)
-- ✅ Review admin activity logs regularly (future feature)
-
-### Data Privacy
-- ⚠️ Customer and contractor data is sensitive
-- ⚠️ Never share user emails or phone numbers externally
-- ⚠️ Follow all privacy regulations (GDPR, CCPA if applicable)
+To convert to your local time, add or subtract hours based on your timezone:
+- **Eastern Time (EST)**: Subtract 5 hours (or 4 during daylight saving)
+- **Central Time (CST)**: Subtract 6 hours (or 5 during daylight saving)
+- **Pacific Time (PST)**: Subtract 8 hours (or 7 during daylight saving)
 
 ---
 
 ## Troubleshooting
 
-### Cannot Login as Admin
+### Problem: SSL/TLS Error (TLSV1_ALERT_INTERNAL_ERROR)
 
-**Problem**: Login redirects to customer/contractor dashboard instead of admin.
+**Error Message**: `error:10000438:SSL routines:OPENSSL_internal:TLSV1_ALERT_INTERNAL_ERROR`
 
-**Solution**: Check user role in MongoDB:
-```javascript
-db.users.findOne({ email: "admin@therealjohnson.com" })
+**Cause**: MongoDB Compass cannot establish a secure SSL/TLS connection to the database
+
+**Solutions (try in order):**
+
+**Solution A: Use Updated Connection String**
+1. Close MongoDB Compass completely
+2. Reopen MongoDB Compass
+3. Use **Option 1** connection string from the guide (includes `tlsAllowInvalidCertificates=true`)
+4. Try connecting again
+
+**Solution B: Connect Using Manual Configuration (Step-by-Step with Current UI)**
+
+1. **Open MongoDB Compass**
+
+2. **Look for "Advanced Connection Options"** (you should see this as an expandable section)
+
+3. **Click on "Advanced Connection Options"** to expand it
+   - You'll see tabs: General, Authentication, TLS/SSL, Proxy/SSH, In-Use Encryption, Advanced
+
+4. **Click on the "General" tab** (should be selected by default)
+   - **Hostname**: Enter `cluster0.d5iqsxn.mongodb.net`
+   - **Port**: Leave blank or enter `27017`
+   - **SRV Record**: Make sure this is **CHECKED** (enabled)
+   - Leave other fields as default
+
+5. **Click on the "Authentication" tab**
+   - **Authentication Method**: Select **"Username / Password"** from the dropdown
+   - **Username**: Enter `needanevo`
+   - **Password**: Enter `$1Jennifer`
+   - **Authentication Database**: Enter `admin`
+   - Leave "Authentication Mechanism" as default (SCRAM-SHA-256)
+
+6. **Click on the "TLS/SSL" tab** ← THIS IS THE CRITICAL STEP FOR YOUR ERROR
+   - **SSL/TLS**: Change dropdown from "Default" to **"On"**
+   - **Certificate Authority**: Leave as "Select a file..." (don't select anything)
+   - **Client Certificate**: Leave blank
+   - **Client Private Key**: Leave blank
+   - **TLS Allow Invalid Certificates**: **CHECK THIS BOX** ← VERY IMPORTANT
+   - **TLS Allow Invalid Hostnames**: **CHECK THIS BOX** ← ALSO IMPORTANT
+   - **TLS Insecure**: Leave unchecked
+
+7. **Leave other tabs unchanged:**
+   - Proxy/SSH: Leave as "None"
+   - In-Use Encryption: Leave blank
+   - Advanced: Leave as default
+
+8. **Click the green "Connect" button** at the bottom
+
+9. **Wait 5-10 seconds** for the connection to establish
+
+**What You Should See:**
+- A loading spinner while connecting
+- If successful: The main Compass window with "Databases" on the left showing "handyman_app"
+- If failed: An error message (note the exact error text and try Solution C)
+
+**Screenshot Locations to Verify:**
+- [ ] General tab: SRV Record checkbox is checked
+- [ ] Authentication tab: Username shows "needanevo"
+- [ ] TLS/SSL tab: "TLS Allow Invalid Certificates" is checked
+- [ ] TLS/SSL tab: "TLS Allow Invalid Hostnames" is checked
+
+**Solution C: Update MongoDB Compass**
+1. Close MongoDB Compass
+2. Go to: https://www.mongodb.com/try/download/compass
+3. Download the latest version
+4. Install it (will update your existing installation)
+5. Try connecting again with Option 1 connection string
+
+**Solution D: Try Non-SRV Connection String**
+If the `mongodb+srv://` format doesn't work, try the standard format:
+```
+mongodb://needanevo:$1Jennifer@cluster0-shard-00-00.d5iqsxn.mongodb.net:27017,cluster0-shard-00-01.d5iqsxn.mongodb.net:27017,cluster0-shard-00-02.d5iqsxn.mongodb.net:27017/?ssl=true&replicaSet=atlas-xxxxx-shard-0&authSource=admin&retryWrites=true&w=majority
 ```
 
-Ensure `role` field is exactly `"ADMIN"` (case-sensitive).
+**Note**: You may need to get the exact replica set name from your MongoDB Atlas dashboard.
+
+### Problem: "Cannot connect to server"
+
+**Possible Causes:**
+1. **Internet connection issue**
+   - Check if your internet is working (try opening a website)
+   - Try disconnecting and reconnecting to WiFi
+
+2. **Incorrect connection string**
+   - Make sure you copied the entire connection string
+   - Verify it starts with `mongodb+srv://`
+   - Check for extra spaces at the beginning or end
+
+3. **Database server is down**
+   - Contact your developer or MongoDB Atlas support
+   - Check MongoDB Atlas status page
+
+**Solution:**
+- Try the connection again in 1-2 minutes
+- If still failing, close MongoDB Compass and reopen it
+- Copy the connection string again (don't use the old one)
+
+### Problem: "Authentication failed"
+
+**Cause**: The username or password in the connection string is incorrect
+
+**Solution:**
+- Verify you're using the correct connection string (see "Step 2" under Connecting)
+- The password is: `$1Jennifer` (must include the `$1` at the beginning)
+- If the connection string was recently changed, get the new one from your developer
+
+### Problem: "Cannot see handyman_app database"
+
+**Possible Causes:**
+1. Database name is different
+2. Connection is to wrong cluster
+3. Database hasn't been created yet
+
+**Solution:**
+- Click the refresh button (circular arrow icon) in MongoDB Compass
+- Check if you see a different database name (like `test` or `admin`)
+- Verify the connection string includes `cluster0.d5iqsxn.mongodb.net`
+- Contact your developer if the database is truly missing
+
+### Problem: "No documents found" in a collection
+
+**Possible Causes:**
+1. Filter is too restrictive
+2. Collection is actually empty
+3. Data hasn't synced yet
+
+**Solution:**
+- Clear all filters (click the "X" next to the filter box)
+- Click the refresh button
+- Wait 30 seconds and try again
+- If still empty, data may not have been created yet
+
+### Problem: Can't open photo/document URLs
+
+**Possible Causes:**
+1. URL was copied incorrectly
+2. File was deleted from storage
+3. URL expired
+
+**Solution:**
+- Make sure you copied the entire URL (starts with `https://` and ends with `.jpg` or `.pdf`)
+- Try pasting the URL in a different browser
+- Check if the file still exists in Linode Object Storage
+- Contact your developer if URLs are consistently broken
 
 ---
 
-### Dashboard Shows Zero Stats
+## Need More Help?
 
-**Problem**: All statistics show 0 despite having data.
+**For Technical Issues:**
+- Contact your developer
+- Check the MongoDB Compass documentation: https://docs.mongodb.com/compass/
 
-**Solution**:
-1. Check MongoDB connection is working
-2. Verify collections exist: `users`, `jobs`, `quotes`
-3. Check backend logs for errors:
-   ```bash
-   ssh root@172.234.70.157
-   journalctl -u handyman-api -n 50
-   ```
+**For Business Questions:**
+- Review customer quotes and contractor profiles using the tasks above
+- Export data to Excel for deeper analysis
+- Monitor registration expiration dates to remind contractors to renew
 
----
-
-### "Failed to load" Error
-
-**Problem**: Error message when opening Contractors/Customers/Jobs page.
-
-**Solution**:
-1. Check network connection
-2. Verify backend API is running:
-   ```bash
-   curl https://therealjohnson.com/api/health
-   ```
-3. Check browser console for specific error
-4. Verify admin JWT token is valid (try logging out and back in)
+**For Database Changes:**
+- **DO NOT** edit data directly unless you know what you're doing
+- Changing user roles, quote statuses, or IDs can break the application
+- Always make a backup (export) before making changes
+- Consult with your developer before modifying any records
 
 ---
 
-## Future Features (Coming Soon)
+## Quick Reference - Connection Strings
 
-- 📊 **Advanced Analytics**: Charts and graphs for trends
-- 🔔 **Notifications**: Alerts for pending jobs, expired contractors
-- 📧 **Email Integration**: Send emails directly from admin dashboard
-- 💬 **Messaging**: Chat with customers and contractors
-- 📁 **Document Management**: View contractor licenses and insurance
-- 📸 **Photo Gallery**: View job photos and portfolios
-- ⭐ **Ratings & Reviews**: Moderate customer reviews
-- 💳 **Payment Management**: Process refunds, view transactions
-- 📱 **Mobile App**: Native iOS/Android admin app
+**Save these connection strings** for easy access:
+
+**Option 1 (Recommended - Most Compatible):**
+```
+mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true
+```
+
+**Option 2 (If you get SSL/TLS errors):**
+```
+mongodb+srv://needanevo:$1Jennifer@cluster0.d5iqsxn.mongodb.net/?ssl=true&authSource=admin
+```
+
+**Important Notes:**
+- Keep this connection string private (it contains the database password)
+- Don't share it with customers or contractors
+- Store it in a secure password manager or encrypted document
+- If you suspect the password has been compromised, contact your developer immediately to change it
 
 ---
 
-## Support
+**End of Admin Guide**
 
-For technical issues or questions:
-- **Email**: admin@therealjohnson.com
-- **Documentation**: `CLAUDE.md` in repository root
-- **API Docs**: `https://therealjohnson.com/api/docs`
-
----
-
-**Last Updated**: November 20, 2025
-**Version**: 1.0.0
+*Last updated: November 20, 2025*

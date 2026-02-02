@@ -1,3 +1,9 @@
+/**
+ * Scheduled Jobs Screen
+ *
+ * View all jobs that have been scheduled with specific dates/times.
+ */
+
 import React from 'react';
 import {
   View,
@@ -11,75 +17,76 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
+import { Card } from '../../../src/components/Card';
+import { Badge } from '../../../src/components/Badge';
+import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
+import { EmptyState } from '../../../src/components/EmptyState';
 import { contractorAPI } from '../../../src/services/api';
-import { AppHeader } from '../../../src/components/AppHeader';
 
 export default function ScheduledJobsScreen() {
   const router = useRouter();
 
-  const { data: jobs, isLoading, error } = useQuery({
-    queryKey: ['contractor', 'jobs', 'scheduled'],
-    queryFn: () => contractorAPI.getScheduledJobs(),
+  // Fetch scheduled jobs
+  // Using unified query key for cache synchronization with dashboard
+  const { data: jobs, isLoading } = useQuery({
+    queryKey: ['contractor-scheduled-jobs'],
+    queryFn: async () => {
+      const response = await contractorAPI.getScheduledJobs() as any;
+      return response.data.jobs || [];
+    },
+    staleTime: 2 * 60 * 1000,
   });
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="calendar-outline" size={80} color={colors.neutral[300]} />
-      <Text style={styles.emptyTitle}>No Scheduled Jobs</Text>
-      <Text style={styles.emptyText}>
-        Scheduled jobs with confirmed dates will appear here.
-      </Text>
-    </View>
-  );
-
-  const renderJob = ({ item }: any) => (
-    <TouchableOpacity
-      style={styles.jobCard}
-      onPress={() => router.push(`/(contractor)/jobs/${item.id}`)}
-    >
-      <View style={styles.jobHeader}>
-        <Text style={styles.jobTitle}>{item.service_category || 'Job'}</Text>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>SCHEDULED</Text>
-        </View>
-      </View>
-      <Text style={styles.jobDescription} numberOfLines={2}>
-        {item.description || 'No description'}
-      </Text>
-      <View style={styles.jobFooter}>
-        <View style={styles.jobMeta}>
-          <Ionicons name="calendar" size={16} color={colors.primary.main} />
-          <Text style={styles.jobMetaTextScheduled}>
-            {item.scheduled_date ? new Date(item.scheduled_date).toLocaleDateString() : 'Date TBD'}
-          </Text>
-        </View>
-        {item.agreed_amount && (
-          <Text style={styles.jobAmount}>${item.agreed_amount}</Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+  if (isLoading) {
+    return <LoadingSpinner fullScreen text="Loading scheduled jobs..." />;
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <AppHeader title="Scheduled Jobs" showBack={true} showDashboard={true} />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Scheduled Jobs</Text>
+        <View style={{ width: 40 }} />
+      </View>
 
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color={colors.error.main} />
-          <Text style={styles.errorText}>Failed to load scheduled jobs</Text>
-        </View>
-      ) : (
+      {jobs && jobs.length > 0 ? (
         <FlatList
-          data={jobs || []}
-          renderItem={renderJob}
-          keyExtractor={(item) => item.id}
+          data={jobs}
+          keyExtractor={(item: any) => item.id}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={renderEmptyState}
+          renderItem={({ item }: any) => (
+            <Card
+              style={styles.jobCard}
+              onPress={() => router.push(`/(contractor)/jobs/${item.id}`)}
+            >
+              <View style={styles.jobHeader}>
+                <View style={styles.jobInfo}>
+                  <Text style={styles.jobTitle}>{item.title || 'Job Details'}</Text>
+                  <Text style={styles.jobLocation}>{item.location || 'Location TBD'}</Text>
+                  {item.scheduledDate && (
+                    <Text style={styles.scheduledDate}>
+                      📅 {new Date(item.scheduledDate).toLocaleDateString()}
+                    </Text>
+                  )}
+                </View>
+                <Badge variant="primary" label="Scheduled" />
+              </View>
+            </Card>
+          )}
+        />
+      ) : (
+        <EmptyState
+          icon="calendar-outline"
+          title="No Scheduled Jobs"
+          description="Jobs with confirmed dates will appear here"
+          actionLabel="View Accepted Jobs"
+          onAction={() => router.push('/(contractor)/jobs/accepted')}
         />
       )}
     </SafeAreaView>
@@ -89,103 +96,58 @@ export default function ScheduledJobsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background.secondary,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.lg,
     backgroundColor: colors.background.primary,
+    ...shadows.sm,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  backButton: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
-  },
-  loadingText: {
-    ...typography.sizes.base,
-    color: colors.neutral[600],
-  },
-  errorContainer: {
-    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.md,
   },
-  errorText: {
-    ...typography.sizes.base,
-    color: colors.error.main,
+  headerTitle: {
+    ...typography.sizes['2xl'],
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
   },
   listContent: {
-    padding: spacing.lg,
-    gap: spacing.md,
+    padding: spacing.base,
   },
   jobCard: {
-    backgroundColor: 'white',
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    ...shadows.sm,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary.main,
+    padding: spacing.base,
+    marginBottom: spacing.md,
   },
   jobHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: spacing.sm,
+  },
+  jobInfo: {
+    flex: 1,
+    marginRight: spacing.md,
   },
   jobTitle: {
-    ...typography.sizes.base,
+    ...typography.sizes.lg,
     fontWeight: typography.weights.semibold,
     color: colors.neutral[900],
-    flex: 1,
+    marginBottom: spacing.xs,
   },
-  badge: {
-    backgroundColor: colors.primary.main,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs / 2,
-    borderRadius: borderRadius.sm,
-  },
-  badgeText: {
-    ...typography.sizes.xs,
-    fontWeight: typography.weights.semibold,
-    color: 'white',
-  },
-  jobDescription: {
+  jobLocation: {
     ...typography.sizes.sm,
     color: colors.neutral[600],
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
-  jobFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  jobMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  jobMetaTextScheduled: {
+  scheduledDate: {
     ...typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
     color: colors.primary.main,
-  },
-  jobAmount: {
-    ...typography.sizes.base,
-    fontWeight: typography.weights.bold,
-    color: colors.primary.main,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: spacing['3xl'],
-    gap: spacing.md,
-  },
-  emptyTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-    color: colors.neutral[700],
-  },
-  emptyText: {
-    ...typography.sizes.base,
-    color: colors.neutral[500],
-    textAlign: 'center',
-    maxWidth: 250,
+    fontWeight: typography.weights.medium,
   },
 });

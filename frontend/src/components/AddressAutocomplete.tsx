@@ -1,23 +1,23 @@
 /**
- * Address Autocomplete with Verification
+ * Address Input with Geocoding Verification
  *
- * Uses Google Places API to:
- * - Suggest addresses as user types
- * - Validate address exists
- * - Return complete address components
- * - Include geocoded coordinates
+ * Uses separate fields (street, city, state, ZIP) for:
+ * - Browser/OS autofill support
+ * - Accurate geocoding with Google Maps API
+ * - Proper geofencing and mileage tracking
+ * - Better data validation
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
+  TextInput,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../constants/theme';
 
@@ -33,8 +33,7 @@ export interface AddressComponents {
 
 interface AddressAutocompleteProps {
   onAddressSelected: (address: AddressComponents) => void;
-  initialValue?: string;
-  placeholder?: string;
+  initialValue?: Partial<AddressComponents>;
   label?: string;
   required?: boolean;
   error?: string;
@@ -42,98 +41,141 @@ interface AddressAutocompleteProps {
 
 export function AddressAutocomplete({
   onAddressSelected,
-  initialValue = '',
-  placeholder = 'Enter your business address',
+  initialValue,
   label = 'Business Address',
   required = false,
   error,
 }: AddressAutocompleteProps) {
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [selectedAddress, setSelectedAddress] = useState<AddressComponents | null>(null);
-  const autocompleteRef = useRef<any>(null);
-  const [hasError, setHasError] = useState(false);
+  const [street, setStreet] = useState(initialValue?.street || '');
+  const [city, setCity] = useState(initialValue?.city || '');
+  const [state, setState] = useState(initialValue?.state || '');
+  const [zipCode, setZipCode] = useState(initialValue?.zipCode || '');
 
-  // Check if API key exists
-  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
+  const [loading, setLoading] = useState(false);
+  const [errorState, setErrorState] = useState<string | null>(null);
+  const [verified, setVerified] = useState(false);
 
-  if (!apiKey || hasError) {
-    return (
-      <View style={styles.container}>
-        {label && (
-          <Text style={styles.label}>
-            {label}
-            {required && <Text style={styles.required}> *</Text>}
-          </Text>
-        )}
-        <View style={[styles.textInputContainer, styles.textInputError]}>
-          <Text style={styles.errorText}>
-            ⚠️ Address autocomplete temporarily unavailable. Please enter address manually in the backend.
-          </Text>
-        </View>
-        <Text style={styles.helpText}>
-          Contact support if this issue persists.
-        </Text>
-      </View>
-    );
-  }
+  // Reset verified state when address fields change
+  useEffect(() => {
+    setVerified(false);
+    setErrorState(null);
+  }, [street, city, state, zipCode]);
 
-  const parseAddressComponents = (place: any): AddressComponents | null => {
-    const components = place.address_components || [];
-    let street = '';
-    let city = '';
-    let state = '';
-    let zipCode = '';
-
-    // Extract street number and route
-    const streetNumber = components.find((c: any) => c.types.includes('street_number'))?.long_name || '';
-    const route = components.find((c: any) => c.types.includes('route'))?.long_name || '';
-    street = `${streetNumber} ${route}`.trim();
-
-    // Extract city (locality or sublocality)
-    city = components.find((c: any) => c.types.includes('locality'))?.long_name ||
-           components.find((c: any) => c.types.includes('sublocality'))?.long_name || '';
-
-    // Extract state (administrative_area_level_1)
-    state = components.find((c: any) => c.types.includes('administrative_area_level_1'))?.short_name || '';
-
-    // Extract ZIP code
-    zipCode = components.find((c: any) => c.types.includes('postal_code'))?.long_name || '';
-
-    // Get coordinates
-    const latitude = place.geometry?.location?.lat || 0;
-    const longitude = place.geometry?.location?.lng || 0;
-
-    return {
-      street,
-      city,
-      state,
-      zipCode,
-      latitude,
-      longitude,
-      formattedAddress: place.formatted_address || '',
-    };
-  };
-
-  const handlePlaceSelect = (data: any, details: any) => {
-    if (!details) return;
-
-    const addressComponents = parseAddressComponents(details);
-    if (!addressComponents) return;
-
-    setSelectedAddress(addressComponents);
-    setShowConfirmation(true);
-  };
-
-  const confirmAddress = () => {
-    if (selectedAddress) {
-      onAddressSelected(selectedAddress);
-      setShowConfirmation(false);
+  const validateFields = (): boolean => {
+    if (!street.trim()) {
+      setErrorState('Street address is required');
+      return false;
     }
+    if (!city.trim()) {
+      setErrorState('City is required');
+      return false;
+    }
+    if (!state.trim()) {
+      setErrorState('State is required');
+      return false;
+    }
+    if (!zipCode.trim()) {
+      setErrorState('ZIP code is required');
+      return false;
+    }
+    if (!/^\d{5}(-\d{4})?$/.test(zipCode.trim())) {
+      setErrorState('ZIP code must be 5 digits (e.g., 21201)');
+      return false;
+    }
+    return true;
   };
 
-  const editAddress = () => {
-    setShowConfirmation(false);
-    setSelectedAddress(null);
+  const handleVerifyAddress = async () => {
+    if (!validateFields()) {
+      return;
+    }
+
+    setLoading(true);
+    setErrorState(null);
+
+    try {
+      // Construct full address for geocoding
+      const fullAddress = `${street}, ${city}, ${state} ${zipCode}, USA`;
+
+      const apiKey = process.env.EXPO_PUBLIC_RADAR_API_KEY;
+
+      if (!apiKey) {
+        throw new Error('Radar API key not configured');
+      }
+
+      console.log('Verifying address with Radar.io:', fullAddress);
+
+      const response = await fetch(
+        `https://api.radar.io/v1/geocode/forward?query=${encodeURIComponent(fullAddress)}`,
+        {
+          headers: {
+            'Authorization': apiKey,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      console.log('Radar.io API response:', data);
+
+      if (!data.addresses || data.addresses.length === 0) {
+        setErrorState('Could not verify this address. Please check spelling and try again.');
+        return;
+      }
+
+      const result = data.addresses[0];
+
+      // Extract address components from Radar response
+      const latitude = result.latitude;
+      const longitude = result.longitude;
+      const verifiedStreet = result.addressLabel || result.formattedAddress?.split(',')[0] || street;
+      const geoCity = result.city || city;
+      const geoState = result.stateCode || result.state || state;
+      const geoZipCode = result.postalCode || zipCode;
+
+      // Check for missing components
+      if (!verifiedStreet) {
+        setErrorState('Street address not found. Please enter a complete street address.');
+        return;
+      }
+      if (!geoCity) {
+        setErrorState('City not found. Please check city name.');
+        return;
+      }
+      if (!geoState) {
+        setErrorState('State not found. Please check state abbreviation.');
+        return;
+      }
+      if (!geoZipCode) {
+        setErrorState('ZIP code not found. Please check ZIP code.');
+        return;
+      }
+
+      console.log('✅ Address verified with Radar.io coordinates:', latitude, longitude);
+
+      // Success - pass verified address to parent
+      onAddressSelected({
+        street: verifiedStreet,
+        city: geoCity,
+        state: geoState,
+        zipCode: geoZipCode,
+        latitude,
+        longitude,
+        formattedAddress: result.formattedAddress || fullAddress,
+      });
+
+      setVerified(true);
+
+    } catch (err: any) {
+      console.error('Address verification error:', err);
+      setErrorState(err.message || 'Could not verify address. Please check your internet connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -146,128 +188,111 @@ export function AddressAutocomplete({
         </Text>
       )}
 
-      {/* Google Places Autocomplete */}
-      <GooglePlacesAutocomplete
-        ref={autocompleteRef}
-        placeholder={placeholder}
-        onPress={handlePlaceSelect}
-        onFail={(error) => {
-          console.error('Google Places error:', error);
-          setHasError(true);
-        }}
-        query={{
-          key: apiKey,
-          language: 'en',
-          types: 'address',
-          components: 'country:us', // Restrict to US addresses
-        }}
-        fetchDetails={true}
-        enablePoweredByContainer={false}
-        styles={{
-          container: styles.autocompleteContainer,
-          textInputContainer: styles.textInputContainer,
-          textInput: [
-            styles.textInput,
-            error ? styles.textInputError : null,
-          ],
-          listView: styles.listView,
-          row: styles.row,
-          description: styles.description,
-          poweredContainer: { display: 'none' },
-        }}
-        textInputProps={{
-          placeholderTextColor: colors.neutral[500],
-          returnKeyType: 'search',
-        }}
+      <Text style={styles.helpText}>
+        Enter your business address for accurate geolocation and mileage tracking
+      </Text>
+
+      {/* Street Address */}
+      <TextInput
+        style={[styles.textInput, (error || errorState) && !verified ? styles.textInputError : null]}
+        placeholder="Street Address (e.g., 123 Main St)"
+        placeholderTextColor={colors.neutral[500]}
+        value={street}
+        onChangeText={setStreet}
+        editable={!loading}
+        autoComplete="street-address"
+        textContentType="streetAddressLine1"
       />
 
+      {/* City and State Row */}
+      <View style={styles.row}>
+        <View style={styles.cityInput}>
+          <TextInput
+            style={[styles.textInput, (error || errorState) && !verified ? styles.textInputError : null]}
+            placeholder="City"
+            placeholderTextColor={colors.neutral[500]}
+            value={city}
+            onChangeText={setCity}
+            editable={!loading}
+            autoComplete="address-line2"
+            textContentType="addressCity"
+          />
+        </View>
+
+        <View style={styles.stateInput}>
+          <TextInput
+            style={[styles.textInput, (error || errorState) && !verified ? styles.textInputError : null]}
+            placeholder="State"
+            placeholderTextColor={colors.neutral[500]}
+            value={state}
+            onChangeText={(text) => setState(text.toUpperCase())}
+            editable={!loading}
+            maxLength={2}
+            autoCapitalize="characters"
+            autoComplete="address-line1"
+            textContentType="addressState"
+          />
+        </View>
+
+        <View style={styles.zipInput}>
+          <TextInput
+            style={[styles.textInput, (error || errorState) && !verified ? styles.textInputError : null]}
+            placeholder="ZIP"
+            placeholderTextColor={colors.neutral[500]}
+            value={zipCode}
+            onChangeText={setZipCode}
+            editable={!loading}
+            keyboardType="numeric"
+            maxLength={10}
+            autoComplete="postal-code"
+            textContentType="postalCode"
+          />
+        </View>
+      </View>
+
       {/* Error Message */}
-      {error && (
+      {(error || errorState) && !verified && (
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={16} color={colors.error.main} />
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>{error || errorState}</Text>
         </View>
       )}
 
-      {/* Help Text */}
-      <Text style={styles.helpText}>
-        Start typing your address - we'll verify it and get exact coordinates
-      </Text>
-
-      {/* Address Confirmation Modal */}
-      <Modal
-        visible={showConfirmation}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={editAddress}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="checkmark-circle" size={48} color={colors.success.main} />
-              <Text style={styles.modalTitle}>Verify Your Address</Text>
-            </View>
-
-            {selectedAddress && (
-              <View style={styles.addressDetails}>
-                <View style={styles.addressRow}>
-                  <Ionicons name="location" size={20} color={colors.primary.main} />
-                  <View style={styles.addressInfo}>
-                    <Text style={styles.addressLabel}>Street</Text>
-                    <Text style={styles.addressValue}>{selectedAddress.street}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.addressRow}>
-                  <Ionicons name="business" size={20} color={colors.primary.main} />
-                  <View style={styles.addressInfo}>
-                    <Text style={styles.addressLabel}>City</Text>
-                    <Text style={styles.addressValue}>{selectedAddress.city}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.addressRow}>
-                  <Ionicons name="map" size={20} color={colors.primary.main} />
-                  <View style={styles.addressInfo}>
-                    <Text style={styles.addressLabel}>State & ZIP</Text>
-                    <Text style={styles.addressValue}>
-                      {selectedAddress.state} {selectedAddress.zipCode}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.addressRow}>
-                  <Ionicons name="navigate" size={20} color={colors.success.main} />
-                  <View style={styles.addressInfo}>
-                    <Text style={styles.addressLabel}>Coordinates</Text>
-                    <Text style={styles.addressValue}>
-                      {selectedAddress.latitude.toFixed(4)}, {selectedAddress.longitude.toFixed(4)}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton]}
-                onPress={confirmAddress}
-              >
-                <Ionicons name="checkmark" size={20} color="white" />
-                <Text style={styles.confirmButtonText}>Confirm Address</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.editButton]}
-                onPress={editAddress}
-              >
-                <Ionicons name="create" size={20} color={colors.primary.main} />
-                <Text style={styles.editButtonText}>Edit Address</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+      {/* Verified Indicator */}
+      {verified && (
+        <View style={styles.verifiedContainer}>
+          <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
+          <Text style={styles.verifiedText}>Address verified and geocoded ✓</Text>
         </View>
-      </Modal>
+      )}
+
+      {/* Verify Button */}
+      <TouchableOpacity
+        style={[
+          styles.verifyButton,
+          loading && styles.verifyButtonDisabled,
+          verified && styles.verifyButtonSuccess
+        ]}
+        onPress={handleVerifyAddress}
+        disabled={loading || verified}
+      >
+        {loading ? (
+          <>
+            <ActivityIndicator size="small" color="white" />
+            <Text style={styles.verifyButtonText}>Verifying address...</Text>
+          </>
+        ) : verified ? (
+          <>
+            <Ionicons name="checkmark-circle" size={20} color="white" />
+            <Text style={styles.verifyButtonText}>Verified ✓</Text>
+          </>
+        ) : (
+          <>
+            <Ionicons name="location" size={20} color="white" />
+            <Text style={styles.verifyButtonText}>Verify Address & Get Coordinates</Text>
+          </>
+        )}
+      </TouchableOpacity>
     </View>
   );
 }
@@ -278,148 +303,96 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
+    fontWeight: typography.weights.semibold as any,
     color: colors.neutral[900],
     marginBottom: spacing.xs,
   },
   required: {
     color: colors.error.main,
   },
-  autocompleteContainer: {
-    flex: 0,
-    zIndex: 1,
-  },
-  textInputContainer: {
-    backgroundColor: 'transparent',
-    borderTopWidth: 0,
-    borderBottomWidth: 0,
-  },
+  helpText: {
+    ...typography.sizes.sm,
+    color: colors.neutral[600],
+    marginBottom: spacing.md,
+  } as any,
   textInput: {
-    height: 48,
+    minHeight: 48,
     color: colors.neutral[900],
-    fontSize: 16,
     backgroundColor: colors.background.primary,
     borderWidth: 1,
     borderColor: colors.neutral[300],
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
     ...typography.sizes.base,
   },
   textInputError: {
     borderColor: colors.error.main,
   },
-  listView: {
-    backgroundColor: 'white',
-    borderRadius: borderRadius.md,
-    marginTop: spacing.xs,
-    ...shadows.md,
-  },
   row: {
-    backgroundColor: 'white',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
-  description: {
-    ...typography.sizes.sm,
-    color: colors.neutral[800],
+  cityInput: {
+    flex: 2,
+  },
+  stateInput: {
+    flex: 1,
+    minWidth: 70,
+  },
+  zipInput: {
+    flex: 1,
+    minWidth: 90,
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
     marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
   errorText: {
     ...typography.sizes.sm,
     color: colors.error.main,
-  },
-  helpText: {
-    ...typography.sizes.sm,
-    color: colors.neutral[600],
-    marginTop: spacing.xs,
-  },
-
-  // Modal styles
-  modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
   },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    width: '100%',
-    maxWidth: 500,
-    ...shadows.lg,
-  },
-  modalHeader: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  modalTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-    color: colors.neutral[900],
-    marginTop: spacing.md,
-  },
-  addressDetails: {
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  addressRow: {
+  verifiedContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.neutral[50],
-    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+    backgroundColor: colors.success.lightest,
+    borderRadius: borderRadius.sm,
   },
-  addressInfo: {
-    flex: 1,
-  },
-  addressLabel: {
-    ...typography.sizes.xs,
-    color: colors.neutral[600],
-    textTransform: 'uppercase',
+  verifiedText: {
+    ...typography.sizes.sm,
+    color: colors.success.main,
     fontWeight: typography.weights.semibold,
-    marginBottom: spacing.xs / 2,
   },
-  addressValue: {
-    ...typography.sizes.base,
-    color: colors.neutral[900],
-    fontWeight: typography.weights.medium,
-  },
-  modalActions: {
-    gap: spacing.md,
-  },
-  modalButton: {
+  verifyButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-  },
-  confirmButton: {
     backgroundColor: colors.primary.main,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.sm,
+    ...shadows.sm,
   },
-  confirmButtonText: {
+  verifyButtonDisabled: {
+    opacity: 0.6,
+  },
+  verifyButtonSuccess: {
+    backgroundColor: colors.success.main,
+  },
+  verifyButtonText: {
     ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
+    fontWeight: typography.weights.semibold as any,
     color: 'white',
-  },
-  editButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.primary.main,
-  },
-  editButtonText: {
-    ...typography.sizes.base,
-    fontWeight: typography.weights.semibold,
-    color: colors.primary.main,
   },
 });

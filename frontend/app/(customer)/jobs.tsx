@@ -5,9 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { Button } from '../../src/components/Button';
@@ -15,46 +18,122 @@ import { Card } from '../../src/components/Card';
 import { Badge } from '../../src/components/Badge';
 import { ProgressBar } from '../../src/components/ProgressBar';
 import { EmptyState } from '../../src/components/EmptyState';
-
-// Mock data
-const mockJobs = [
-  {
-    id: '1',
-    title: 'Fix hole in bedroom wall',
-    category: 'drywall',
-    status: 'in_progress_50',
-    progress: 50,
-    contractor: { name: 'Mike Johnson', rating: 4.8 },
-    totalCost: 300,
-    createdAt: '2025-11-02',
-  },
-  {
-    id: '2',
-    title: 'Install ceiling fan',
-    category: 'electrical',
-    status: 'pending_contractor',
-    progress: 10,
-    totalCost: 250,
-    createdAt: '2025-11-05',
-  },
-  {
-    id: '3',
-    title: 'Fix leaky faucet',
-    category: 'plumbing',
-    status: 'completed',
-    progress: 100,
-    contractor: { name: 'Sarah Williams', rating: 4.9 },
-    totalCost: 180,
-    createdAt: '2025-10-28',
-    completedAt: '2025-10-30',
-  },
-];
+import { LoadingSpinner } from '../../src/components/LoadingSpinner';
+import { jobsAPI } from '../../src/services/api';
 
 type FilterType = 'all' | 'active' | 'completed';
 
 export default function JobsListScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterType>('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Fetch all customer jobs
+  const {
+    data: jobs,
+    isLoading: jobsLoading,
+    refetch: refetchJobs
+  } = useQuery({
+    queryKey: ['customer-jobs'],
+    queryFn: async () => {
+      console.log('🔄 Fetching customer jobs...');
+      const response = await jobsAPI.getJobs();
+      console.log('📦 Jobs response:', response);
+      return response || [];
+    },
+    staleTime: 0, // Always refetch on mount
+    refetchOnMount: 'always', // Force refetch when component mounts
+  });
+
+  // Fetch all customer quotes
+  const {
+    data: quotes,
+    isLoading: quotesLoading,
+    refetch: refetchQuotes
+  } = useQuery({
+    queryKey: ['customer-quotes'],
+    queryFn: async () => {
+      console.log('🔄 Fetching customer quotes...');
+      const response = await jobsAPI.getQuotes();
+      console.log('📦 Quotes response:', response);
+      return response || [];
+    },
+    staleTime: 0, // Always refetch on mount
+    refetchOnMount: 'always', // Force refetch when component mounts
+  });
+
+  // Merge jobs and quotes into a single list
+  const allJobs = React.useMemo(() => {
+    console.log('🔀 Merging jobs and quotes...');
+    console.log('Jobs count:', jobs?.length || 0);
+    console.log('Quotes count:', quotes?.length || 0);
+
+    const jobItems = (jobs || []).map((job: any) => ({ ...job, itemType: 'job' }));
+    const quoteItems = (quotes || []).map((quote: any) => ({ ...quote, itemType: 'quote' }));
+
+    console.log('Job items:', jobItems);
+    console.log('Quote items:', quoteItems);
+
+    // Merge and sort by created_at (most recent first)
+    const merged = [...jobItems, ...quoteItems];
+    merged.sort((a, b) => {
+      const dateA = new Date(a.created_at || a.createdAt || 0).getTime();
+      const dateB = new Date(b.created_at || b.createdAt || 0).getTime();
+      return dateB - dateA; // Descending order
+    });
+
+    console.log('✅ Merged list:', merged.length, 'items');
+    return merged;
+  }, [jobs, quotes]);
+
+  const isLoading = jobsLoading || quotesLoading;
+  const queryClient = useQueryClient();
+
+  // Delete job mutation
+  const deleteJobMutation = useMutation({
+    mutationFn: (jobId: string) => jobsAPI.deleteJob(jobId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-quotes'] });
+      Alert.alert('Success', 'Job has been cancelled successfully.');
+    },
+    onError: (error: any) => {
+      Alert.alert(
+        'Error',
+        error.response?.data?.detail || 'Failed to cancel job. Please try again.'
+      );
+    },
+  });
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchJobs(), refetchQuotes()]);
+    setRefreshing(false);
+  };
+
+  const handleDeleteJob = (job: any) => {
+    // Only allow deleting pending/draft jobs
+    if (job.status !== 'pending' && job.status !== 'draft') {
+      Alert.alert(
+        'Cannot Delete',
+        `Jobs in '${job.status}' status cannot be deleted. Only pending or draft jobs can be cancelled.`
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Cancel Job',
+      'Are you sure you want to cancel this job? This action cannot be undone.',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: () => deleteJobMutation.mutate(job.id),
+        },
+      ]
+    );
+  };
 
   const getStatusBadgeVariant = (status: string): 'success' | 'warning' | 'neutral' => {
     if (status === 'completed') return 'success';
@@ -62,7 +141,36 @@ export default function JobsListScreen() {
     return 'neutral';
   };
 
-  const getStatusLabel = (status: string) => {
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const getDaysAgo = (dateString: string) => {
+    if (!dateString) return 0;
+    const now = new Date();
+    const past = new Date(dateString);
+    const diffTime = Math.abs(now.getTime() - past.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const getStatusLabel = (status: string, itemType?: string) => {
+    // Quote statuses - show as job progress
+    if (itemType === 'quote') {
+      const quoteLabels: Record<string, string> = {
+        draft: 'Quote Ready',
+        sent: 'Awaiting Accept',
+        pending: 'Awaiting Accept',
+        quoted: 'Quote Received',
+        accepted: 'Accepted',
+        rejected: 'Declined',
+      };
+      return quoteLabels[status.toLowerCase()] || 'Pending';
+    }
+
+    // Job statuses
     const labels: Record<string, string> = {
       pending_contractor: 'Finding Contractor',
       materials_ordered: 'Materials Ordered',
@@ -72,11 +180,34 @@ export default function JobsListScreen() {
     return labels[status] || status;
   };
 
-  const filteredJobs = mockJobs.filter((job) => {
-    if (filter === 'active') return job.status !== 'completed';
-    if (filter === 'completed') return job.status === 'completed';
-    return true;
+  // Filter items based on selected tab
+  const allItems = allJobs || [];
+  const activeItems = allItems.filter((item: any) => {
+    const isActive = item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'rejected';
+    console.log(`Filtering item ${item.id}: status=${item.status}, isActive=${isActive}`);
+    return isActive;
   });
+  const completedItems = allItems.filter((item: any) =>
+    item.status === 'completed' || item.status === 'accepted'
+  );
+
+  console.log('📊 Filter counts - All:', allItems.length, 'Active:', activeItems.length, 'Completed:', completedItems.length);
+
+  const filteredJobs =
+    filter === 'active' ? activeItems :
+    filter === 'completed' ? completedItems :
+    allItems;
+
+  console.log(`🎯 Current filter: ${filter}, Showing ${filteredJobs.length} jobs`);
+
+  // Show loading spinner while fetching
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <LoadingSpinner fullScreen />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -84,12 +215,12 @@ export default function JobsListScreen() {
         <View style={styles.headerTop}>
           <Button
             title=""
-            onPress={() => router.back()}
+            onPress={() => router.replace('/(customer)/dashboard')}
             variant="ghost"
             size="small"
             icon={<Ionicons name="arrow-back" size={24} color={colors.primary.main} />}
           />
-          <Text style={styles.headerTitle}>All Jobs</Text>
+          <Text style={styles.headerTitle}>My Jobs</Text>
           <View style={{ width: 44 }} />
         </View>
 
@@ -105,7 +236,7 @@ export default function JobsListScreen() {
                 filter === 'all' && styles.filterTabTextActive,
               ]}
             >
-              All ({mockJobs.length})
+              All ({allItems.length})
             </Text>
           </TouchableOpacity>
 
@@ -119,7 +250,7 @@ export default function JobsListScreen() {
                 filter === 'active' && styles.filterTabTextActive,
               ]}
             >
-              Active ({mockJobs.filter((j) => j.status !== 'completed').length})
+              Active ({activeItems.length})
             </Text>
           </TouchableOpacity>
 
@@ -133,13 +264,18 @@ export default function JobsListScreen() {
                 filter === 'completed' && styles.filterTabTextActive,
               ]}
             >
-              Completed ({mockJobs.filter((j) => j.status === 'completed').length})
+              Completed ({completedItems.length})
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
         {filteredJobs.length === 0 ? (
           <EmptyState
             icon="document-text-outline"
@@ -150,7 +286,7 @@ export default function JobsListScreen() {
                 : 'Post a job to get started'
             }
             actionLabel="Request a Job"
-            onAction={() => router.push('/(customer)/job-request/step1-photos')}
+            onAction={() => router.push('/(customer)/job-request/step0-address')}
           />
         ) : (
           <View style={styles.jobsList}>
@@ -159,17 +295,29 @@ export default function JobsListScreen() {
                 key={job.id}
                 variant="elevated"
                 padding="base"
-                onPress={() => router.push(`/(customer)/job-detail/${job.id}`)}
+                onPress={() => {
+                  if (job.itemType === 'quote') {
+                    router.push(`/(customer)/quotes/${job.id}` as any);
+                  } else {
+                    router.push(`/(customer)/job-detail/${job.id}`);
+                  }
+                }}
                 style={styles.jobCard}
               >
                 {/* Job Header */}
                 <View style={styles.jobHeader}>
                   <View style={styles.jobTitleSection}>
-                    <Text style={styles.jobTitle}>{job.title}</Text>
+                    <Text style={styles.jobTitle}>
+                      {job.description || job.service_category || job.category || job.title || 'Service Request'}
+                    </Text>
                     <View style={styles.jobMeta}>
-                      <Badge label={job.category} variant="neutral" size="sm" />
                       <Badge
-                        label={getStatusLabel(job.status)}
+                        label={job.service_category || job.category || 'Service'}
+                        variant="neutral"
+                        size="sm"
+                      />
+                      <Badge
+                        label={getStatusLabel(job.status, job.itemType)}
                         variant={getStatusBadgeVariant(job.status)}
                         size="sm"
                       />
@@ -177,10 +325,10 @@ export default function JobsListScreen() {
                   </View>
                 </View>
 
-                {/* Progress */}
-                {job.status !== 'pending_contractor' && (
+                {/* Progress - only show for jobs, not quotes */}
+                {job.itemType === 'job' && job.status !== 'pending_contractor' && (
                   <ProgressBar
-                    progress={job.progress}
+                    progress={typeof job.progress === 'number' ? job.progress : 0}
                     showPercentage
                     variant={job.status === 'completed' ? 'success' : 'primary'}
                     style={styles.jobProgress}
@@ -202,18 +350,43 @@ export default function JobsListScreen() {
                 {/* Footer */}
                 <View style={styles.jobFooter}>
                   <View style={styles.jobDates}>
-                    <Text style={styles.dateLabel}>
-                      {job.status === 'completed' ? 'Completed' : 'Posted'}
-                    </Text>
+                    <Text style={styles.dateLabel}>Posted</Text>
                     <Text style={styles.dateValue}>
-                      {job.status === 'completed' ? job.completedAt : job.createdAt}
+                      {formatDate(job.created_at || job.createdAt)}
+                    </Text>
+                    <Text style={styles.daysAgo}>
+                      {getDaysAgo(job.created_at || job.createdAt)} days ago
                     </Text>
                   </View>
 
                   <View style={styles.costSection}>
-                    <Text style={styles.costLabel}>Total</Text>
-                    <Text style={styles.costAmount}>${job.totalCost.toFixed(2)}</Text>
+                    <Text style={styles.costLabel}>
+                      {job.itemType === 'quote' ? 'Quoted' : 'Total'}
+                    </Text>
+                    <Text style={styles.costAmount}>
+                      {typeof job.total_amount === 'number'
+                        ? `$${job.total_amount.toFixed(2)}`
+                        : typeof job.totalCost === 'number'
+                        ? `$${job.totalCost.toFixed(2)}`
+                        : typeof job.estimated_total === 'number'
+                        ? `$${job.estimated_total.toFixed(2)}`
+                        : '$0.00'}
+                    </Text>
                   </View>
+
+                  {/* Delete button for jobs (not quotes) in pending/draft status */}
+                  {job.itemType === 'job' && (job.status === 'pending' || job.status === 'draft') && (
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeleteJob(job);
+                      }}
+                      disabled={deleteJobMutation.isPending}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={colors.error.main} />
+                    </TouchableOpacity>
+                  )}
 
                   <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
                 </View>
@@ -226,7 +399,7 @@ export default function JobsListScreen() {
       {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push('/(customer)/job-request/step1-photos')}
+        onPress={() => router.push('/(customer)/job-request/step0-address')}
       >
         <Ionicons name="add" size={28} color={colors.background.primary} />
       </TouchableOpacity>
@@ -251,8 +424,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   headerTitle: {
-    ...typography.sizes.xl,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h4,
     color: colors.neutral[900],
   },
   filterTabs: {
@@ -272,7 +444,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.primary.main,
   },
   filterTabText: {
-    ...typography.sizes.base,
+    ...typography.body.regular,
     color: colors.neutral[600],
     fontWeight: typography.weights.medium,
   },
@@ -299,8 +471,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   jobTitle: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
+    ...typography.headings.h5,
     color: colors.neutral[900],
   },
   jobMeta: {
@@ -321,7 +492,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   contractorName: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
     flex: 1,
   },
@@ -331,7 +502,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   ratingText: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
     fontWeight: typography.weights.medium,
   },
@@ -347,27 +518,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dateLabel: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   dateValue: {
-    ...typography.sizes.sm,
+    ...typography.caption.regular,
     color: colors.neutral[700],
+  },
+  daysAgo: {
+    ...typography.caption.small,
+    color: colors.neutral[500],
+    marginTop: spacing.xs / 2,
   },
   costSection: {
     alignItems: 'flex-end',
     marginRight: spacing.md,
   },
   costLabel: {
-    ...typography.sizes.xs,
+    ...typography.caption.small,
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   costAmount: {
-    ...typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    ...typography.headings.h5,
     color: colors.primary.main,
+  },
+  deleteButton: {
+    padding: spacing.sm,
+    marginHorizontal: spacing.xs,
   },
   fab: {
     position: 'absolute',

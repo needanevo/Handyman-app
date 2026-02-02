@@ -111,7 +111,7 @@ class ContractorRouter:
         Returns contractors with their business address coordinates.
         """
         cursor = self.db.users.find({
-            "role": "technician",  # Updated to use lowercase enum value
+            "role": "contractor",  # Updated to use lowercase enum value
             "is_active": True,
             "skills": {
                 "$in": [service_category]  # Exact match in array

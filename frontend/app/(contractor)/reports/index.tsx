@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { TaxReport } from '../../../src/types/contractor';
 import { Card } from '../../../src/components/Card';
@@ -135,15 +136,16 @@ export default function TaxReportsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Tax Reports</Text>
-          <TouchableOpacity onPress={handleExportPDF} style={styles.exportButtonContainer}>
-            <Ionicons name="download-outline" size={24} color={colors.primary.main} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.neutral[900]} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Tax Reports</Text>
+        <TouchableOpacity onPress={handleExportPDF}>
+          <Text style={styles.exportButton}>📥 Export PDF</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -347,7 +349,7 @@ export default function TaxReportsScreen() {
         </Card>
 
         {/* Tax Tips */}
-        <Card style={[styles.card, styles.tipsCard]}>
+        <Card style={[styles.card, styles.tipsCard] as any}>
           <Text style={styles.tipsTitle}>💡 Tax Preparation Tips</Text>
           <View style={styles.tipsList}>
             <Text style={styles.tipItem}>
@@ -402,21 +404,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
     ...shadows.sm,
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   backButton: {
-    padding: spacing.sm,
-  },
-  exportButtonContainer: {
-    padding: spacing.sm,
+    padding: spacing.xs,
   },
   headerTitle: {
     ...typography.sizes['2xl'],
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
+    flex: 1,
+    marginLeft: spacing.sm,
   },
   exportButton: {
     ...typography.sizes.sm,

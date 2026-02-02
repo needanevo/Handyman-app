@@ -5,33 +5,47 @@ import { useAuth } from '../src/contexts/AuthContext';
 import { LoadingSpinner } from '../src/components/LoadingSpinner';
 
 export default function Index() {
-  const { isLoading, isAuthenticated, user } = useAuth();
+  const { isHydrated, isAuthenticated, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    console.log('Index useEffect - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
+    // CRITICAL: Wait for hydration to complete before attempting navigation
+    // This prevents race conditions where isLoading=false but user state isn't set yet
+    if (!isHydrated) {
+      console.log('Waiting for auth hydration...');
+      return;
+    }
 
-    if (!isLoading) {
-      if (isAuthenticated && user) {
-        // Role-based routing
-        if (user.role === 'admin') {
-          console.log('User is authenticated admin - navigating to admin dashboard');
-          router.replace('/(admin)/dashboard');
-        } else if (user.role === 'technician') {
-          console.log('User is authenticated contractor - navigating to contractor dashboard');
+    console.log('Auth hydrated - isAuthenticated:', isAuthenticated, 'role:', user?.role);
+
+    if (isAuthenticated && user) {
+      // Role-based routing - redirect to appropriate dashboard
+      switch (user.role) {
+        case 'customer':
+          console.log('Navigating to customer dashboard');
+          router.replace('/(customer)/dashboard');
+          break;
+        case 'contractor':
+          console.log('Navigating to contractor dashboard');
           router.replace('/(contractor)/dashboard');
-        } else {
-          console.log('User is authenticated customer - navigating to home');
-          router.replace('/home');
-        }
-      } else {
-        console.log('User is not authenticated - navigating to welcome');
-        router.replace('/auth/welcome');
+          break;
+        case 'handyman':
+          console.log('Navigating to handyman dashboard');
+          router.replace('/(handyman)/dashboard');
+          break;
+        case 'admin':
+          console.log('Navigating to admin dashboard');
+          router.replace('/admin');
+          break;
+        default:
+          console.log('Unknown role - navigating to role selection');
+          router.replace('/auth/role-selection');
       }
     } else {
-      console.log('Still loading...');
+      console.log('Not authenticated - navigating to role selection');
+      router.replace('/auth/role-selection');
     }
-  }, [isLoading, isAuthenticated, user, router]);
+  }, [isHydrated, isAuthenticated, user, router]);
 
   return (
     <View style={styles.container}>

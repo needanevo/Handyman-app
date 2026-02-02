@@ -26,7 +26,7 @@ class Quote(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     customer_id: str
     address_id: str
-    
+
     # Quote details
     items: List[QuoteItem]
     subtotal: float
@@ -35,8 +35,9 @@ class Quote(BaseModel):
     trip_fee: float = 0.0
     discount_amount: float = 0.0
     total_amount: float
-    
+
     # Customer request details
+    service_category: str = "General Service"  # Service type (e.g., "Drywall", "Painting", "Plumbing") - default for backward compatibility
     description: str
     photos: List[str] = []  # Photo URLs (from Linode Object Storage)
     preferred_dates: List[date] = []

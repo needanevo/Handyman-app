@@ -6,6 +6,8 @@ import {
   ScrollView,
   Image,
   Alert,
+  Modal,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -18,50 +20,110 @@ import { StepIndicator } from '../../../src/components/StepIndicator';
 import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 import { quotesAPI } from '../../../src/services/api';
 import { useAuth } from '../../../src/contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function JobRequestStep3() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const params = useLocalSearchParams();
   const [isGeneratingQuote, setIsGeneratingQuote] = useState(true);
   const [quote, setQuote] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showLiabilityModal, setShowLiabilityModal] = useState(false);
+  const [liabilityAgreed, setLiabilityAgreed] = useState(false);
 
   const photos = params.photos ? JSON.parse(params.photos as string) : [];
 
   useEffect(() => {
-    // Simulate AI quote generation
-    setTimeout(() => {
-      setQuote({
-        laborCost: 180,
-        materialsCost: 120,
-        totalCost: 300,
-        estimatedHours: 3,
-        breakdown: [
-          { item: 'Drywall patch (2x2 ft)', cost: 45 },
-          { item: 'Joint compound & tape', cost: 25 },
-          { item: 'Primer & paint (matching)', cost: 50 },
-          { item: 'Labor (3 hours)', cost: 180 },
-        ],
-        confidence: 'high',
-        notes: 'Based on the photos, this appears to be a standard drywall repair. Price includes materials and labor to match existing texture and paint.',
-      });
-      setIsGeneratingQuote(false);
-    }, 2000);
+    // Generate REAL AI quote using backend API
+    const generateQuote = async () => {
+      try {
+        // Format data for backend QuoteRequest
+        const quoteRequest = {
+          service_category: params.category,
+          address_id: params.addressId,
+          description: params.description || '',
+          photos: photos,
+          preferred_dates: [],
+          budget_range: params.budgetMax ? {
+            max: parseFloat(params.budgetMax as string),
+          } : undefined,
+          urgency: params.urgency || 'normal',
+        };
+
+        console.log('Generating AI quote with:', quoteRequest);
+
+        const response = await quotesAPI.requestQuote(quoteRequest);
+
+        console.log('AI Quote Response:', response);
+
+        // Map backend response to frontend quote format
+        const aiQuote = {
+          laborCost: response.total_amount * 0.6, // Estimate labor as 60% of total
+          materialsCost: response.total_amount * 0.4, // Estimate materials as 40%
+          totalCost: response.total_amount,
+          estimatedHours: response.estimated_hours || 3,
+          breakdown: [
+            { item: `${params.category} Service`, cost: response.total_amount * 0.6 },
+            { item: 'Materials & Supplies', cost: response.total_amount * 0.4 },
+          ],
+          confidence: response.ai_confidence >= 0.8 ? 'high' : response.ai_confidence >= 0.6 ? 'medium' : 'low',
+          notes: `AI-generated estimate for ${params.category} based on your description and photos.`,
+          quoteId: response.quote_id, // Store quote ID for later use
+        };
+
+        setQuote(aiQuote);
+        setIsGeneratingQuote(false);
+
+        // Invalidate React Query cache so new quote appears in "My Jobs"
+        queryClient.invalidateQueries({ queryKey: ['customer-quotes'] });
+        queryClient.invalidateQueries({ queryKey: ['customer-jobs'] });
+        console.log('✅ Cache invalidated - quote will appear in My Jobs');
+      } catch (error) {
+        console.error('Failed to generate AI quote:', error);
+        // Fallback to default estimate if AI fails
+        setQuote({
+          laborCost: 180,
+          materialsCost: 120,
+          totalCost: 300,
+          estimatedHours: 3,
+          breakdown: [
+            { item: `${params.category} Service`, cost: 180 },
+            { item: 'Materials & Supplies', cost: 120 },
+          ],
+          confidence: 'medium',
+          notes: 'Estimated cost based on typical rates for this service category.',
+        });
+        setIsGeneratingQuote(false);
+      }
+    };
+
+    generateQuote();
   }, []);
 
   const { user } = useAuth();
 
+  const handlePostJobClick = () => {
+    // Show liability modal before posting
+    setShowLiabilityModal(true);
+  };
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    setShowLiabilityModal(false);
 
     try {
-      // Photos are already uploaded URLs from PhotoUploader component
-      // No need to upload again - just use the URLs directly
-      await quotesAPI.requestQuote({ ...params, photos, quote });
+      // Quote was already created during preview with AI analysis
+      // Just redirect to jobs page where they can see and accept it
+      console.log('Quote already created with ID:', quote?.quoteId);
+
+      // Ensure cache is fresh before showing jobs page
+      await queryClient.invalidateQueries({ queryKey: ['customer-quotes'] });
+      await queryClient.invalidateQueries({ queryKey: ['customer-jobs'] });
 
       Alert.alert(
         'Job Posted!',
-        'Your job has been posted. We are notifying verified contractors in your area.',
+        'Your job has been posted with an AI-generated quote. You can now review and accept it.',
         [
           {
             text: 'View Job',
@@ -69,9 +131,10 @@ export default function JobRequestStep3() {
           },
         ]
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Job submission error:', error);
-      Alert.alert('Error', 'Failed to post job. Please try again.');
+      const errorMessage = error.response?.data?.detail || 'Failed to post job. Please try again.';
+      Alert.alert('Error', errorMessage);
       setIsSubmitting(false);
     }
   };
@@ -95,9 +158,9 @@ export default function JobRequestStep3() {
           <View style={[styles.iconCircle, { backgroundColor: colors.primary.lightest }]}>
             <Ionicons name="sparkles" size={40} color={colors.primary.main} />
           </View>
-          <Text style={styles.loadingTitle}>Creating your estimate...</Text>
+          <Text style={styles.loadingTitle}>Analyzing your request...</Text>
           <Text style={styles.loadingSubtitle}>
-            Our AI is analyzing your photos and generating an accurate quote
+            Our AI is reviewing your {params.category} job, photos, and description to generate an accurate quote
           </Text>
           <LoadingSpinner text="" />
         </View>
@@ -252,7 +315,7 @@ export default function JobRequestStep3() {
         <View style={styles.actions}>
           <Button
             title="Post Job"
-            onPress={handleSubmit}
+            onPress={handlePostJobClick}
             loading={isSubmitting}
             size="large"
             fullWidth
@@ -266,6 +329,64 @@ export default function JobRequestStep3() {
           />
         </View>
       </ScrollView>
+
+      {/* Liability Modal */}
+      <Modal
+        visible={showLiabilityModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowLiabilityModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="shield-checkmark-outline" size={40} color={colors.primary.main} />
+              <Text style={styles.modalTitle}>Important Notice</Text>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalText}>
+                We hold your payment securely and release it only when you confirm job or milestone completion.
+                {'\n\n'}
+                Service providers on this platform work independently and are solely responsible for their own work, materials, and performance.
+                {'\n\n'}
+                We do not supervise, guarantee, or certify any job.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.checkboxContainer}
+                onPress={() => setLiabilityAgreed(!liabilityAgreed)}
+              >
+                <View style={[styles.checkbox, liabilityAgreed && styles.checkboxChecked]}>
+                  {liabilityAgreed && <Ionicons name="checkmark" size={20} color="#fff" />}
+                </View>
+                <Text style={styles.checkboxLabel}>I understand and agree</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalActions}>
+              <Button
+                title="Continue"
+                onPress={handleSubmit}
+                disabled={!liabilityAgreed}
+                loading={isSubmitting}
+                size="large"
+                fullWidth
+              />
+              <Button
+                title="Cancel"
+                onPress={() => {
+                  setShowLiabilityModal(false);
+                  setLiabilityAgreed(false);
+                }}
+                variant="outline"
+                size="medium"
+                fullWidth
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -486,6 +607,68 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actions: {
+    gap: spacing.md,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  modalContent: {
+    backgroundColor: colors.background.primary,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    width: '100%',
+    maxWidth: 500,
+    ...shadows.lg,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: {
+    ...typography.sizes.xl,
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  modalBody: {
+    marginBottom: spacing.xl,
+  },
+  modalText: {
+    ...typography.sizes.base,
+    color: colors.neutral[700],
+    lineHeight: 24,
+    marginBottom: spacing.lg,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: colors.neutral[300],
+    borderRadius: borderRadius.sm,
+    marginRight: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary.main,
+    borderColor: colors.primary.main,
+  },
+  checkboxLabel: {
+    ...typography.sizes.base,
+    color: colors.neutral[900],
+    fontWeight: typography.weights.medium,
+  },
+  modalActions: {
     gap: spacing.md,
   },
 });

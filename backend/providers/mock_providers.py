@@ -6,12 +6,18 @@ from .base import (
     PaymentProvider,
     MapsProvider,
     AiProvider,
+    MaterialsPricingProvider,
+    AccountingProvider,
     EmailMessage,
     SmsMessage,
     PaymentIntent,
     GeocodeResult,
     RouteResult,
     AiQuoteSuggestion,
+    MaterialItem,
+    MaterialSearchResult,
+    Invoice,
+    Expense,
     MockProviderMixin,
 )
 
@@ -228,3 +234,119 @@ class MockAiProvider(AiProvider, MockProviderMixin):
 
         await asyncio.sleep(0.2)  # Simulate AI processing time
         return suggestion
+
+
+class MockMaterialsPricingProvider(MaterialsPricingProvider, MockProviderMixin):
+    def __init__(self, **kwargs):
+        super().__init__(mock_mode=True, **kwargs)
+
+    async def search_materials(
+        self, query: str, category: Optional[str] = None, zip_code: Optional[str] = None
+    ) -> MaterialSearchResult:
+        self._mock_log(
+            "search_materials",
+            {"query": query, "category": category, "zip_code": zip_code}
+        )
+        await asyncio.sleep(0.1)
+
+        # Mock search results
+        mock_items = [
+            MaterialItem(
+                sku="MOCK-12345",
+                name=f"Mock Material: {query}",
+                description=f"This is a mock material result for '{query}'",
+                price=25.99,
+                availability="in_stock",
+                store_location="Mock Store #1",
+                url=f"https://mock-store.com/search?q={query}"
+            )
+        ]
+        return MaterialSearchResult(items=mock_items, total_results=1)
+
+    async def get_material_by_sku(self, sku: str) -> Optional[MaterialItem]:
+        self._mock_log("get_material_by_sku", {"sku": sku})
+        await asyncio.sleep(0.1)
+
+        return MaterialItem(
+            sku=sku,
+            name="Mock Material Item",
+            description="Detailed mock material description",
+            price=35.99,
+            availability="in_stock",
+            url=f"https://mock-store.com/product/{sku}"
+        )
+
+    async def check_availability(self, sku: str, zip_code: str) -> Dict[str, Any]:
+        self._mock_log("check_availability", {"sku": sku, "zip_code": zip_code})
+        await asyncio.sleep(0.1)
+
+        return {
+            "sku": sku,
+            "zip_code": zip_code,
+            "in_stock": True,
+            "nearby_stores": [
+                {"store_id": "MOCK-1", "distance_miles": 1.5, "stock_level": "high"},
+                {"store_id": "MOCK-2", "distance_miles": 4.2, "stock_level": "medium"}
+            ]
+        }
+
+
+class MockAccountingProvider(AccountingProvider, MockProviderMixin):
+    def __init__(self, **kwargs):
+        super().__init__(mock_mode=True, **kwargs)
+
+    async def create_invoice(
+        self, customer_name: str, amount: float, line_items: List[Dict[str, Any]]
+    ) -> Invoice:
+        self._mock_log(
+            "create_invoice",
+            {"customer_name": customer_name, "amount": amount, "line_items": line_items}
+        )
+        await asyncio.sleep(0.1)
+
+        return Invoice(
+            id="MOCK-INV-12345",
+            customer_name=customer_name,
+            amount=amount,
+            status="draft",
+            due_date="2025-12-31",
+            line_items=line_items
+        )
+
+    async def record_expense(
+        self, date: str, amount: float, category: str, description: str
+    ) -> Expense:
+        self._mock_log(
+            "record_expense",
+            {"date": date, "amount": amount, "category": category, "description": description}
+        )
+        await asyncio.sleep(0.1)
+
+        return Expense(
+            id="MOCK-EXP-67890",
+            date=date,
+            amount=amount,
+            category=category,
+            description=description,
+            receipt_url=None
+        )
+
+    async def get_profit_loss_report(self, start_date: str, end_date: str) -> Dict[str, Any]:
+        self._mock_log(
+            "get_profit_loss_report",
+            {"start_date": start_date, "end_date": end_date}
+        )
+        await asyncio.sleep(0.2)
+
+        return {
+            "report_name": "Mock Profit & Loss",
+            "start_date": start_date,
+            "end_date": end_date,
+            "total_revenue": 5000.00,
+            "total_expenses": 2000.00,
+            "net_income": 3000.00,
+            "categories": [
+                {"name": "Income", "amount": 5000.00},
+                {"name": "Expenses", "amount": 2000.00}
+            ]
+        }

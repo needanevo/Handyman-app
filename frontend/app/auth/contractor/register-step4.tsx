@@ -44,12 +44,24 @@ export default function ContractorRegisterStep4() {
       }
 
       // Refresh user context to get updated portfolio
-      console.log('Refreshing user data...');
-      await refreshUser();
-      console.log('User data refreshed');
+      try {
+        await refreshUser();
+      } catch (refreshError) {
+        console.warn('Failed to refresh user after save, continuing anyway:', refreshError);
+        // Don't block navigation if refresh fails - data is already saved to backend
+      }
 
-      // Registration complete - navigate to welcome page
-      router.replace('/auth/contractor/welcome');
+      // Track onboarding step completion (Phase 5B-1)
+      try {
+        await authAPI.updateOnboardingStep(4);
+        console.log('✅ Step 4 progress saved');
+      } catch (stepError) {
+        console.warn('Failed to save step progress:', stepError);
+        // Don't block navigation if step tracking fails
+      }
+
+      // Navigate to Step 5 (Banking)
+      router.push('/auth/contractor/register-step5');
     } catch (error: any) {
       console.error('Failed to save portfolio:', error);
       console.error('Error details:', {
@@ -88,6 +100,8 @@ export default function ContractorRegisterStep4() {
     { label: 'Documents', completed: true },
     { label: 'Profile', completed: true },
     { label: 'Portfolio', completed: false },
+    { label: 'Banking', completed: false },
+    { label: 'Review', completed: false },
   ];
 
   const handleStepPress = (stepIndex: number) => {
@@ -155,7 +169,7 @@ export default function ContractorRegisterStep4() {
           {/* Actions */}
           <View style={styles.actions}>
             <Button
-              title="Complete Registration"
+              title="Continue to Banking"
               onPress={onSubmit}
               loading={isLoading}
               size="large"

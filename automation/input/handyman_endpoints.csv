@@ -1,0 +1,48 @@
+Section,Step ID,Endpoint,Method,Expected Status,Auth Required,Request Body,Expected Response,Completed (Y/N),Notes
+AUTH,A1,/api/health,GET,200,No,None,{"status":"healthy"},,
+AUTH,A2,/api/auth/register,POST,200,No,{"email":"handyman@example.com" "password":"password123" "phone":"1234567890" "firstName":"John" "lastName":"Doe" "role":"handyman"},{"access_token":"..." "refresh_token":"..."},,
+AUTH,A3,/api/auth/login,POST,200,No,{"email":"handyman@example.com" "password":"password123"},{"access_token":"..." "refresh_token":"..."},,
+AUTH,A4,/api/auth/refresh,POST,200,No,{"refresh_token":"..."},{"access_token":"..." "refresh_token":"..."},,
+AUTH,A5,/api/auth/me,GET,200,Yes,None,User object,,
+
+SERVICES,B1,/api/services,GET,200,No,None,Array of Service objects,,
+SERVICES,B2,/api/services/{service_id},GET,200,No,None,Service object,,
+
+JOB_FEED,C1,/api/handyman/jobs/feed,GET,200,Yes,None,Array of available jobs (published jobs),,
+JOB_ACTIVE,C2,/api/handyman/jobs/active,GET,200,Yes,None,Array of active jobs (assigned to handyman),,
+JOB_HISTORY,C3,/api/handyman/jobs/history,GET,200,Yes,None,Array of completed/cancelled jobs,,
+
+JOB_DETAIL,D1,/api/jobs/{job_id},GET,200,Yes,None,Job object with full details,,
+JOB_STATUS,D2,/api/jobs/{job_id}/status,PATCH,200,Yes,{"status":"in_progress" "scheduled_start":"2025-01-01T10:00:00Z"},Updated job object,,
+
+PROPOSALS,E1,/api/jobs/{job_id}/proposals,POST,200,Yes,{"quoted_price":500 "estimated_hours":8 "materials_cost":200},Created proposal object,,
+PROPOSALS,E2,/api/jobs/{job_id}/proposals,GET,200,Yes,None,Array of proposals for job,,
+PROPOSALS,E3,/api/proposals/{proposal_id}/withdraw,POST,200,Yes,None,{"status":"withdrawn"},,
+
+WALLET,F1,/api/handyman/wallet/summary,GET,200,Yes,None,{"balance":1000 "pending":500 "total_earnings":5000},,
+PAYOUTS,F2,/api/handyman/payouts,GET,200,Yes,None,Array of payout objects,,
+
+GROWTH,G1,/api/handyman/growth/summary,GET,200,Yes,None,{"jobs_completed":N "unlock_status":"..." "next_milestone":"..."},,
+GROWTH,G2,/api/handyman/growth/events,GET,200,Yes,None,Array of growth event objects,,
+
+PROFILE,H1,/api/profile/addresses,GET,200,Yes,None,Array of address objects,,
+PROFILE,H2,/api/profile/addresses,POST,200,Yes,{"street":"..." "city":"..." "state":"..." "zip_code":"..."},Created address object,,
+PROFILE,H3,/api/contractors/profile,PATCH,200,Yes,{"hourly_rate":50 "skills":["plumbing" "painting"]},Updated profile,,
+
+EXPENSES,I1,/api/contractor/expenses,GET,200,Yes,None,Array of expense objects,,
+EXPENSES,I2,/api/contractor/expenses,POST,200,Yes,{"amount":100 "category":"materials" "description":"..." "job_id":"..."},Created expense object,,
+EXPENSES,I3,/api/contractor/expenses/{expense_id},DELETE,200,Yes,None,Success message,,
+
+MILEAGE,J1,/api/contractor/mileage,GET,200,Yes,None,Array of mileage log objects,,
+MILEAGE,J2,/api/contractor/mileage,POST,200,Yes,{"miles":10.5 "purpose":"job_site" "job_id":"..."},Created mileage log,,
+MILEAGE,J3,/api/contractor/mileage/{mileage_id},DELETE,200,Yes,None,Success message,,
+
+TIME_LOGS,K1,/api/contractor/jobs/{job_id}/time,GET,200,Yes,None,Array of time log objects,,
+TIME_LOGS,K2,/api/contractor/jobs/{job_id}/time/start,POST,200,Yes,{"notes":"..."},{"time_id":"..." "started_at":"..."},,
+TIME_LOGS,K3,/api/contractor/jobs/{job_id}/time/{time_id}/stop,POST,200,Yes,{"notes":"..."},Updated time log with duration,,
+
+PHOTOS,L1,/api/contractor/profile-photo/upload,POST,200,Yes,FormData with profile photo,{"profile_photo_url":"..."},,
+PHOTOS,L2,/api/contractor/photos/portfolio,POST,200,Yes,FormData with portfolio photo,{"photo_url":"..."},,
+
+WARRANTY,M1,/api/jobs/{job_id}/warranty/approve,POST,200,Yes,{"notes":"Warranty approved"},{"status":"approved"},,
+WARRANTY,M2,/api/jobs/{job_id}/warranty/deny,POST,200,Yes,{"notes":"Warranty denied reason"},{"status":"denied"},,
