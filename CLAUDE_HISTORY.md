@@ -176,8 +176,38 @@ available_jobs.append(serialize_mongo_doc(job_doc))
 4. Should there be a review/approval step before COMPLETED?
 5. Is PAID automatic after COMPLETED or a manual action?
 
-**Next Steps (2026-02-03 20:34):**
-User requested to first brainstorm and define the entire job lifecycle before implementing changes.
+**Finalized Design (2026-02-03 20:39):**
+
+### Happy Path (Main Flow)
+```
+DRAFT → POSTED → ACCEPTED → IN_PROGRESS → COMPLETED → IN_REVIEW → PAID
+```
+
+### States Added:
+- **IN_REVIEW** - Between COMPLETED and PAID for customer approval
+
+### Cancellation States (Terminal):
+- CANCELLED_BEFORE_ACCEPT - Cancelled while posted/unclaimed
+- CANCELLED_AFTER_ACCEPT - Cancelled after acceptance, before work
+- CANCELLED_IN_PROGRESS - Cancelled during active work
+
+### Complete State List (9 states + 3 cancellation = 12 total):
+
+| State | Trigger | Description |
+|-------|---------|-------------|
+| `DRAFT` | User creates job | Job being edited, not visible |
+| `POSTED` | User publishes job | Visible in available jobs feed |
+| `ACCEPTED` | Contractor claims job | Provider assigned, awaiting start |
+| `IN_PROGRESS` | Contractor starts work | Active work underway |
+| `COMPLETED` | Contractor marks done | Work finished, awaiting review |
+| `IN_REVIEW` | Auto-transitions | Customer reviews and approves |
+| `PAID` | Payment processed | Final state - lifecycle complete |
+| `CANCELLED_BEFORE_ACCEPT` | Customer cancels | Cancelled while posted |
+| `CANCELLED_AFTER_ACCEPT` | Customer/contractor cancels | Cancelled after acceptance |
+| `CANCELLED_IN_PROGRESS` | Either party cancels | Cancelled during work |
+
+**Next Steps (2026-02-03 20:39):**
+Update CLAUDE_HISTORY.md with finalized design and proceed to implementation.
 
 ---
 
