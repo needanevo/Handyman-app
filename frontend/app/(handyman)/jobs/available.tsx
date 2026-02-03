@@ -14,6 +14,22 @@ import { colors, spacing, typography, borderRadius, shadows } from '../../../src
 import { handymanAPI } from '../../../src/services/api';
 import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 
+// Helper function to format posted date
+const formatPostedDate = (createdAt: string | undefined): string => {
+  if (!createdAt) return 'Recently';
+  
+  const created = new Date(createdAt);
+  const now = new Date();
+  const diffMs = now.getTime() - created.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  return `${Math.floor(diffDays / 30)} months ago`;
+};
+
 export default function AvailableJobs() {
   const router = useRouter();
   const [selectedDistance, setSelectedDistance] = useState(25);
@@ -143,7 +159,7 @@ export default function AvailableJobs() {
                 <View style={styles.jobDetailItem}>
                   <Ionicons name="calendar" size={16} color={colors.neutral[600]} />
                   <Text style={styles.jobDetailText}>
-                    Posted {Math.floor((new Date().getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))} days ago
+                    Posted {formatPostedDate(job.created_at)}
                   </Text>
                 </View>
               </View>
