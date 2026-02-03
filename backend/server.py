@@ -4297,6 +4297,8 @@ async def get_jobs_feed(
         if business_address and business_address.latitude and business_address.longitude:
             contractor_location = (business_address.latitude, business_address.longitude)
     
+    logger.info(f"[HANDYMAN_JOBS_FEED] User {current_user.id} contractor_location={contractor_location} max_distance={max_distance}")
+    
     # Get all published jobs (no provider assigned)
     pending_jobs_cursor = db.jobs.find({
         "$and": [
@@ -4307,9 +4309,9 @@ async def get_jobs_feed(
             {"$or": [
                 {"contractor_id": None},
                 {"contractor_id": {"$exists": False}}
-            ]}
-        ],
-        "status": "published"
+            ]},
+            {"status": "published"}
+        ]
     })
     
     # Get provider's skills
@@ -4319,12 +4321,18 @@ async def get_jobs_feed(
     available_jobs = []
     from geopy.distance import geodesic
     
+    jobs_found = 0
+    jobs_filtered_distance = 0
+    jobs_filtered_category = 0
+    
     for job_data in pending_jobs_cursor:
+        jobs_found += 1
         try:
-            # Check if job matches provider's skills
+            # Check if job matches provider's skills (optional filter)
             job_category = job_data.get("service_category", "").lower()
             if category and category != "All":
                 if job_category != category.lower():
+                    jobs_filtered_category += 1
                     continue
             
             # Check distance
@@ -4334,18 +4342,25 @@ async def get_jobs_feed(
                 job_lon = job_address.get("lon") or job_address.get("longitude")
                 
                 if job_lat and job_lon:
-                    job_location = (job_lat, job_lon)
+                    job_location = (float(job_lat), float(job_lon))
                     distance_miles = geodesic(contractor_location, job_location).miles
                     
                     if distance_miles > max_distance:
+                        jobs_filtered_distance += 1
+                        logger.info(f"[HANDYMAN_JOBS_FEED] Job {job_data.get('id')} filtered by distance: {distance_miles:.1f}mi > {max_distance}mi")
                         continue
+                else:
+                    logger.info(f"[HANDYMAN_JOBS_FEED] Job {job_data.get('id')} has no geolocation")
             
             # Add job to available list
             job = Job(**job_data)
             available_jobs.append(job)
             
         except Exception as e:
+            logger.error(f"[HANDYMAN_JOBS_FEED] Error processing job {job_data.get('id')}: {e}")
             continue
+    
+    logger.info(f"[HANDYMAN_JOBS_FEED] Total jobs found: {jobs_found}, filtered_distance: {jobs_filtered_distance}, filtered_category: {jobs_filtered_category}, available: {len(available_jobs)}")
     
     # Sort by created_at descending and apply pagination
     available_jobs.sort(key=lambda x: x.created_at or datetime.utcnow(), reverse=True)
