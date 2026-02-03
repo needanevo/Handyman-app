@@ -1918,7 +1918,7 @@ async def get_contractor_dashboard_stats(
 
 @api_router.get("/contractor/jobs/available")
 async def get_available_jobs(
-    max_distance: int = 50,
+    max_distance: int = 100,  # Contractors have 100 mi radius
     category: Optional[str] = None,
     current_user: User = Depends(get_current_user_dependency)
 ):
@@ -2019,7 +2019,7 @@ async def get_available_jobs(
         job_doc["price"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
         job_doc["total_amount"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
         job_doc["category"] = job_doc.get("service_category", "")
-        available_jobs.append(job_doc)
+        available_jobs.append(serialize_mongo_doc(job_doc))
         logger.info(f"[AVAILABLE_JOBS] Found job {job_doc.get('id')} - {service_category} dist={distance}")
     
     # ALSO FETCH QUOTES (open for bids from customers)
@@ -2062,7 +2062,7 @@ async def get_available_jobs(
             quote_doc["title"] = quote_doc.get("title") or f"{service_category} Service"
             quote_doc["total_amount"] = quote_doc.get("total_amount", 0)
             quote_doc["price"] = quote_doc.get("total_amount", 0)
-            available_jobs.append(quote_doc)
+            available_jobs.append(serialize_mongo_doc(quote_doc))
     except Exception as e:
         logger.warning(f"Error fetching quotes for provider: {e}")
 
