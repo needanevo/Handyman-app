@@ -4315,7 +4315,7 @@ async def get_jobs_feed(
         }
         result.append(transformed)
     
-    return result
+    return {"jobs": result}
 
 
 @api_router.get("/handyman/jobs/active")
@@ -4338,7 +4338,7 @@ async def get_active_jobs(
         offset=offset
     )
 
-    return [job.model_dump() for job in jobs]
+    return {"jobs": [job.model_dump() for job in jobs]}
 
 
 @api_router.get("/handyman/jobs/history")
@@ -4361,7 +4361,7 @@ async def get_job_history(
         offset=offset
     )
 
-    return [job.model_dump() for job in jobs]
+    return {"jobs": [job.model_dump() for job in jobs]}
 
 
 @api_router.patch("/jobs/{job_id}/status")
