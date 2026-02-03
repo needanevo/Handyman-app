@@ -4,6 +4,143 @@ Append-only execution history for Claude Code.
 Use this file ONLY for historical reference.
 Do not load into every task.
 
+---
+
+[2026-02-03 14:30-19:02] Job Visibility Unification — Handyman & Contractor Jobs Feed Fixes
+
+**Date/Time:** 2026-02-03, 14:30-19:02 EST (approximately 4.5 hours)
+**Branch:** fix/job-visibility-unified-feed
+
+**Problem Statement:**
+Handyman and contractor available jobs endpoints were not returning jobs correctly due to:
+1. MongoDB ObjectId serialization errors
+2. Different radius defaults between endpoints
+3. Missing quotes in available jobs pool
+4. Field name mismatches between backend and frontend
+
+**Procedures Followed:**
+
+1. **Server Log Analysis**
+   - Connected to server via SSH
+   - Ran `journalctl -u handyman-api -f` to monitor real-time logs
+   - Identified `TypeError: 'ObjectId' object is not iterable` errors
+
+2. **Backend Code Audit**
+   - Reviewed `/handyman/jobs/feed` endpoint (lines ~4273-4426)
+   - Reviewed `/contractor/jobs/available` endpoint (lines ~1919-2083)
+   - Identified missing ObjectId serialization in both endpoints
+
+3. **Fix Implementation**
+   - Added `serialize_mongo_doc()` helper function to convert ObjectId to string
+   - Applied serialization to all job/quote documents before returning
+   - Set contractor default `max_distance` to 100 miles
+   - Left handyman default at 25 miles
+
+4. **Git Workflow**
+   - Created branch: `fix/job-visibility-unified-feed`
+   - Committed changes incrementally with descriptive messages
+   - Pushed to origin after each fix
+   - Commands used:
+     ```bash
+     git add backend/server.py
+     git commit -m "Descriptive message"
+     git push origin fix/job-visibility-unified-feed
+     ```
+
+5. **Server Deployment**
+   - Pulled latest changes on server:
+     ```bash
+     cd /srv/app/Handyman-app
+     git pull
+     systemctl restart handyman-api
+     ```
+
+**Summary:**
+Unified handyman and contractor available jobs endpoints to return the same pool of work (published jobs + customer quotes). Both roles now see matching cards with appropriate distance filters. Handyman radius: 25 mi, Contractor radius: 100 mi.
+
+**Requirements Completed:**
+
+1. ✅ ObjectId Serialization Fix
+   - Added `serialize_mongo_doc()` helper function
+   - Converts MongoDB ObjectId to string for JSON serialization
+   - Applied to both handyman and contractor endpoints
+
+2. ✅ Unified Job Pool
+   - Both endpoints now return published jobs AND open quotes
+   - Quotes are customer requests open for contractor bids
+   - Consistent response format across both endpoints
+
+3. ✅ Distance Configuration
+   - Contractor default radius: 100 miles
+   - Handyman default radius: 25 miles
+   - Distance calculated from provider's business address
+
+4. ✅ Field Name Consistency
+   - Added `distance_miles`, `distance`, `location`, `item_type` fields
+   - Added `title`, `price`, `total_amount`, `category` fields
+   - Frontend and backend now use matching field names
+
+**Files Modified:**
+- backend/server.py
+  - Lines 4270-4272: Added serialize_mongo_doc() helper
+  - Lines 4273-4426: Updated /handyman/jobs/feed endpoint
+  - Lines 1919-2083: Updated /contractor/jobs/available endpoint
+
+**Key Code Changes:**
+
+1. **serialize_mongo_doc() function:**
+```python
+def serialize_mongo_doc(doc: dict) -> dict:
+    """Convert MongoDB documents to JSON-serializable format."""
+    if doc is None:
+        return None
+    result = {}
+    for key, value in doc.items():
+        if isinstance(value, ObjectId):
+            result[key] = str(value)
+        elif isinstance(value, dict):
+            result[key] = serialize_mongo_doc(value)
+        elif isinstance(value, list):
+            result[key] = [serialize_mongo_doc(item) if isinstance(item, dict) else item for item in value]
+        else:
+            result[key] = value
+    return result
+```
+
+2. **Contractor endpoint default radius:**
+```python
+@api_router.get("/contractor/jobs/available")
+async def get_available_jobs(
+    max_distance: int = 100,  # Contractors have 100 mi radius
+    category: Optional[str] = None,
+    current_user: User = Depends(get_current_user_dependency)
+):
+```
+
+3. **Document serialization before append:**
+```python
+# Serialize to convert ObjectId to string
+available_jobs.append(serialize_mongo_doc(job_doc))
+```
+
+**Testing Verification:**
+- Server logs show successful queries:
+  - `[HANDYMAN_JOBS_FEED] Found 5 published jobs`
+  - `[HANDYMAN_JOBS_FEED] Returning 2 items` (within 25 mi)
+- No more 500 Internal Server Errors
+- Jobs visible in both handyman and contractor available jobs screens
+
+**Next Steps:**
+1. Define explicit job states: POSTED, ACCEPTED, IN_PROGRESS, COMPLETED, PAID
+2. Update Job model to enforce state transitions
+3. Update all endpoints to use new state machine
+4. Update frontend to display current state and available actions
+
+**Commits:**
+- 4a49c90: Unify handyman jobs feed with contractor endpoint
+- 45b2929: Fix ObjectId serialization in handyman jobs feed
+- 0eb6a37: Fix contractor jobs endpoint (ObjectId + 100 mi default)
+
 [2025-12-09 13:30] PHASE 1.1 FINAL — Profile Restructure, Logout, Routing Stability
 
 **Summary:**
