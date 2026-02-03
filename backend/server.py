@@ -4280,14 +4280,31 @@ async def get_jobs_feed(
 ):
     """
     Get available jobs feed for handyman/contractor.
-    Returns all published jobs.
+    Returns published jobs AND open quotes from customers.
+    Both handymen and contractors see the same pool.
     """
     # Role check - only handyman and contractor can access
     if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN]:
         raise HTTPException(403, detail="Only handymen and contractors can access jobs feed")
     
-    # Get all published jobs (no provider assigned)
-    pending_jobs_cursor = db.jobs.find({
+    # Get provider's business address for distance filtering
+    contractor_location = None
+    business_address = None
+    if current_user.addresses:
+        business_address = next(
+            (addr for addr in current_user.addresses if addr.is_default),
+            current_user.addresses[0] if current_user.addresses else None
+        )
+        if business_address and business_address.latitude and business_address.longitude:
+            contractor_location = (business_address.latitude, business_address.longitude)
+    
+    logger.info(f"[HANDYMAN_JOBS_FEED] User {current_user.id} location={contractor_location} max_distance={max_distance}")
+    
+    from geopy.distance import geodesic
+    available_jobs = []
+    
+    # FETCH PUBLISHED JOBS (no provider assigned)
+    jobs_cursor = db.jobs.find({
         "$and": [
             {"$or": [
                 {"assigned_contractor_id": None},
@@ -4301,60 +4318,112 @@ async def get_jobs_feed(
         ]
     })
     
-    # Await the cursor to get documents
-    all_jobs = await pending_jobs_cursor.to_list(length=1000)
+    jobs_list = await jobs_cursor.to_list(length=1000)
+    logger.info(f"[HANDYMAN_JOBS_FEED] Found {len(jobs_list)} published jobs")
     
-    logger.info(f"[HANDYMAN_JOBS_FEED] Found {len(all_jobs)} published jobs in MongoDB for user {current_user.id}")
-    
-    # Filter by category if specified
-    available_jobs = []
-    for job_data in all_jobs:
+    for job_doc in jobs_list:
         try:
-            job_category = job_data.get("service_category", "").lower()
-            if category and category != "All":
-                if job_category != category.lower():
+            # Get job address
+            job_address = job_doc.get("address") or {}
+            job_lat = job_address.get("lat") or job_address.get("latitude")
+            job_lon = job_address.get("lon") or job_address.get("longitude")
+            
+            # Calculate distance
+            distance = None
+            if contractor_location and job_lat and job_lon:
+                job_location = (float(job_lat), float(job_lon))
+                distance = geodesic(contractor_location, job_location).miles
+                if distance > max_distance:
                     continue
             
-            # Add job to available list
-            job = Job(**job_data)
-            available_jobs.append(job)
+            # Filter by category
+            job_category = job_doc.get("service_category", "").lower()
+            if category and category != "All" and job_category != category.lower():
+                continue
+            
+            # Build response
+            job_doc["distance_miles"] = round(distance, 2) if distance is not None else None
+            job_doc["distance"] = round(distance, 2) if distance is not None else None
+            job_doc["location"] = {
+                "city": job_address.get("city", ""),
+                "state": job_address.get("state", ""),
+                "zipCode": job_address.get("zip", ""),
+                "latitude": job_lat,
+                "longitude": job_lon,
+            }
+            job_doc["item_type"] = "job"
+            job_doc["title"] = job_doc.get("title") or job_doc.get("description", "Untitled Job")
+            job_doc["price"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
+            job_doc["total_amount"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
+            job_doc["category"] = job_doc.get("service_category", "")
+            
+            available_jobs.append(job_doc)
             
         except Exception as e:
-            logger.error(f"[HANDYMAN_JOBS_FEED] Error processing job {job_data.get('id')}: {e}")
+            logger.error(f"[HANDYMAN_JOBS_FEED] Error processing job {job_doc.get('id')}: {e}")
             continue
     
-    logger.info(f"[HANDYMAN_JOBS_FEED] Returning {len(available_jobs)} jobs (category={category or 'All'})")
+    # FETCH QUOTES (open for bids from customers)
+    try:
+        quotes_cursor = db.quotes.find({
+            "status": "pending",
+            "contractor_id": {"$exists": False}
+        })
+        
+        async for quote_doc in quotes_cursor:
+            try:
+                # Get quote address
+                address = await get_address_by_id(quote_doc.get("address_id"))
+                
+                distance = None
+                if contractor_location and address and address.latitude and address.longitude:
+                    quote_location = (address.latitude, address.longitude)
+                    distance = geodesic(contractor_location, quote_location).miles
+                    if distance > max_distance:
+                        continue
+                
+                service_category = quote_doc.get("service_category", "")
+                if category and category != "All" and service_category.lower() != category.lower():
+                    continue
+                
+                quote_doc["distance_miles"] = round(distance, 2) if distance is not None else None
+                quote_doc["distance"] = round(distance, 2) if distance is not None else None
+                quote_doc["location"] = {
+                    "city": address.city if address else "",
+                    "state": address.state if address else "",
+                    "zipCode": address.zip if address else "",
+                    "latitude": address.latitude if address else None,
+                    "longitude": address.longitude if address else None,
+                }
+                quote_doc["item_type"] = "quote"
+                quote_doc["title"] = f"{service_category} Service" or "Open for Bids"
+                quote_doc["price"] = quote_doc.get("total_amount", 0)
+                quote_doc["total_amount"] = quote_doc.get("total_amount", 0)
+                quote_doc["category"] = service_category
+                
+                available_jobs.append(quote_doc)
+                
+            except Exception as e:
+                logger.error(f"[HANDYMAN_JOBS_FEED] Error processing quote {quote_doc.get('id')}: {e}")
+                continue
+                
+    except Exception as e:
+        logger.warning(f"[HANDYMAN_JOBS_FEED] Error fetching quotes: {e}")
     
-    # Sort by created_at descending and apply pagination
-    available_jobs.sort(key=lambda x: x.created_at or datetime.utcnow(), reverse=True)
+    # Sort by distance (closest first)
+    available_jobs.sort(key=lambda x: x.get("distance_miles") or 9999)
+    
+    logger.info(f"[HANDYMAN_JOBS_FEED] Returning {len(available_jobs)} items")
+    
+    # Apply limit/offset
     paginated_jobs = available_jobs[offset:offset + limit]
     
-    # Transform job data to match frontend expectations
-    result = []
-    for job in paginated_jobs:
-        job_dict = job.model_dump()
-        # Transform snake_case to camelCase for frontend compatibility
-        transformed = {
-            "id": job_dict.get("id"),
-            "customerId": job_dict.get("customer_id"),
-            "status": job_dict.get("status"),
-            "title": job_dict.get("title") or job_dict.get("description", "Untitled Job"),
-            "description": job_dict.get("description", ""),
-            "category": job_dict.get("service_category", ""),
-            "location": {
-                "city": job_dict.get("address", {}).get("city", ""),
-                "state": job_dict.get("address", {}).get("state", ""),
-                "zipCode": job_dict.get("address", {}).get("zip", ""),
-                "latitude": job_dict.get("address", {}).get("lat"),
-                "longitude": job_dict.get("address", {}).get("lon"),
-            },
-            "quotedAmount": job_dict.get("agreed_amount"),
-            "finalAmount": job_dict.get("budget_max"),
-            "item_type": "job",
-        }
-        result.append(transformed)
-    
-    return {"jobs": result}
+    return {
+        "jobs": paginated_jobs,
+        "count": len(available_jobs),
+        "max_distance": max_distance,
+        "category_filter": category,
+    }
 
 
 @api_router.get("/handyman/jobs/active")
