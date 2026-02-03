@@ -22,27 +22,30 @@ class JobLifecycleService:
     Manages job status transitions and side effects.
 
     Allowed transitions (actor → status):
-    1. draft → published (customer)
-    2. published → proposal_selected (customer)
-    3. proposal_selected → scheduled (contractor)
-    4. scheduled → in_progress (contractor)
-    5. in_progress → completed_pending_review (contractor)
-    6. completed_pending_review → completed (customer or auto)
-    7. any_active → cancelled_by_customer (customer)
-    8. any_active → cancelled_by_contractor (contractor)
+    1. draft → posted (customer)
+    2. posted → accepted (contractor)
+    3. accepted → in_progress (contractor)
+    4. in_progress → completed (contractor)
+    5. completed → in_review (auto)
+    6. in_review → paid (system/customer)
+    7. posted → cancelled_before_accept (customer)
+    8. accepted → cancelled_after_accept (customer or contractor)
+    9. in_progress → cancelled_in_progress (customer or contractor)
     """
 
-    # Define allowed transitions
+    # Define allowed transitions - Updated 2026-02-03
     TRANSITIONS = {
-        JobStatus.DRAFT: [JobStatus.PUBLISHED, JobStatus.CANCELLED_BY_CUSTOMER],
-        JobStatus.PUBLISHED: [JobStatus.PROPOSAL_SELECTED, JobStatus.CANCELLED_BY_CUSTOMER],
-        JobStatus.PROPOSAL_SELECTED: [JobStatus.SCHEDULED, JobStatus.CANCELLED_BY_CUSTOMER, JobStatus.CANCELLED_BY_CONTRACTOR],
-        JobStatus.SCHEDULED: [JobStatus.IN_PROGRESS, JobStatus.CANCELLED_BY_CUSTOMER, JobStatus.CANCELLED_BY_CONTRACTOR],
-        JobStatus.IN_PROGRESS: [JobStatus.COMPLETED_PENDING_REVIEW, JobStatus.CANCELLED_BY_CUSTOMER, JobStatus.CANCELLED_BY_CONTRACTOR],
-        JobStatus.COMPLETED_PENDING_REVIEW: [JobStatus.COMPLETED, JobStatus.CANCELLED_BY_CUSTOMER],
-        JobStatus.COMPLETED: [],  # Terminal state
-        JobStatus.CANCELLED_BY_CUSTOMER: [],  # Terminal state
-        JobStatus.CANCELLED_BY_CONTRACTOR: [],  # Terminal state
+        JobStatus.DRAFT: [JobStatus.POSTED, JobStatus.CANCELLED_BEFORE_ACCEPT],
+        JobStatus.POSTED: [JobStatus.ACCEPTED, JobStatus.CANCELLED_BEFORE_ACCEPT],
+        JobStatus.ACCEPTED: [JobStatus.IN_PROGRESS, JobStatus.CANCELLED_AFTER_ACCEPT],
+        JobStatus.IN_PROGRESS: [JobStatus.COMPLETED, JobStatus.CANCELLED_IN_PROGRESS],
+        JobStatus.COMPLETED: [JobStatus.IN_REVIEW],  # Auto-transitions to review
+        JobStatus.IN_REVIEW: [JobStatus.PAID],  # Customer approves, payment processed
+        JobStatus.PAID: [],  # Terminal state
+        # Cancellation states are terminal
+        JobStatus.CANCELLED_BEFORE_ACCEPT: [],
+        JobStatus.CANCELLED_AFTER_ACCEPT: [],
+        JobStatus.CANCELLED_IN_PROGRESS: [],
     }
 
     def __init__(self, db: AsyncIOMotorDatabase):
@@ -85,49 +88,34 @@ class JobLifecycleService:
         }
 
         # Apply side effects based on transition
-        if new_status == JobStatus.PUBLISHED:
+        if new_status == JobStatus.POSTED:
             # Job enters matching queue (no additional action needed here)
             pass
 
-        elif new_status == JobStatus.PROPOSAL_SELECTED:
-            # Customer selected a proposal - must have accepted_proposal_id
-            if not additional_data or "accepted_proposal_id" not in additional_data:
-                raise JobLifecycleError("accepted_proposal_id required for proposal_selected status")
+        elif new_status == JobStatus.ACCEPTED:
+            # Contractor accepted the job - must have assigned_contractor_id
             if not additional_data or "assigned_contractor_id" not in additional_data:
-                raise JobLifecycleError("assigned_contractor_id required for proposal_selected status")
-
-            update_data["accepted_proposal_id"] = additional_data["accepted_proposal_id"]
+                raise JobLifecycleError("assigned_contractor_id required for accepted status")
             update_data["assigned_contractor_id"] = additional_data["assigned_contractor_id"]
-
-            # Update proposal statuses (accept one, reject others)
-            await self._update_proposals_for_job(
-                job.id,
-                accepted_proposal_id=additional_data["accepted_proposal_id"]
-            )
-
-        elif new_status == JobStatus.SCHEDULED:
-            # Contractor confirmed schedule
-            if additional_data:
-                if "scheduled_start" in additional_data:
-                    update_data["scheduled_start"] = additional_data["scheduled_start"]
-                if "scheduled_end" in additional_data:
-                    update_data["scheduled_end"] = additional_data["scheduled_end"]
 
         elif new_status == JobStatus.IN_PROGRESS:
             # Contractor marked "On the job"
             pass
 
-        elif new_status == JobStatus.COMPLETED_PENDING_REVIEW:
+        elif new_status == JobStatus.COMPLETED:
             # Contractor marked "Work finished" - create payout
             payout = await self._create_payout_for_job(job)
             update_data["payout_id"] = payout.id
 
-        elif new_status == JobStatus.COMPLETED:
-            # Customer confirmed OR auto after N days - queue payout
-            if job.payout_id:
-                await self._queue_payout_for_transfer(job.payout_id)
+        elif new_status == JobStatus.IN_REVIEW:
+            # Job is being reviewed - no action needed
+            pass
 
-        elif new_status in [JobStatus.CANCELLED_BY_CUSTOMER, JobStatus.CANCELLED_BY_CONTRACTOR]:
+        elif new_status == JobStatus.PAID:
+            # Payment processed - job lifecycle complete
+            pass
+
+        elif new_status in [JobStatus.CANCELLED_BEFORE_ACCEPT, JobStatus.CANCELLED_AFTER_ACCEPT, JobStatus.CANCELLED_IN_PROGRESS]:
             # Job cancelled - handle any cleanup
             pass
 

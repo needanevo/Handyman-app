@@ -1199,20 +1199,20 @@ async def respond_to_quote(
 
                 if contractor_id:
                     job.assigned_contractor_id = contractor_id
-                    job.status = JobStatus.SCHEDULED
+                    job.status = JobStatus.ACCEPTED  # Simplified: ACCEPTED instead of SCHEDULED
                     logger.info(f"Job {job.id} auto-assigned to contractor {contractor_id}")
                     # TODO: Send email to contractor about new job
                 else:
-                    # No contractor found - publish job so contractors can see it
-                    job.status = JobStatus.PUBLISHED
-                    logger.info(f"Job {job.id} created, awaiting manual routing - published to feed")
+                    # No contractor found - post job so contractors can see it
+                    job.status = JobStatus.POSTED  # Changed from PUBLISHED to POSTED
+                    logger.info(f"Job {job.id} created, awaiting manual routing - posted to feed")
                     # TODO: Send email to admin for manual assignment
 
             except Exception as e:
                 logger.error(f"Contractor routing failed for job {job.id}: {e}")
-                # Publish job so contractors can see it
-                job.status = JobStatus.PUBLISHED
-                logger.info(f"Job {job.id} published to feed after routing failure")
+                # Post job so contractors can see it
+                job.status = JobStatus.POSTED  # Changed from PUBLISHED to POSTED
+                logger.info(f"Job {job.id} posted to feed after routing failure")
 
             # Save job to database
             job_doc = job.model_dump()
@@ -4654,9 +4654,10 @@ async def accept_proposal(
     # Apply transition using lifecycle service
     try:
         from services.job_lifecycle import JobLifecycleError
+        # When proposal is accepted, job status goes to ACCEPTED
         updated_job = await job_lifecycle.apply_transition(
             job=job,
-            new_status=JobStatus.PROPOSAL_SELECTED,
+            new_status=JobStatus.ACCEPTED,  # Changed from PROPOSAL_SELECTED
             actor_id=current_user.id,
             actor_role=current_user.role.value,
             additional_data={

@@ -59,8 +59,8 @@ class ProposalService:
         if not job:
             raise ProposalError(f"Job {job_id} not found")
 
-        if job["status"] != JobStatus.PUBLISHED:
-            raise ProposalError(f"Job must be published to accept proposals (current status: {job['status']})")
+        if job["status"] != JobStatus.POSTED:
+            raise ProposalError(f"Job must be posted to accept proposals (current status: {job['status']})")
 
         # Check for existing active proposal from this contractor
         existing_proposal = await self.db.proposals.find_one({

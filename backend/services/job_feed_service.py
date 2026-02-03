@@ -74,8 +74,14 @@ class JobFeedService:
 
         # Query all published jobs (no skill filter — all jobs visible)
         query = {
-            "status": JobStatus.PUBLISHED,
+            "status": JobStatus.POSTED,
         }
+
+        # Exclude jobs already assigned to a contractor
+        query["$or"] = [
+            {"assigned_contractor_id": {"$exists": False}},
+            {"assigned_contractor_id": None}
+        ]
 
         # Only filter by skills if provider has defined skills
         if skills:
@@ -140,11 +146,12 @@ class JobFeedService:
         Returns:
             List of active jobs
         """
+        # Active jobs include: ACCEPTED, IN_PROGRESS, COMPLETED (before review/paid)
         active_statuses = [
-            JobStatus.PROPOSAL_SELECTED,
-            JobStatus.SCHEDULED,
+            JobStatus.ACCEPTED,
             JobStatus.IN_PROGRESS,
-            JobStatus.COMPLETED_PENDING_REVIEW
+            JobStatus.COMPLETED,
+            JobStatus.IN_REVIEW,
         ]
 
         query = {

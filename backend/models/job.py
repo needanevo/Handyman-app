@@ -12,16 +12,21 @@ import uuid
 
 
 class JobStatus(str, Enum):
-    """Job lifecycle states"""
+    """Job lifecycle states - Finalized 2026-02-03"""
+    
+    # Happy Path States
     DRAFT = "draft"
-    PUBLISHED = "published"  # Visible in feed, accepting proposals
-    PROPOSAL_SELECTED = "proposal_selected"  # Customer chose a proposal
-    SCHEDULED = "scheduled"
-    IN_PROGRESS = "in_progress"
-    COMPLETED_PENDING_REVIEW = "completed_pending_review"
-    COMPLETED = "completed"
-    CANCELLED_BY_CUSTOMER = "cancelled_by_customer"
-    CANCELLED_BY_CONTRACTOR = "cancelled_by_contractor"
+    POSTED = "posted"           # Visible in available jobs feed
+    ACCEPTED = "accepted"       # Contractor claimed the job
+    IN_PROGRESS = "in_progress"  # Work is underway
+    COMPLETED = "completed"      # Work finished, awaiting review
+    IN_REVIEW = "in_review"      # Customer reviewing/comparing
+    PAID = "paid"                # Payment processed - terminal state
+    
+    # Cancellation States (terminal)
+    CANCELLED_BEFORE_ACCEPT = "cancelled_before_accept"
+    CANCELLED_AFTER_ACCEPT = "cancelled_after_accept"
+    CANCELLED_IN_PROGRESS = "cancelled_in_progress"
 
 
 class ContractorTypePreference(str, Enum):
