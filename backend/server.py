@@ -938,7 +938,7 @@ async def request_quote(
             "photos": photo_urls,
             "urgency": quote_request.urgency,
             "budget_max": total_amount,
-            "status": "published",
+            "status": JobStatus.POSTED,  # Changed from "published"
             "assigned_contractor_id": None,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
@@ -1735,7 +1735,7 @@ async def get_contractor_dashboard_stats(
     month_start = datetime(now.year, now.month, 1)
     year_start = datetime(now.year, 1, 1)
 
-    # Count available jobs (published, unassigned)
+    # Count available jobs (posted, unassigned)
     available_jobs_count = await db.jobs.count_documents({
         "$and": [
             {"$or": [
@@ -1747,25 +1747,25 @@ async def get_contractor_dashboard_stats(
                 {"contractor_id": {"$exists": False}}
             ]}
         ],
-        "status": "published"
+        "status": JobStatus.POSTED
     })
 
-    # Count accepted jobs (assigned to this contractor, not yet scheduled)
+    # Count accepted jobs (assigned to this contractor, not yet started)
     accepted_jobs_count = await db.jobs.count_documents({
         "$or": [
             {"assigned_contractor_id": current_user.id},
             {"contractor_id": current_user.id}
         ],
-        "status": {"$in": ["pending", "accepted"]}
+        "status": JobStatus.ACCEPTED
     })
 
-    # Count scheduled jobs (assigned to this contractor with scheduled date)
-    scheduled_jobs_count = await db.jobs.count_documents({
+    # Count in-progress jobs (assigned to this contractor, work underway)
+    in_progress_jobs_count = await db.jobs.count_documents({
         "$or": [
             {"assigned_contractor_id": current_user.id},
             {"contractor_id": current_user.id}
         ],
-        "status": "scheduled"
+        "status": JobStatus.IN_PROGRESS
     })
 
     # Count completed jobs this month
@@ -1774,7 +1774,7 @@ async def get_contractor_dashboard_stats(
             {"assigned_contractor_id": current_user.id},
             {"contractor_id": current_user.id}
         ],
-        "status": "completed",
+        "status": JobStatus.COMPLETED,
         "completed_at": {"$gte": month_start.isoformat()}
     })
 
@@ -1784,7 +1784,7 @@ async def get_contractor_dashboard_stats(
             {"assigned_contractor_id": current_user.id},
             {"contractor_id": current_user.id}
         ],
-        "status": "completed",
+        "status": JobStatus.COMPLETED,
         "completed_at": {"$gte": year_start.isoformat()}
     })
 
@@ -1967,7 +1967,7 @@ async def get_available_jobs(
                 {"contractor_id": {"$exists": False}}
             ]}
         ],
-        "status": "published"
+        "status": JobStatus.POSTED
     })
 
     async for job_doc in pending_jobs_cursor:
@@ -2974,10 +2974,16 @@ async def get_accepted_contractor_jobs(
     if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
-    jobs = await db.jobs.find({
-        "contractor_id": current_user.id,
-        "status": {"$in": ["accepted", "quoted"]}
-    }).sort("created_at", -1).to_list(100)
+    # Find jobs by assigned_contractor_id or contractor_id (for backward compatibility)
+    job_filter = {
+        "$or": [
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
+        "status": JobStatus.ACCEPTED
+    }
+    
+    jobs = await db.jobs.find(job_filter).sort("created_at", -1).to_list(100)
 
     for job in jobs:
         job.pop('_id', None)
@@ -2993,8 +2999,11 @@ async def get_scheduled_contractor_jobs(
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     jobs = await db.jobs.find({
-        "contractor_id": current_user.id,
-        "status": "scheduled"
+        "$or": [
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
+        "status": JobStatus.ACCEPTED
     }).sort("scheduled_date", 1).to_list(100)
 
     for job in jobs:
@@ -3013,8 +3022,11 @@ async def get_completed_contractor_jobs(
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     query = {
-        "contractor_id": current_user.id,
-        "status": "completed"
+        "$or": [
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
+        "status": JobStatus.COMPLETED
     }
 
     if start_date and end_date:
@@ -4334,12 +4346,12 @@ async def get_jobs_feed(
                 {"contractor_id": None},
                 {"contractor_id": {"$exists": False}}
             ]},
-            {"status": "published"}
+            {"status": JobStatus.POSTED}
         ]
     })
     
     jobs_list = await jobs_cursor.to_list(length=1000)
-    logger.info(f"[HANDYMAN_JOBS_FEED] Found {len(jobs_list)} published jobs")
+    logger.info(f"[HANDYMAN_JOBS_FEED] Found {len(jobs_list)} posted jobs")
     
     for job_doc in jobs_list:
         try:

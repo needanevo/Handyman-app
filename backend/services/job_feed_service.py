@@ -72,29 +72,36 @@ class JobFeedService:
             else None
         )
 
-        # Query all published jobs (no skill filter — all jobs visible)
+        # Query all posted jobs (no skill filter — all jobs visible)
         query = {
             "status": JobStatus.POSTED,
         }
 
+        # Build $and clause with multiple $or conditions
+        and_conditions = []
+        
         # Exclude jobs already assigned to a contractor
-        query["$or"] = [
-            {"assigned_contractor_id": {"$exists": False}},
-            {"assigned_contractor_id": None}
-        ]
-
-        # Only filter by skills if provider has defined skills
-        if skills:
-            query["service_category"] = {"$in": skills}
+        and_conditions.append({
+            "$or": [
+                {"assigned_contractor_id": {"$exists": False}},
+                {"assigned_contractor_id": None}
+            ]}
+        )
 
         # Filter by contractor type preference if specified
         if contractor_type:
-            query["$or"] = [
-                {"contractor_type_preference": contractor_type},
-                {"contractor_type_preference": ContractorTypePreference.NO_PREFERENCE},
-                {"contractor_type_preference": None},
-                {"contractor_type_preference": {"$exists": False}}
-            ]
+            and_conditions.append({
+                "$or": [
+                    {"contractor_type_preference": contractor_type},
+                    {"contractor_type_preference": ContractorTypePreference.NO_PREFERENCE},
+                    {"contractor_type_preference": None},
+                    {"contractor_type_preference": {"$exists": False}}
+                ]
+            })
+        
+        # Add $and to query if we have conditions
+        if and_conditions:
+            query["$and"] = and_conditions
 
         # Get jobs
         cursor = self.db.jobs.find(query)
@@ -187,10 +194,13 @@ class JobFeedService:
         Returns:
             List of completed/cancelled jobs
         """
+        # Terminal statuses for job history (completed or cancelled)
         terminal_statuses = [
             JobStatus.COMPLETED,
-            JobStatus.CANCELLED_BY_CUSTOMER,
-            JobStatus.CANCELLED_BY_CONTRACTOR
+            JobStatus.PAID,
+            JobStatus.CANCELLED_BEFORE_ACCEPT,
+            JobStatus.CANCELLED_AFTER_ACCEPT,
+            JobStatus.CANCELLED_IN_PROGRESS,
         ]
 
         query = {
