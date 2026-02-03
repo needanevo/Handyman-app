@@ -4274,25 +4274,86 @@ async def admin_configure_provider_gate(
 async def get_jobs_feed(
     limit: int = 50,
     offset: int = 0,
+    max_distance: int = 50,
+    category: Optional[str] = None,
     current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Get available jobs feed for handyman/contractor.
-    Filters by skills, location (50 mile radius), and contractor type preference.
+    Filters by skills, location (configurable radius), and service category.
     """
     # Role check - only handyman and contractor can access
     if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN]:
         raise HTTPException(403, detail="Only handymen and contractors can access jobs feed")
     
-    jobs = await job_feed_service.get_available_jobs_feed(
-        contractor_id=current_user.id,
-        limit=limit,
-        offset=offset
-    )
-
+    # Get provider's business address for distance filtering
+    contractor_location = None
+    business_address = None
+    if current_user.addresses:
+        business_address = next(
+            (addr for addr in current_user.addresses if addr.is_default),
+            current_user.addresses[0] if current_user.addresses else None
+        )
+        if business_address and business_address.latitude and business_address.longitude:
+            contractor_location = (business_address.latitude, business_address.longitude)
+    
+    # Get all published jobs (no provider assigned)
+    pending_jobs_cursor = db.jobs.find({
+        "$and": [
+            {"$or": [
+                {"assigned_contractor_id": None},
+                {"assigned_contractor_id": {"$exists": False}}
+            ]},
+            {"$or": [
+                {"contractor_id": None},
+                {"contractor_id": {"$exists": False}}
+            ]}
+        ],
+        "status": "published"
+    })
+    
+    # Get provider's skills
+    provider_skills = current_user.skills or []
+    
+    # Filter and score jobs
+    available_jobs = []
+    from geopy.distance import geodesic
+    
+    for job_data in pending_jobs_cursor:
+        try:
+            # Check if job matches provider's skills
+            job_category = job_data.get("service_category", "").lower()
+            if category and category != "All":
+                if job_category != category.lower():
+                    continue
+            
+            # Check distance
+            if contractor_location:
+                job_address = job_data.get("address", {})
+                job_lat = job_address.get("lat") or job_address.get("latitude")
+                job_lon = job_address.get("lon") or job_address.get("longitude")
+                
+                if job_lat and job_lon:
+                    job_location = (job_lat, job_lon)
+                    distance_miles = geodesic(contractor_location, job_location).miles
+                    
+                    if distance_miles > max_distance:
+                        continue
+            
+            # Add job to available list
+            job = Job(**job_data)
+            available_jobs.append(job)
+            
+        except Exception as e:
+            continue
+    
+    # Sort by created_at descending and apply pagination
+    available_jobs.sort(key=lambda x: x.created_at or datetime.utcnow(), reverse=True)
+    paginated_jobs = available_jobs[offset:offset + limit]
+    
     # Transform job data to match frontend expectations
     result = []
-    for job in jobs:
+    for job in paginated_jobs:
         job_dict = job.model_dump()
         # Transform snake_case to camelCase for frontend compatibility
         transformed = {
