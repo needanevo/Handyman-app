@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
-import { contractorAPI } from '../../../src/services/api';
+import { handymanAPI } from '../../../src/services/api';
 import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 
 export default function AvailableJobs() {
@@ -31,8 +31,8 @@ export default function AvailableJobs() {
       if (selectedCategory !== 'All') {
         filters.category = selectedCategory;
       }
-      const response: any = await contractorAPI.getAvailableJobs(filters);
-      return response.jobs || [];
+      const response: any = await handymanAPI.getAvailableJobs(filters);
+      return Array.isArray(response) ? response : response.jobs || [];
     },
     staleTime: 30 * 1000, // 30 seconds - shorter for filter changes
   });
