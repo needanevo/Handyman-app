@@ -1754,26 +1754,38 @@ async def get_contractor_dashboard_stats(
 
     # Count accepted jobs (assigned to this contractor, not yet scheduled)
     accepted_jobs_count = await db.jobs.count_documents({
-        "contractor_id": current_user.id,
+        "$or": [
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
         "status": {"$in": ["pending", "accepted"]}
     })
 
     # Count scheduled jobs (assigned to this contractor with scheduled date)
     scheduled_jobs_count = await db.jobs.count_documents({
-        "contractor_id": current_user.id,
+        "$or": [
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
         "status": "scheduled"
     })
 
     # Count completed jobs this month
     completed_this_month = await db.jobs.count_documents({
-        "contractor_id": current_user.id,
+        "$or": [
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
         "status": "completed",
         "completed_at": {"$gte": month_start.isoformat()}
     })
 
     # Count completed jobs year to date
     completed_year_to_date = await db.jobs.count_documents({
-        "contractor_id": current_user.id,
+        "$or": [
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
         "status": "completed",
         "completed_at": {"$gte": year_start.isoformat()}
     })
@@ -1783,7 +1795,10 @@ async def get_contractor_dashboard_stats(
     revenue_pipeline_month = [
         {
             "$match": {
-                "contractor_id": current_user.id,
+                "$or": [
+                    {"assigned_contractor_id": current_user.id},
+                    {"contractor_id": current_user.id}
+                ],
                 "status": "completed",
                 "completed_at": {"$gte": month_start.isoformat()}
             }
@@ -1803,7 +1818,10 @@ async def get_contractor_dashboard_stats(
     revenue_pipeline_year = [
         {
             "$match": {
-                "contractor_id": current_user.id,
+                "$or": [
+                    {"assigned_contractor_id": current_user.id},
+                    {"contractor_id": current_user.id}
+                ],
                 "status": "completed",
                 "completed_at": {"$gte": year_start.isoformat()}
             }
