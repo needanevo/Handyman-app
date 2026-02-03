@@ -61,14 +61,8 @@ class JobFeedService:
                     contractor_lon = addr["longitude"]
                     break
 
-        if not contractor_lat or not contractor_lon:
-            # No valid coordinates, can't do distance filtering
-            return []
-
-        # Get contractor's skills
+        # Get contractor's skills (optional — don't block if empty)
         skills = contractor.get("skills", [])
-        if not skills:
-            return []
 
         # Map contractor's role to preference
         contractor_role = contractor.get("role")
@@ -78,36 +72,46 @@ class JobFeedService:
             else None
         )
 
-        # Query published jobs matching service category
+        # Query all published jobs (no skill filter — all jobs visible)
         query = {
             "status": JobStatus.PUBLISHED,
-            "service_category": {"$in": skills}
         }
+
+        # Only filter by skills if provider has defined skills
+        if skills:
+            query["service_category"] = {"$in": skills}
 
         # Filter by contractor type preference if specified
         if contractor_type:
             query["$or"] = [
                 {"contractor_type_preference": contractor_type},
                 {"contractor_type_preference": ContractorTypePreference.NO_PREFERENCE},
-                {"contractor_type_preference": None}
+                {"contractor_type_preference": None},
+                {"contractor_type_preference": {"$exists": False}}
             ]
 
         # Get jobs
         cursor = self.db.jobs.find(query)
         jobs = []
         async for job_data in cursor:
-            job = Job(**job_data)
+            try:
+                job = Job(**job_data)
+            except Exception:
+                # Skip docs that don't match the Job model (e.g. old field names)
+                continue
 
-            # Calculate distance
-            if job.address.lat and job.address.lon:
+            # Calculate distance if provider has coordinates
+            if contractor_lat and contractor_lon and job.address.lat and job.address.lon:
                 distance = geodesic(
                     (contractor_lat, contractor_lon),
                     (job.address.lat, job.address.lon)
                 ).miles
 
-                # Only include if within 50 miles
                 if distance <= 50:
                     jobs.append((distance, job))
+            else:
+                # No coordinates — include with large distance so it sorts last
+                jobs.append((float('inf'), job))
 
         # Sort by distance (closest first)
         jobs.sort(key=lambda x: x[0])

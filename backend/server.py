@@ -86,6 +86,7 @@ from auth.auth_handler import (
     AuthHandler,
     require_admin,
     require_technician_or_admin,
+    require_provider_or_admin,
 )
 
 # Import services
@@ -930,9 +931,9 @@ async def request_quote(
                 "street": address.street,
                 "city": address.city,
                 "state": address.state,
-                "zip_code": address.zip_code,
-                "latitude": address.latitude,
-                "longitude": address.longitude,
+                "zip": address.zip_code,
+                "lat": address.latitude,
+                "lon": address.longitude,
             },
             "service_category": quote_request.service_category,
             "description": quote_request.description,
@@ -940,7 +941,7 @@ async def request_quote(
             "urgency": quote_request.urgency,
             "budget_max": total_amount,
             "status": "published",
-            "contractor_id": None,
+            "assigned_contractor_id": None,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
         }
@@ -1736,13 +1737,17 @@ async def get_contractor_dashboard_stats(
     month_start = datetime(now.year, now.month, 1)
     year_start = datetime(now.year, 1, 1)
 
-    # Count available jobs (published, within 50 miles, matching skills)
-    # For simplicity, we'll count all published jobs
-    # The frontend can call /contractor/jobs/available for the exact count
+    # Count available jobs (published, unassigned)
     available_jobs_count = await db.jobs.count_documents({
-        "$or": [
-            {"contractor_id": None},
-            {"contractor_id": {"$exists": False}}
+        "$and": [
+            {"$or": [
+                {"assigned_contractor_id": None},
+                {"assigned_contractor_id": {"$exists": False}}
+            ]},
+            {"$or": [
+                {"contractor_id": None},
+                {"contractor_id": {"$exists": False}}
+            ]}
         ],
         "status": "published"
     })
@@ -1913,44 +1918,42 @@ async def get_available_jobs(
     """
     logger.info(f"[AVAILABLE_JOBS] User {current_user.id} role={current_user.role} skills={current_user.skills}")
     
-    # Only contractors can access this endpoint
-    if current_user.role != UserRole.CONTRACTOR:
-        raise HTTPException(403, detail="Only contractors can access available jobs")
+    # Only providers (contractor or handyman) can access this endpoint
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only contractors and handymen can access available jobs")
 
-    # Get contractor's business address
-    if not current_user.addresses:
-        raise HTTPException(400, detail="No business address on file. Please add an address.")
-
-    business_address = next(
-        (addr for addr in current_user.addresses if addr.is_default),
-        current_user.addresses[0] if current_user.addresses else None
-    )
-
-    if not business_address:
-        raise HTTPException(400, detail="No business address found")
-
-    if not business_address.latitude or not business_address.longitude:
-        raise HTTPException(
-            400,
-            detail="Business address not geocoded. Please update your address."
+    # Get provider's business address for optional distance filtering
+    contractor_location = None
+    business_address = None
+    if current_user.addresses:
+        business_address = next(
+            (addr for addr in current_user.addresses if addr.is_default),
+            current_user.addresses[0] if current_user.addresses else None
         )
+        if business_address and business_address.latitude and business_address.longitude:
+            contractor_location = (business_address.latitude, business_address.longitude)
 
-    contractor_location = (business_address.latitude, business_address.longitude)
-    logger.info(f"[AVAILABLE_JOBS] Contractor location: {contractor_location}, max_distance={max_distance}")
-    
+    logger.info(f"[AVAILABLE_JOBS] Provider location: {contractor_location}, max_distance={max_distance}")
+
     from geopy.distance import geodesic
 
     available_jobs = []
-    
-    # Get all published jobs (no contractor assigned)
+
+    # Get all published jobs (no provider assigned)
     pending_jobs_cursor = db.jobs.find({
-        "$or": [
-            {"assigned_contractor_id": None},
-            {"assigned_contractor_id": {"$exists": False}}
+        "$and": [
+            {"$or": [
+                {"assigned_contractor_id": None},
+                {"assigned_contractor_id": {"$exists": False}}
+            ]},
+            {"$or": [
+                {"contractor_id": None},
+                {"contractor_id": {"$exists": False}}
+            ]}
         ],
         "status": "published"
     })
-    
+
     async for job_doc in pending_jobs_cursor:
         # Use embedded address when available, fall back to customer lookup
         job_address = job_doc.get("address")
@@ -1963,45 +1966,45 @@ async def get_available_jobs(
                 None
             )
 
-        if not job_address or not job_address.get("latitude") or not job_address.get("longitude"):
+        # Tolerant field reads (old docs use latitude/longitude, new use lat/lon)
+        job_lat = None
+        job_lon = None
+        if job_address:
+            job_lat = job_address.get("lat") or job_address.get("latitude")
+            job_lon = job_address.get("lon") or job_address.get("longitude")
+
+        # Calculate distance only if both provider and job have coordinates
+        distance = None
+        if contractor_location and job_lat and job_lon:
+            job_location = (job_lat, job_lon)
+            distance = geodesic(contractor_location, job_location).miles
+            # Skip if beyond max_distance
+            if distance > max_distance:
+                continue
+
+        service_category = job_doc.get("service_category", "")
+
+        # If category filter specified via query param, match it
+        if category and service_category.lower() != category.lower():
             continue
 
-        # Calculate distance
-        job_location = (job_address["latitude"], job_address["longitude"])
-        distance = geodesic(contractor_location, job_location).miles
-
-        # Only include jobs within specified distance
-        if distance <= max_distance:
-            # Check if contractor has matching skill
-            service_category = job_doc.get("service_category", "")
-            
-            # If category filter specified, match it
-            if category and service_category.lower() != category.lower():
-                continue
-            
-            # Check skills - if contractor has skills defined, job must match one
-            contractor_skills = current_user.skills or []
-            if contractor_skills and service_category not in contractor_skills:
-                logger.debug(f"[AVAILABLE_JOBS] Skipping job {job_doc.get('id')} - category '{service_category}' not in skills")
-                continue
-            
-            # All checks passed - include job
-            job_doc["distance_miles"] = round(distance, 2)
-            job_doc["distance"] = round(distance, 2)  # Frontend expects 'distance'
-            job_doc["location"] = {  # Frontend expects 'location'
-                "city": job_address.get("city", ""),
-                "state": job_address.get("state", ""),
-                "zipCode": job_address.get("zip_code", ""),
-                "latitude": job_address.get("latitude"),
-                "longitude": job_address.get("longitude"),
-            }
-            job_doc["item_type"] = "job"
-            job_doc["title"] = job_doc.get("title") or job_doc.get("description", "Untitled Job")
-            job_doc["price"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
-            job_doc["total_amount"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
-            job_doc["category"] = job_doc.get("service_category", "")  # Frontend expects 'category'
-            available_jobs.append(job_doc)
-            logger.info(f"[AVAILABLE_JOBS] Found job {job_doc.get('id')} - {service_category} at {distance:.1f} miles")
+        # Build response fields
+        job_doc["distance_miles"] = round(distance, 2) if distance is not None else None
+        job_doc["distance"] = round(distance, 2) if distance is not None else None
+        job_doc["location"] = {
+            "city": job_address.get("city", "") if job_address else "",
+            "state": job_address.get("state", "") if job_address else "",
+            "zipCode": (job_address.get("zip") or job_address.get("zip_code", "")) if job_address else "",
+            "latitude": job_lat,
+            "longitude": job_lon,
+        }
+        job_doc["item_type"] = "job"
+        job_doc["title"] = job_doc.get("title") or job_doc.get("description", "Untitled Job")
+        job_doc["price"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
+        job_doc["total_amount"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
+        job_doc["category"] = job_doc.get("service_category", "")
+        available_jobs.append(job_doc)
+        logger.info(f"[AVAILABLE_JOBS] Found job {job_doc.get('id')} - {service_category} dist={distance}")
     
     # ALSO FETCH QUOTES (open for bids from customers)
     try:
@@ -2009,51 +2012,46 @@ async def get_available_jobs(
             "status": "pending",
             "contractor_id": {"$exists": False}
         })
-        
+
         async for quote_doc in quotes_cursor:
             address = await get_address_by_id(quote_doc.get("address_id"))
-            if not address or not address.latitude or not address.longitude:
-                continue
-            
-            quote_location = (address.latitude, address.longitude)
-            distance = geodesic(contractor_location, quote_location).miles
-            
-            if distance <= max_distance:
-                service_category = quote_doc.get("service_category", "")
-                
-                # If category filter specified, match it
-                if category and service_category.lower() != category.lower():
-                    continue
-                
-                # Check skills
-                contractor_skills = current_user.skills or []
-                if contractor_skills and service_category not in contractor_skills:
-                    continue
-                
-                quote_doc["distance_miles"] = round(distance, 2)
-                quote_doc["distance"] = round(distance, 2)  # Frontend expects 'distance'
-                quote_doc["location"] = {  # Frontend expects 'location'
-                    "city": address.city,
-                    "state": address.state,
-                    "zipCode": address.zip_code,
-                    "latitude": address.latitude,
-                    "longitude": address.longitude,
-                }
-                quote_doc["id"] = quote_doc.get("id")
-                quote_doc["item_type"] = "quote"
-                quote_doc["customer_id"] = quote_doc.get("customer_id")
-                quote_doc["description"] = quote_doc.get("description", "")
-                quote_doc["service_category"] = service_category
-                quote_doc["category"] = service_category  # Frontend expects 'category'
-                quote_doc["title"] = quote_doc.get("title") or f"{service_category} Service"
-                quote_doc["total_amount"] = quote_doc.get("total_amount", 0)
-                quote_doc["price"] = quote_doc.get("total_amount", 0)
-                available_jobs.append(quote_doc)
-    except Exception as e:
-        logger.warning(f"Error fetching quotes for contractor: {e}")
 
-    # Sort by distance (closest first)
-    available_jobs.sort(key=lambda x: x.get("distance_miles", 0))
+            distance = None
+            if contractor_location and address and address.latitude and address.longitude:
+                quote_location = (address.latitude, address.longitude)
+                distance = geodesic(contractor_location, quote_location).miles
+                if distance > max_distance:
+                    continue
+
+            service_category = quote_doc.get("service_category", "")
+
+            if category and service_category.lower() != category.lower():
+                continue
+
+            quote_doc["distance_miles"] = round(distance, 2) if distance is not None else None
+            quote_doc["distance"] = round(distance, 2) if distance is not None else None
+            quote_doc["location"] = {
+                "city": address.city if address else "",
+                "state": address.state if address else "",
+                "zipCode": address.zip_code if address else "",
+                "latitude": address.latitude if address else None,
+                "longitude": address.longitude if address else None,
+            }
+            quote_doc["id"] = quote_doc.get("id")
+            quote_doc["item_type"] = "quote"
+            quote_doc["customer_id"] = quote_doc.get("customer_id")
+            quote_doc["description"] = quote_doc.get("description", "")
+            quote_doc["service_category"] = service_category
+            quote_doc["category"] = service_category
+            quote_doc["title"] = quote_doc.get("title") or f"{service_category} Service"
+            quote_doc["total_amount"] = quote_doc.get("total_amount", 0)
+            quote_doc["price"] = quote_doc.get("total_amount", 0)
+            available_jobs.append(quote_doc)
+    except Exception as e:
+        logger.warning(f"Error fetching quotes for provider: {e}")
+
+    # Sort by distance (closest first, null distance last)
+    available_jobs.sort(key=lambda x: x.get("distance_miles") or 9999)
 
     logger.info(f"[AVAILABLE_JOBS] Returning {len(available_jobs)} jobs for contractor {current_user.id}")
 
@@ -4260,7 +4258,7 @@ async def admin_configure_provider_gate(
 async def get_jobs_feed(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get available jobs feed for handyman/contractor.
@@ -4304,7 +4302,7 @@ async def get_jobs_feed(
 async def get_active_jobs(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get active jobs for handyman/contractor.
@@ -4323,7 +4321,7 @@ async def get_active_jobs(
 async def get_job_history(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get job history for handyman/contractor.
@@ -4396,7 +4394,7 @@ async def update_job_status(
 async def create_proposal(
     job_id: str,
     proposal_request: ProposalCreateRequest,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Create a proposal for a job (handyman/contractor only).
@@ -4517,7 +4515,7 @@ async def accept_proposal(
 @api_router.post("/proposals/{proposal_id}/withdraw")
 async def withdraw_proposal(
     proposal_id: str,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Withdraw a proposal (contractor only).
@@ -4539,7 +4537,7 @@ async def withdraw_proposal(
 
 @api_router.get("/handyman/wallet/summary")
 async def get_wallet_summary(
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get wallet summary for handyman/contractor.
@@ -4553,7 +4551,7 @@ async def get_wallet_summary(
 async def get_payouts(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get paginated list of payouts for handyman/contractor.
@@ -4572,7 +4570,7 @@ async def get_payouts(
 
 @api_router.get("/handyman/growth/summary")
 async def get_growth_summary(
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get growth summary for handyman/contractor.
@@ -4594,7 +4592,7 @@ async def get_growth_summary(
 async def get_growth_events(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get paginated growth events for handyman/contractor.
