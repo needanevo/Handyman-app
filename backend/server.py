@@ -85,8 +85,6 @@ from models import (
 from auth.auth_handler import (
     AuthHandler,
     require_admin,
-    require_technician_or_admin,
-    require_provider_or_admin,
 )
 
 # Import services
@@ -4276,12 +4274,16 @@ async def admin_configure_provider_gate(
 async def get_jobs_feed(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_provider_or_admin)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Get available jobs feed for handyman/contractor.
     Filters by skills, location (50 mile radius), and contractor type preference.
     """
+    # Role check - only handyman and contractor can access
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only handymen and contractors can access jobs feed")
+    
     jobs = await job_feed_service.get_available_jobs_feed(
         contractor_id=current_user.id,
         limit=limit,
@@ -4320,12 +4322,16 @@ async def get_jobs_feed(
 async def get_active_jobs(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_provider_or_admin)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Get active jobs for handyman/contractor.
     Jobs where contractor is assigned and status is active.
     """
+    # Role check - only handyman and contractor can access
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only handymen and contractors can access jobs")
+    
     jobs = await job_feed_service.get_active_jobs(
         contractor_id=current_user.id,
         limit=limit,
@@ -4339,12 +4345,16 @@ async def get_active_jobs(
 async def get_job_history(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_provider_or_admin)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Get job history for handyman/contractor.
     Completed and cancelled jobs.
     """
+    # Role check - only handyman and contractor can access
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only handymen and contractors can access jobs")
+    
     jobs = await job_feed_service.get_job_history(
         contractor_id=current_user.id,
         limit=limit,
@@ -4412,15 +4422,18 @@ async def update_job_status(
 async def create_proposal(
     job_id: str,
     proposal_request: ProposalCreateRequest,
-    current_user: User = Depends(require_provider_or_admin)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Create a proposal for a job (handyman/contractor only).
     Only valid when job status = published.
     """
+    # Role check
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only handymen and contractors can create proposals")
+    
     # Check provider_status - only active providers can create proposals
-    if current_user.role in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
-        if current_user.provider_status != "active":
+    if current_user.provider_status != "active":
             raise HTTPException(
                 403,
                 detail={
@@ -4533,11 +4546,15 @@ async def accept_proposal(
 @api_router.post("/proposals/{proposal_id}/withdraw")
 async def withdraw_proposal(
     proposal_id: str,
-    current_user: User = Depends(require_provider_or_admin)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
-    Withdraw a proposal (contractor only).
+    Withdraw a proposal (handyman/contractor only).
     """
+    # Role check
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only handymen and contractors can withdraw proposals")
+    
     try:
         from services.proposal_service import ProposalError
         proposal = await proposal_service.withdraw_proposal(
@@ -4555,12 +4572,16 @@ async def withdraw_proposal(
 
 @api_router.get("/handyman/wallet/summary")
 async def get_wallet_summary(
-    current_user: User = Depends(require_provider_or_admin)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Get wallet summary for handyman/contractor.
     Shows lifetime earnings, available balance, and pending payouts.
     """
+    # Role check
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only handymen and contractors can access wallet")
+    
     summary = await payout_service.get_wallet_summary(current_user.id)
     return summary.model_dump()
 
@@ -4569,7 +4590,7 @@ async def get_wallet_summary(
 async def get_payouts(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_provider_or_admin)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Get paginated list of payouts for handyman/contractor.
@@ -4588,12 +4609,16 @@ async def get_payouts(
 
 @api_router.get("/handyman/growth/summary")
 async def get_growth_summary(
-    current_user: User = Depends(require_provider_or_admin)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Get growth summary for handyman/contractor.
     Shows job count, revenue, ratings, and business milestones.
     """
+    # Role check
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only handymen and contractors can access growth data")
+    
     summary = await growth_service.get_summary(current_user.id)
 
     if not summary:
@@ -4610,12 +4635,16 @@ async def get_growth_summary(
 async def get_growth_events(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_provider_or_admin)
+    current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Get paginated growth events for handyman/contractor.
     Shows timeline of milestones and achievements.
     """
+    # Role check
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN]:
+        raise HTTPException(403, detail="Only handymen and contractors can access growth events")
+    
     events = await growth_service.get_events(
         user_id=current_user.id,
         limit=limit,
