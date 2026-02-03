@@ -141,6 +141,46 @@ available_jobs.append(serialize_mongo_doc(job_doc))
 - 45b2929: Fix ObjectId serialization in handyman jobs feed
 - 0eb6a37: Fix contractor jobs endpoint (ObjectId + 100 mi default)
 
+---
+
+[2026-02-03 20:30] Job Lifecycle Design — Brainstorming Session
+
+**Date/Time:** 2026-02-03, 20:30 EST
+**Purpose:** Define explicit job states for the complete job lifecycle
+
+**Current Job Status States (from backend/models/job.py:14):**
+
+| State | Value | Description |
+|-------|-------|-------------|
+| DRAFT | `"draft"` | Job being created |
+| PUBLISHED | `"published"` | Visible in feed, accepting proposals |
+| PROPOSAL_SELECTED | `"proposal_selected"` | Customer chose a proposal |
+| SCHEDULED | `"scheduled"` | Date/time set |
+| IN_PROGRESS | `"in_progress"` | Work underway |
+| COMPLETED_PENDING_REVIEW | `"completed_pending_review"` | Work done, awaiting review |
+| COMPLETED | `"completed"` | Fully done |
+| CANCELLED_BY_CUSTOMER | `"cancelled_by_customer"` | Customer cancelled |
+| CANCELLED_BY_CONTRACTOR | `"cancelled_by_contractor"` | Contractor cancelled |
+
+**Proposed Simplified States:**
+- **POSTED** - Replaces PUBLISHED, visible in feed
+- **ACCEPTED** - Contractor accepted/proposal selected
+- **IN_PROGRESS** - Work underway
+- **COMPLETED** - Work finished
+- **PAID** - Payment processed
+
+**Open Questions:**
+1. Should DRAFT state be kept for jobs being created but not yet visible?
+2. What happens to SCHEDULED state? Is it part of ACCEPTED or separate?
+3. How do cancellation states fit into the lifecycle?
+4. Should there be a review/approval step before COMPLETED?
+5. Is PAID automatic after COMPLETED or a manual action?
+
+**Next Steps (2026-02-03 20:34):**
+User requested to first brainstorm and define the entire job lifecycle before implementing changes.
+
+---
+
 [2025-12-09 13:30] PHASE 1.1 FINAL — Profile Restructure, Logout, Routing Stability
 
 **Summary:**
