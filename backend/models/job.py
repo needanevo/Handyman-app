@@ -36,7 +36,7 @@ class JobAddress(BaseModel):
     street: str
     city: str
     state: str
-    zip: str
+    zip: Optional[str] = None
     lat: Optional[float] = None
     lon: Optional[float] = None
 
