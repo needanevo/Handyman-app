@@ -4274,19 +4274,19 @@ async def admin_configure_provider_gate(
 async def get_jobs_feed(
     limit: int = 50,
     offset: int = 0,
+    max_distance: int = 50,
     category: Optional[str] = None,
     current_user: User = Depends(get_current_user_dependency)
 ):
     """
     Get available jobs feed for handyman/contractor.
-    Returns all published jobs (no distance filtering).
+    Returns all published jobs.
     """
     # Role check - only handyman and contractor can access
     if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN]:
         raise HTTPException(403, detail="Only handymen and contractors can access jobs feed")
     
     # Get all published jobs (no provider assigned)
-    # Simplified: show all published jobs regardless of distance
     pending_jobs_cursor = db.jobs.find({
         "$and": [
             {"$or": [
@@ -4301,34 +4301,10 @@ async def get_jobs_feed(
         ]
     })
     
-    # Get all jobs as a list
-    all_jobs = list(pending_jobs_cursor)
+    # Await the cursor to get documents
+    all_jobs = await pending_jobs_cursor.to_list(length=1000)
     
     logger.info(f"[HANDYMAN_JOBS_FEED] Found {len(all_jobs)} published jobs in MongoDB for user {current_user.id}")
-    
-    # Filter by category if specified
-    available_jobs = []
-    for job_data in all_jobs:
-        try:
-            job_category = job_data.get("service_category", "").lower()
-            if category and category != "All":
-                if job_category != category.lower():
-                    continue
-            
-            # Add job to available list
-            job = Job(**job_data)
-            available_jobs.append(job)
-            
-        except Exception as e:
-            logger.error(f"[HANDYMAN_JOBS_FEED] Error processing job {job_data.get('id')}: {e}")
-            continue
-    
-    logger.info(f"[HANDYMAN_JOBS_FEED] Returning {len(available_jobs)} jobs (category={category or 'All'})")
-    
-    # Get all jobs as a list
-    all_jobs = list(pending_jobs_cursor)
-    
-    logger.info(f"[HANDYMAN_JOBS_FEED] Found {len(all_jobs)} published jobs in MongoDB")
     
     # Filter by category if specified
     available_jobs = []
