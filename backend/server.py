@@ -2009,7 +2009,8 @@ async def get_available_jobs(
 
         # Check skills - if contractor has defined skills, job must match one
         contractor_skills = current_user.skills or []
-        if contractor_skills and service_category not in contractor_skills:
+        contractor_skills_lower = [s.lower() for s in contractor_skills]
+        if contractor_skills and service_category.lower() not in contractor_skills_lower:
             logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} skills mismatch - contractor has {contractor_skills}\n")
             continue
 
