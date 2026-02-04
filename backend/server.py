@@ -2015,6 +2015,7 @@ async def get_available_jobs(
             continue
 
         # All checks passed - include job
+        job_doc.pop("_id", None)
         job_doc["distance_miles"] = round(distance, 2)
         job_doc["distance"] = round(distance, 2)  # Frontend expects 'distance'
         job_doc["location"] = {  # Frontend expects 'location'
