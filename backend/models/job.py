@@ -47,7 +47,8 @@ class Job(BaseModel):
 
     # References
     customer_id: str
-    assigned_contractor_id: Optional[str] = None  # Set when proposal accepted
+    assigned_contractor_id: Optional[str] = None  # Legacy field, prefer assigned_provider_id
+    assigned_provider_id: Optional[str] = None  # Unified provider assignment (contractor or handyman)
 
     # Status
     status: JobStatus = JobStatus.DRAFT
