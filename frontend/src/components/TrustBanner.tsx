@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
 
 interface TrustBannerProps {
-  providerStatus: 'draft' | 'submitted' | 'active';
+  providerStatus: 'draft' | 'submitted' | 'active' | 'restricted';
   providerCompleteness: number;
   role: 'handyman' | 'contractor';
 }
@@ -49,6 +49,18 @@ export function TrustBanner({
           actionText: null,
           actionRoute: null,
         };
+
+      case 'restricted':
+        return {
+          icon: 'warning' as const,
+          iconColor: colors.neutral[600],
+          backgroundColor: colors.neutral[100],
+          borderColor: colors.neutral[300],
+          title: 'Account restricted',
+          message: 'You can browse jobs, but cannot accept until your provider profile is active.',
+          actionText: 'Contact Support',
+          actionRoute: 'mailto:support@therealjohnson.com',
+};
 
       default:
         return null;
