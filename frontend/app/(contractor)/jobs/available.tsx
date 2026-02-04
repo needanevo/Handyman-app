@@ -1,8 +1,8 @@
 /**
- * Available Jobs Screen
- *
+ * Available Jobs Screen - Contractor Version
+ * 
  * Shows jobs that contractors can accept.
- * Clean list view with search and filtering capabilities.
+ * Unified layout with handyman version - includes distance/category filters.
  */
 
 import React, { useState } from 'react';
@@ -14,6 +14,7 @@ import {
   TextInput,
   RefreshControl,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -25,133 +26,44 @@ import { JobCard } from '../../../src/components/contractor/JobCard';
 import { LoadingSpinner, EmptyState } from '../../../src/components';
 import { contractorAPI } from '../../../src/services/api';
 
+const CATEGORIES = ['All', 'Drywall', 'Painting', 'Electrical', 'Plumbing', 'Carpentry', 'HVAC', 'General'];
+const DISTANCES = [5, 10, 25, 50, 100];
+
 export default function AvailableJobs() {
   const router = useRouter();
+  const [selectedDistance, setSelectedDistance] = useState(50);
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch real available jobs from API
-  // Using unified query key for cache synchronization with dashboard
-  const { data: jobs, refetch, isLoading, error } = useQuery<Job[]>({
-    queryKey: ['contractor-available-jobs'],
+  // Fetch available jobs with filters
+  const { data: jobs, isLoading, error, refetch } = useQuery<Job[]>({
+    queryKey: ['contractor-available-jobs', selectedDistance, selectedCategory],
     queryFn: async () => {
-      const response = await contractorAPI.getAvailableJobs() as any;
-      // Backend returns { jobs: [], count, max_distance_miles, contractor_location }
-      const jobsData = response.jobs || [];
-
-      // Map backend job format to frontend Job type
-      return jobsData.map((job: any) => ({
-        id: job.id,
-        customerId: job.customer_id,
-        contractorId: job.contractor_id,
-        quoteId: job.quote_id,
-        status: job.status || 'pending',
-        title: job.title || job.description || 'Untitled Job',
-        description: job.description || '',
-        category: job.category || job.service_category || 'Other',
-        location: job.customer_address || {},
-        quotedAmount: job.price || job.total_amount || job.agreed_amount || 0,
-        estimatedDuration: job.estimated_hours || 0,
-        distance: job.distance_miles || job.distance || 0,
-        itemType: job.item_type, // 'quote' or 'job'
-        photos: job.photos || [],
-        customerPhotos: job.photos || [],
-        expenses: [],
-        timeLogs: [],
-        totalExpenses: 0,
-        totalLaborHours: 0,
-        depositPaid: false,
-        createdAt: job.created_at,
-        updatedAt: job.updated_at,
-      })) as Job[];
+      const filters: any = {
+        max_distance: selectedDistance,
+      };
+      if (selectedCategory !== 'All') {
+        filters.category = selectedCategory;
+      }
+      const response = await contractorAPI.getAvailableJobs(filters) as any;
+      return response.jobs || [];
     },
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 30 * 1000,
     retry: 2,
   });
 
-  // Fallback to empty array if no data
-  const jobsList = jobs || [];
-
   // Filter by search query
-  const filteredJobs = jobsList.filter((job) => {
-    const searchLower = searchQuery.toLowerCase();
+  const filteredJobs = (jobs || []).filter((job) => {
+    if (!searchQuery) return true;
+    const search = searchQuery.toLowerCase();
     return (
-      job.title?.toLowerCase().includes(searchLower) ||
-      job.description?.toLowerCase().includes(searchLower) ||
-      job.category?.toLowerCase().includes(searchLower) ||
-      job.location?.city?.toLowerCase().includes(searchLower)
+      job.title?.toLowerCase().includes(search) ||
+      job.description?.toLowerCase().includes(search) ||
+      job.category?.toLowerCase().includes(search) ||
+      job.location?.city?.toLowerCase().includes(search)
     );
   });
-
-  // Remove the old mock data array
-  /*
-  const oldMockData = [
-        {
-          id: '1',
-          customerId: 'c1',
-          customer: {
-            id: 'c1',
-            firstName: 'John',
-            lastName: 'Smith',
-            email: 'john@example.com',
-            phone: '(555) 123-4567',
-          },
-          status: 'AVAILABLE' as const,
-          title: 'Fix Leaking Pipe',
-          description: 'Kitchen pipe is leaking under the sink.',
-          category: 'Plumbing',
-          location: {
-            street: '456 Elm St',
-            city: 'San Francisco',
-            state: 'CA',
-            zipCode: '94103',
-          },
-          quotedAmount: 150,
-          estimatedDuration: 1.5,
-          photos: [],
-          customerPhotos: [],
-          expenses: [],
-          timeLogs: [],
-          totalExpenses: 0,
-          totalLaborHours: 0,
-          depositPaid: false,
-          createdAt: '2025-11-10T10:00:00',
-          updatedAt: '2025-11-10T10:00:00',
-        },
-        {
-          id: '2',
-          customerId: 'c2',
-          customer: {
-            id: 'c2',
-            firstName: 'Emily',
-            lastName: 'Davis',
-            email: 'emily@example.com',
-            phone: '(555) 987-6543',
-          },
-          status: 'AVAILABLE' as const,
-          title: 'Install Ceiling Fan',
-          description: 'Need ceiling fan installed in master bedroom. Fan already purchased.',
-          category: 'Electrical',
-          location: {
-            street: '789 Oak Ave',
-            city: 'Oakland',
-            state: 'CA',
-            zipCode: '94607',
-          },
-          quotedAmount: 200,
-          estimatedDuration: 2,
-          photos: [],
-          customerPhotos: [],
-          expenses: [],
-          timeLogs: [],
-          totalExpenses: 0,
-          totalLaborHours: 0,
-          depositPaid: false,
-          createdAt: '2025-11-11T14:30:00',
-          updatedAt: '2025-11-11T14:30:00',
-        },
-      ];
-  */
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -186,16 +98,75 @@ export default function AvailableJobs() {
         </Text>
       </View>
 
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <Text style={styles.searchIcon}>🔍</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search jobs..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor={colors.neutral[400]}
-        />
+      {/* Filters */}
+      <View style={styles.filtersSection}>
+        {/* Distance Filter */}
+        <View style={styles.filterRow}>
+          <Text style={styles.filterLabel}>Distance</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.chipRow}>
+              {DISTANCES.map((dist) => (
+                <TouchableOpacity
+                  key={dist}
+                  style={[
+                    styles.filterChip,
+                    selectedDistance === dist && styles.filterChipActive,
+                  ]}
+                  onPress={() => setSelectedDistance(dist)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedDistance === dist && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {dist} mi
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Category Filter */}
+        <View style={styles.filterRow}>
+          <Text style={styles.filterLabel}>Category</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.chipRow}>
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.filterChip,
+                    selectedCategory === cat && styles.filterChipActive,
+                  ]}
+                  onPress={() => setSelectedCategory(cat)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedCategory === cat && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Search */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={18} color={colors.neutral[400]} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search jobs..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={colors.neutral[400]}
+          />
+        </View>
       </View>
 
       {/* Jobs List */}
@@ -205,7 +176,7 @@ export default function AvailableJobs() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.jobCard}
-            onPress={() => router.push(`/(contractor)/jobs/${item.id}` as any)}
+            onPress={() => router.push(`/(contractor)/jobs/available/${item.id}` as any)}
           >
             <View style={styles.jobHeader}>
               <View style={styles.categoryBadge}>
@@ -252,7 +223,7 @@ export default function AvailableJobs() {
               </View>
               <TouchableOpacity
                 style={styles.viewJobButton}
-                onPress={() => router.push(`/(contractor)/jobs/${item.id}` as any)}
+                onPress={() => router.push(`/(contractor)/jobs/available/${item.id}` as any)}
               >
                 <Text style={styles.viewJobText}>
                   {item.itemType === 'quote' ? 'Submit Bid' : 'Accept Job'}
@@ -273,7 +244,7 @@ export default function AvailableJobs() {
             description={
               searchQuery
                 ? 'No jobs match your search'
-                : 'Check back later for new job opportunities'
+                : `No jobs within ${selectedDistance} miles for ${selectedCategory === 'All' ? 'any category' : selectedCategory}`
             }
           />
         }
@@ -315,27 +286,63 @@ const styles = StyleSheet.create({
     color: colors.neutral[600],
     marginTop: spacing.xs,
   },
+  filtersSection: {
+    backgroundColor: colors.background.primary,
+    paddingHorizontal: spacing.base,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  filterRow: {
+    marginTop: spacing.md,
+  },
+  filterLabel: {
+    ...typography.caption.regular,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[900],
+    marginBottom: spacing.sm,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  filterChip: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.base,
+    backgroundColor: colors.background.secondary,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.neutral[300],
+  },
+  filterChipActive: {
+    backgroundColor: '#FFA500',
+    borderColor: '#FFA500',
+  },
+  filterChipText: {
+    ...typography.caption.regular,
+    color: colors.neutral[700],
+  },
+  filterChipTextActive: {
+    color: '#FFF',
+    fontWeight: typography.weights.semibold,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background.primary,
-    marginHorizontal: spacing.base,
-    marginTop: spacing.base,
-    marginBottom: spacing.md,
+    backgroundColor: colors.background.secondary,
+    marginTop: spacing.md,
     paddingHorizontal: spacing.base,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.neutral[300],
-  },
-  searchIcon: {
-    fontSize: 18,
-    marginRight: spacing.sm,
   },
   searchInput: {
     flex: 1,
     ...typography.body.regular,
     color: colors.neutral[900],
     paddingVertical: spacing.md,
+    paddingLeft: spacing.sm,
   },
   listContent: {
     paddingHorizontal: spacing.base,
@@ -345,7 +352,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
     borderRadius: borderRadius.lg,
     padding: spacing.base,
-    marginBottom: spacing.base,
+    marginTop: spacing.base,
     borderWidth: 1,
     borderColor: colors.neutral[200],
     ...shadows.sm,

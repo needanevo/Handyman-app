@@ -211,8 +211,8 @@ class ContractorRouter:
 
     async def _has_capacity(self, contractor_id: str) -> bool:
         """Check if contractor has capacity for new job"""
-        # Count active jobs (PENDING, SCHEDULED, IN_PROGRESS)
-        active_statuses = ["pending", "scheduled", "in_progress"]
+        # Count active jobs (posted, accepted, in_progress)
+        active_statuses = ["posted", "accepted", "in_progress"]
 
         active_jobs = await self.db.jobs.count_documents({
             "contractor_id": contractor_id,

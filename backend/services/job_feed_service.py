@@ -80,7 +80,7 @@ class JobFeedService:
 
         # Query published jobs matching service category
         query = {
-            "status": JobStatus.PUBLISHED,
+            "status": JobStatus.POSTED,
             "service_category": {"$in": skills}
         }
 
@@ -137,10 +137,10 @@ class JobFeedService:
             List of active jobs
         """
         active_statuses = [
-            JobStatus.PROPOSAL_SELECTED,
-            JobStatus.SCHEDULED,
+            JobStatus.POSTED,
+            JobStatus.ACCEPTED,
             JobStatus.IN_PROGRESS,
-            JobStatus.COMPLETED_PENDING_REVIEW
+            JobStatus.IN_REVIEW
         ]
 
         query = {
@@ -178,8 +178,7 @@ class JobFeedService:
         """
         terminal_statuses = [
             JobStatus.COMPLETED,
-            JobStatus.CANCELLED_BY_CUSTOMER,
-            JobStatus.CANCELLED_BY_CONTRACTOR
+            JobStatus.CANCELLED_AFTER_ACCEPT
         ]
 
         query = {

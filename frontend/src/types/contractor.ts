@@ -3,14 +3,21 @@
  * These interfaces define the structure for jobs, expenses, mileage tracking, and photos
  */
 
-// Job status workflow for contractors
+// Job status workflow - MUST match backend JobStatus enum values
+// Lifecycle: DRAFT -> POSTED -> ACCEPTED -> IN_PROGRESS -> IN_REVIEW -> COMPLETED -> PAID
 export type JobStatus =
-  | 'AVAILABLE'      // Jobs posted by customers, not yet accepted
-  | 'ACCEPTED'       // Contractor accepted, not yet scheduled
-  | 'SCHEDULED'      // Date/time confirmed
-  | 'IN_PROGRESS'    // Work has started
-  | 'COMPLETED'      // Work finished
-  | 'CANCELLED';     // Job cancelled
+  | 'draft'         // Initial state
+  | 'posted'        // Visible in feed, accepting proposals
+  | 'accepted'      // Provider assigned, work scheduled
+  | 'in_progress'   // Work has started
+  | 'in_review'     // Work completed, awaiting review
+  | 'completed'     // Reviewed and approved
+  | 'paid'          // Payout processed
+
+  // Cancellation states
+  | 'cancelled_before_accept'
+  | 'cancelled_after_accept'
+  | 'cancelled_in_progress';
 
 // Photo categories for job documentation
 export type PhotoCategory =

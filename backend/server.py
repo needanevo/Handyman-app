@@ -94,6 +94,7 @@ from services.contractor_routing import ContractorRouter
 from services.job_lifecycle import JobLifecycleService
 from services.proposal_service import ProposalService
 from services.job_feed_service import JobFeedService
+from services.job_lifecycle import JobLifecycleService, JobLifecycleError
 from services.payout_service import PayoutService
 from services.growth_service import GrowthService
 
@@ -930,16 +931,16 @@ async def request_quote(
                 "street": address.street,
                 "city": address.city,
                 "state": address.state,
-                "zip_code": address.zip_code,
-                "latitude": address.latitude,
-                "longitude": address.longitude,
+                "zip": address.zip_code,
+                "lat": address.latitude,
+                "lon": address.longitude,
             },
             "service_category": quote_request.service_category,
             "description": quote_request.description,
             "photos": photo_urls,
             "urgency": quote_request.urgency,
             "budget_max": total_amount,
-            "status": "published",
+            "status": JobStatus.POSTED.value,
             "contractor_id": None,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
@@ -1149,16 +1150,45 @@ async def respond_to_quote(
     job_id = None
     if response.accept:
         try:
+            # Build embedded address from quote data
+            address = await get_address_by_id(quote["address_id"])
+            
+            # Create JobAddress for embedded storage
+            if address and address.latitude and address.longitude:
+                job_address = JobAddress(
+                    street=address.street,
+                    city=address.city,
+                    state=address.state,
+                    zip=address.zip_code,
+                    lat=address.latitude,
+                    lon=address.longitude,
+                )
+            else:
+                # Use quote data directly
+                job_address = JobAddress(
+                    street="",
+                    city="",
+                    state="",
+                    zip="",
+                    lat=None,
+                    lon=None,
+                )
+            
             # Create job from accepted quote
             job = Job(
                 customer_id=current_user.id,
-                quote_id=quote_id,
                 service_category=quote["service_category"],
                 description=quote["description"],
-                address_id=quote["address_id"],
-                agreed_amount=quote["total_amount"],
-                customer_notes=response.customer_notes,
+                address=job_address,
+                budget_max=quote.get("budget_range", {}).get("max") if quote.get("budget_range") else None,
+                urgency=quote.get("urgency", "low"),
             )
+
+            # Set additional fields directly on the object
+            job.quote_id = quote_id
+            job.agreed_amount = quote.get("total_amount", 0)
+            job.customer_notes = response.customer_notes
+            job.address_id = quote["address_id"]
 
             # Attempt contractor routing
             try:
@@ -1170,17 +1200,21 @@ async def respond_to_quote(
                 )
 
                 if contractor_id:
-                    job.contractor_id = contractor_id
-                    job.status = JobStatus.SCHEDULED
+                    job.assigned_contractor_id = contractor_id
+                    job.status = JobStatus.ACCEPTED
                     logger.info(f"Job {job.id} auto-assigned to contractor {contractor_id}")
                     # TODO: Send email to contractor about new job
                 else:
-                    logger.info(f"Job {job.id} created, awaiting manual routing")
+                    # No contractor found - publish job so contractors can see it
+                    job.status = JobStatus.POSTED
+                    logger.info(f"Job {job.id} created, awaiting manual routing - published to feed")
                     # TODO: Send email to admin for manual assignment
 
             except Exception as e:
                 logger.error(f"Contractor routing failed for job {job.id}: {e}")
-                # Continue with job creation even if routing fails
+                # Publish job so contractors can see it
+                job.status = JobStatus.POSTED
+                logger.info(f"Job {job.id} published to feed after routing failure")
 
             # Save job to database
             job_doc = job.model_dump()
@@ -1207,6 +1241,50 @@ async def respond_to_quote(
         "quote_id": quote_id,
         "job_id": job_id if response.accept else None
     }
+
+
+@api_router.post("/quotes/{quote_id}/accept")
+async def accept_quote(
+    quote_id: str,
+    body: dict = Body(default={}),
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Accept a quote and create a job.
+    
+    This endpoint:
+    1. Validates the quote exists and belongs to the customer
+    2. Updates quote status to 'accepted'
+    3. Creates a job from the accepted quote
+    4. Attempts to auto-assign a contractor
+    5. Returns job_id for tracking
+    """
+    customer_notes = body.get("customer_notes")
+    
+    # Use respond endpoint internally
+    quote_response = QuoteResponse(accept=True, customer_notes=customer_notes)
+    return await respond_to_quote(quote_id, quote_response, current_user)
+
+
+@api_router.post("/quotes/{quote_id}/reject")
+async def reject_quote(
+    quote_id: str,
+    body: dict = Body(default={}),
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Reject a quote.
+    
+    This endpoint:
+    1. Validates the quote exists and belongs to the customer
+    2. Updates quote status to 'rejected'
+    3. Records rejection reason if provided
+    """
+    reason = body.get("reason")
+    
+    # Use respond endpoint internally
+    quote_response = QuoteResponse(accept=False, customer_notes=reason)
+    return await respond_to_quote(quote_id, quote_response, current_user)
 
 
 @api_router.delete("/quotes/{quote_id}")
@@ -1552,10 +1630,21 @@ async def get_job(
     if not job:
         raise HTTPException(404, detail="Job not found")
 
-    # Check authorization
-    if (current_user.role == UserRole.CUSTOMER and job["customer_id"] != current_user.id) or \
-       (current_user.role == UserRole.CONTRACTOR and job.get("contractor_id") != current_user.id):
-        raise HTTPException(403, detail="Not authorized to view this job")
+    # Check authorization based on user role
+    if current_user.role == UserRole.CUSTOMER:
+        # Customer can only view their own jobs
+        if job.get("customer_id") != current_user.id:
+            raise HTTPException(403, detail="Not authorized to view this job")
+    elif current_user.role in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        # Contractor/Handyman can view if:
+        # 1. They are assigned to the job (contractor_id or assigned_contractor_id)
+        # 2. OR the job is available (posted status)
+        is_assigned = job.get("contractor_id") == current_user.id or \
+                      job.get("assigned_contractor_id") == current_user.id
+        is_available = job.get("status") == "posted"
+        if not is_assigned and not is_available:
+            raise HTTPException(403, detail="Not authorized to view this job")
+    # Admins can view all jobs
 
     return Job(**job)
 
@@ -1667,13 +1756,13 @@ async def get_contractor_dashboard_stats(
             {"contractor_id": None},
             {"contractor_id": {"$exists": False}}
         ],
-        "status": "published"
+        "status": "posted"
     })
 
     # Count accepted jobs (assigned to this contractor, not yet scheduled)
     accepted_jobs_count = await db.jobs.count_documents({
         "contractor_id": current_user.id,
-        "status": {"$in": ["pending", "accepted"]}
+        "status": {"$in": ["posted", "accepted"]}
     })
 
     # Count scheduled jobs (assigned to this contractor with scheduled date)
@@ -1820,17 +1909,25 @@ async def get_contractor_dashboard_stats(
 
 @api_router.get("/contractor/jobs/available")
 async def get_available_jobs(
+    max_distance: int = 50,
+    category: Optional[str] = None,
     current_user: User = Depends(get_current_user_dependency)
 ):
     """
-    Get available jobs within 50-mile radius for contractor.
-
+    Get available jobs within configurable radius for contractor.
+    
     Returns pending/unassigned jobs that match contractor's skills
-    and are within 50 miles of contractor's business address.
+    and are within specified distance of contractor's business address.
+    
+    Query params:
+    - max_distance: Maximum distance in miles (default: 50)
+    - category: Filter by service category (optional)
     """
-    # Only contractors can access this endpoint
-    if current_user.role != UserRole.CONTRACTOR:
-        raise HTTPException(403, detail="Only contractors can access available jobs")
+    logger.info(f"[AVAILABLE_JOBS] User {current_user.id} role={current_user.role} skills={current_user.skills}")
+    
+    # Only contractors and handymen can access this endpoint
+    if current_user.role not in (UserRole.CONTRACTOR, UserRole.HANDYMAN):
+        raise HTTPException(403, detail="Only contractors and handymen can access available jobs")
 
     # Get contractor's business address
     if not current_user.addresses:
@@ -1851,23 +1948,36 @@ async def get_available_jobs(
         )
 
     contractor_location = (business_address.latitude, business_address.longitude)
-    MAX_DISTANCE_MILES = 50
+    logger.info(f"[AVAILABLE_JOBS] Contractor location: {contractor_location}, max_distance={max_distance}")
 
-    # Get all published jobs (no contractor assigned)
-    pending_jobs_cursor = db.jobs.find({
-        "$or": [
-            {"contractor_id": None},
-            {"contractor_id": {"$exists": False}}
-        ],
-        "status": "published"
-    })
 
     from geopy.distance import geodesic
 
     available_jobs = []
+    
+    # Get all posted jobs (no contractor assigned)
+    query = {
+        "$or": [
+            {"assigned_contractor_id": None},
+            {"assigned_contractor_id": {"$exists": False}}
+        ],
+        "status": "posted"
+    }
+    
+    # Debug: Count jobs matching query before iterating
+    jobs_count = await db.jobs.count_documents(query)
+    logger.info(f"[AVAILABLE_JOBS DEBUG] Query matched {jobs_count} jobs with status='posted'")
+    
+    pending_jobs_cursor = db.jobs.find(query)
+    
     async for job_doc in pending_jobs_cursor:
+        job_id = job_doc.get('id', 'unknown')[:12]
+        logger.info(f"[AVAILABLE_JOBS DEBUG] Processing job {job_id}")
+
         # Use embedded address when available, fall back to customer lookup
         job_address = job_doc.get("address")
+        logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} has address: {bool(job_address)}")
+
         if not job_address:
             customer = await db.users.find_one({"id": job_doc["customer_id"]})
             if not customer or not customer.get("addresses"):
@@ -1877,38 +1987,112 @@ async def get_available_jobs(
                 None
             )
 
-        if not job_address or not job_address.get("latitude") or not job_address.get("longitude"):
+        if not job_address or not job_address.get("lat") or not job_address.get("lon"):
             continue
 
         # Calculate distance
-        job_location = (job_address["latitude"], job_address["longitude"])
+        job_location = (job_address["lat"], job_address["lon"])
         distance = geodesic(contractor_location, job_location).miles
+        logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} at distance {distance:.1f} miles (max={max_distance})\n")
 
-        # Only include jobs within 50-mile radius
-        if distance <= MAX_DISTANCE_MILES:
-            # Check if contractor has matching skill
-            service_category = job_doc.get("service_category", "")
-            if service_category in current_user.skills:
-                job_doc["distance_miles"] = round(distance, 2)
-                job_doc["customer_address"] = {
-                    "city": job_address.get("city", ""),
-                    "state": job_address.get("state", ""),
-                    "zip_code": job_address.get("zip_code", "")
+        # Only include jobs within specified distance
+        if distance > max_distance:
+            logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} exceeds distance - skipping\n")
+            continue
+        
+        # Check if contractor has matching skill
+        service_category = job_doc.get("service_category", "")
+        logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} category={service_category}\n")
+        
+        # If category filter specified, match it
+        if category and service_category.lower() != category.lower():
+            continue
+
+        # Check skills - if contractor has defined skills, job must match one
+        contractor_skills = current_user.skills or []
+        contractor_skills_lower = [s.lower() for s in contractor_skills]
+        if contractor_skills and service_category.lower() not in contractor_skills_lower:
+            logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} skills mismatch - contractor has {contractor_skills}\n")
+            continue
+
+        # All checks passed - include job
+        job_doc.pop("_id", None)
+        job_doc["distance_miles"] = round(distance, 2)
+        job_doc["distance"] = round(distance, 2)  # Frontend expects 'distance'
+        job_doc["location"] = {  # Frontend expects 'location'
+            "city": job_address.get("city", ""),
+            "state": job_address.get("state", ""),
+            "zipCode": job_address.get("zip_code", ""),
+            "latitude": job_address.get("lat"),
+            "longitude": job_address.get("lon"),
+        }
+        job_doc["item_type"] = "job"
+        job_doc["title"] = job_doc.get("title") or job_doc.get("description", "Untitled Job")
+        job_doc["price"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
+        job_doc["total_amount"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
+        job_doc["category"] = job_doc.get("service_category", "")  # Frontend expects 'category'
+        available_jobs.append(job_doc)
+        logger.info(f"[AVAILABLE_JOBS] Found job {job_doc.get('id')} - {service_category} at {distance:.1f} miles")
+    
+    # ALSO FETCH QUOTES (open for bids from customers)
+    try:
+        quotes_cursor = db.quotes.find({
+            "status": "pending",
+            "contractor_id": {"$exists": False}
+        })
+        
+        async for quote_doc in quotes_cursor:
+            address = await get_address_by_id(quote_doc.get("address_id"))
+            if not address or not address.latitude or not address.longitude:
+                continue
+            
+            quote_location = (address.latitude, address.longitude)
+            distance = geodesic(contractor_location, quote_location).miles
+            
+            if distance <= max_distance:
+                service_category = quote_doc.get("service_category", "")
+                
+                # If category filter specified, match it
+                if category and service_category.lower() != category.lower():
+                    continue
+                
+                # Check skills
+                contractor_skills = current_user.skills or []
+                if contractor_skills and service_category not in contractor_skills:
+                    continue
+                
+                quote_doc["distance_miles"] = round(distance, 2)
+                quote_doc["distance"] = round(distance, 2)  # Frontend expects 'distance'
+                quote_doc["location"] = {  # Frontend expects 'location'
+                    "city": address.city,
+                    "state": address.state,
+                    "zipCode": address.zip_code,
+                    "latitude": address.latitude,
+                    "longitude": address.longitude,
                 }
-                available_jobs.append(job_doc)
+                quote_doc["id"] = quote_doc.get("id")
+                quote_doc["item_type"] = "quote"
+                quote_doc["customer_id"] = quote_doc.get("customer_id")
+                quote_doc["description"] = quote_doc.get("description", "")
+                quote_doc["service_category"] = service_category
+                quote_doc["category"] = service_category  # Frontend expects 'category'
+                quote_doc["title"] = quote_doc.get("title") or f"{service_category} Service"
+                quote_doc["total_amount"] = quote_doc.get("total_amount", 0)
+                quote_doc["price"] = quote_doc.get("total_amount", 0)
+                available_jobs.append(quote_doc)
+    except Exception as e:
+        logger.warning(f"Error fetching quotes for contractor: {e}")
 
     # Sort by distance (closest first)
-    available_jobs.sort(key=lambda x: x["distance_miles"])
+    available_jobs.sort(key=lambda x: x.get("distance_miles", 0))
 
-    logger.info(
-        f"Contractor {current_user.id} found {len(available_jobs)} "
-        f"available jobs within {MAX_DISTANCE_MILES} miles"
-    )
+    logger.info(f"[AVAILABLE_JOBS] Returning {len(available_jobs)} jobs for contractor {current_user.id}")
 
     return {
         "jobs": available_jobs,
         "count": len(available_jobs),
-        "max_distance_miles": MAX_DISTANCE_MILES,
+        "max_distance": max_distance,
+        "category_filter": category,
         "contractor_location": {
             "city": business_address.city,
             "state": business_address.state
@@ -2906,12 +3090,20 @@ async def get_contractor_job(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get specific job details for contractor"""
-    if current_user.role != UserRole.CONTRACTOR:
-        raise HTTPException(403, detail="Only contractors can access this endpoint")
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only contractors/handymen can access this endpoint")
 
-    job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
+    # Find job - either assigned to this provider OR available (posted status)
+    job = await db.jobs.find_one({
+        "id": job_id,
+        "$or": [
+            {"contractor_id": current_user.id},
+            {"assigned_contractor_id": current_user.id},
+            {"status": "posted"}
+        ]
+    })
     if not job:
-        raise HTTPException(404, detail="Job not found or not assigned to you")
+        raise HTTPException(404, detail="Job not found or not available")
 
     job.pop('_id', None)
     return job
@@ -2922,9 +3114,14 @@ async def accept_contractor_job(
     job_id: str,
     current_user: User = Depends(get_current_user_dependency)
 ):
-    """Accept/claim a job"""
-    if current_user.role != UserRole.CONTRACTOR:
-        raise HTTPException(403, detail="Only contractors can accept jobs")
+    """
+    Accept/claim a job as a contractor or handyman.
+    
+    Uses JobLifecycleService for all status transitions and assignments.
+    """
+    # Allow both CONTRACTOR and HANDYMAN roles
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only contractors/handymen can accept jobs")
 
     # Check provider_status - only active providers can accept jobs
     if current_user.provider_status != "active":
@@ -2937,32 +3134,51 @@ async def accept_contractor_job(
             }
         )
 
-    # Find the job
+    # Fetch job
     job = await db.jobs.find_one({"id": job_id})
     if not job:
         raise HTTPException(404, detail="Job not found")
 
-    # Check if already assigned
-    if job.get('contractor_id'):
-        raise HTTPException(400, detail="Job already assigned to another contractor")
+    # Check if job is available (posted status)
+    current_status = job.get("status", "draft")
+    if current_status != "posted":
+        raise HTTPException(
+            400,
+            detail=f"Job cannot be accepted. Current status: {current_status}"
+        )
 
-    # Assign job to contractor
-    await db.jobs.update_one(
-        {"id": job_id},
-        {"$set": {
-            "contractor_id": current_user.id,
-            "status": "accepted",
-            "accepted_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
-        }}
+    # Check if already assigned using helper
+    from services.job_lifecycle import get_assigned_provider_id
+    existing_assignment = get_assigned_provider_id(job)
+    if existing_assignment:
+        raise HTTPException(400, detail="Job already assigned to another provider")
+
+    # Use lifecycle service to transition to accepted and set assignment
+    updated_job = await job_lifecycle.apply_transition(
+        job_id=job_id,
+        new_status=JobStatus.ACCEPTED,
+        actor_id=current_user.id,
+        actor_role=current_user.role.value,
+        additional_data={"provider_id": current_user.id}
     )
 
-    logger.info(f"Job {job_id} accepted by contractor {current_user.id}")
+    logger.info(f"Job {job_id} accepted by {current_user.role.value} {current_user.id}")
 
-    # Return updated job
-    updated_job = await db.jobs.find_one({"id": job_id})
-    updated_job.pop('_id', None)
     return updated_job
+
+
+@api_router.post("/handyman/jobs/{job_id}/accept")
+async def accept_handyman_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Accept/claim a job as a handyman.
+    
+    This is an alias endpoint for handymen to accept jobs.
+    Uses the same internal logic as contractor accept.
+    """
+    return await accept_contractor_job(job_id, current_user)
 
 
 @api_router.patch("/contractor/jobs/{job_id}/status")
@@ -2971,40 +3187,118 @@ async def update_contractor_job_status(
     status_update: dict = Body(...),
     current_user: User = Depends(get_current_user_dependency)
 ):
-    """Update job status"""
-    if current_user.role != UserRole.CONTRACTOR:
-        raise HTTPException(403, detail="Only contractors can update job status")
+    """
+    Update job status for contractor.
+    
+    All status transitions go through JobLifecycleService.
+    Provider can only update jobs they own (using assigned_provider_id or legacy fields).
+    """
+    # Allow both CONTRACTOR and HANDYMAN roles
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only contractors/handymen can update job status")
 
-    # Verify job belongs to this contractor
-    job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
+    # Verify job belongs to this provider (check all assignment fields)
+    from services.job_lifecycle import get_assigned_provider_id
+    job = await db.jobs.find_one({"id": job_id})
     if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    assigned_provider = get_assigned_provider_id(job)
+    if assigned_provider != current_user.id:
         raise HTTPException(404, detail="Job not found or not assigned to you")
 
-    new_status = status_update.get('status')
-    valid_statuses = ['accepted', 'scheduled', 'in_progress', 'completed', 'cancelled']
+    new_status_str = status_update.get('status')
+    if not new_status_str:
+        raise HTTPException(400, detail="status field is required")
 
-    if new_status not in valid_statuses:
-        raise HTTPException(400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+    # Convert string to JobStatus enum
+    try:
+        new_status = JobStatus(new_status_str)
+    except ValueError:
+        raise HTTPException(400, detail=f"Invalid status: {new_status_str}")
 
-    update_data = {
-        "status": new_status,
-        "updated_at": datetime.utcnow().isoformat()
-    }
-
-    # Add completion timestamp if completing
-    if new_status == 'completed':
-        update_data["completed_at"] = datetime.utcnow().isoformat()
-
-    await db.jobs.update_one(
-        {"id": job_id},
-        {"$set": update_data}
+    # Use lifecycle service to apply transition
+    updated_job = await job_lifecycle.apply_transition(
+        job_id=job_id,
+        new_status=new_status,
+        actor_id=current_user.id,
+        actor_role=current_user.role.value,
+        additional_data=status_update
     )
 
-    logger.info(f"Job {job_id} status updated to {new_status}")
+    logger.info(f"Job {job_id} status updated to {new_status_str} by {current_user.role.value} {current_user.id}")
 
-    # Return updated job
-    updated_job = await db.jobs.find_one({"id": job_id})
-    updated_job.pop('_id', None)
+    return updated_job
+
+
+# ==================== JOB CANCELLATION ====================
+
+
+@api_router.post("/jobs/{job_id}/cancel")
+async def cancel_job(
+    job_id: str,
+    cancel_request: dict = Body(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Cancel a job.
+    
+    Logic:
+    - If status is posted -> cancelled_before_accept
+    - If status is accepted -> cancelled_after_accept
+    - If status is in_progress -> cancelled_in_progress
+    - Otherwise reject (completed/in_review/paid cannot be cancelled)
+    
+    Who can cancel:
+    - Customer: can cancel any job they own
+    - Provider: can only cancel jobs assigned to them (accepted or in_progress)
+    - Admin: can cancel any job
+    """
+    from services.job_lifecycle import get_assigned_provider_id
+    
+    # Fetch job
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    # Authorization check
+    is_customer = job.get("customer_id") == current_user.id
+    is_provider = get_assigned_provider_id(job) == current_user.id
+    is_admin = current_user.role == UserRole.ADMIN
+    
+    if not (is_customer or is_provider or is_admin):
+        raise HTTPException(403, detail="Not authorized to cancel this job")
+
+    # Determine cancellation status based on current status
+    current_status = job.get("status", "draft")
+    
+    if current_status == "posted":
+        new_status = JobStatus.CANCELLED_BEFORE_ACCEPT
+    elif current_status == "accepted":
+        new_status = JobStatus.CANCELLED_AFTER_ACCEPT
+    elif current_status == "in_progress":
+        new_status = JobStatus.CANCELLED_IN_PROGRESS
+    else:
+        raise HTTPException(
+            400,
+            detail=f"Cannot cancel job in status: {current_status}. "
+                   "Only posted, accepted, or in_progress jobs can be cancelled."
+        )
+
+    # Use lifecycle service to apply transition
+    updated_job = await job_lifecycle.apply_transition(
+        job_id=job_id,
+        new_status=new_status,
+        actor_id=current_user.id,
+        actor_role=current_user.role.value,
+        additional_data={
+            "cancellation_reason": cancel_request.get("reason", ""),
+            "cancelled_by": current_user.id
+        }
+    )
+
+    logger.info(f"Job {job_id} cancelled to {new_status.value} by {current_user.role.value} {current_user.id}")
+
     return updated_job
 
 
@@ -4159,8 +4453,32 @@ async def get_jobs_feed(
         offset=offset
     )
 
-    # Convert to dict for JSON serialization
-    return [job.model_dump() for job in jobs]
+    # Transform job data to match frontend expectations
+    result = []
+    for job in jobs:
+        job_dict = job.model_dump()
+        # Transform snake_case to camelCase for frontend compatibility
+        transformed = {
+            "id": job_dict.get("id"),
+            "customerId": job_dict.get("customer_id"),
+            "status": job_dict.get("status"),
+            "title": job_dict.get("title") or job_dict.get("description", "Untitled Job"),
+            "description": job_dict.get("description", ""),
+            "category": job_dict.get("service_category", ""),
+            "location": {
+                "city": job_dict.get("address", {}).get("city", ""),
+                "state": job_dict.get("address", {}).get("state", ""),
+                "zipCode": job_dict.get("address", {}).get("zip", ""),
+                "latitude": job_dict.get("address", {}).get("lat"),
+                "longitude": job_dict.get("address", {}).get("lon"),
+            },
+            "quotedAmount": job_dict.get("agreed_amount"),
+            "finalAmount": job_dict.get("budget_max"),
+            "item_type": "job",
+        }
+        result.append(transformed)
+    
+    return result
 
 
 @api_router.get("/handyman/jobs/active")
@@ -4360,7 +4678,7 @@ async def accept_proposal(
         from services.job_lifecycle import JobLifecycleError
         updated_job = await job_lifecycle.apply_transition(
             job=job,
-            new_status=JobStatus.PROPOSAL_SELECTED,
+            new_status=JobStatus.ACCEPTED,
             actor_id=current_user.id,
             actor_role=current_user.role.value,
             additional_data={

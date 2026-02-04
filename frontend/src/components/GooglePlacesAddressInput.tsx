@@ -49,7 +49,7 @@ interface Prediction {
 
 // Debounce helper
 function useDebounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
-  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   return useCallback((...args: Parameters<T>) => {
     if (timeoutRef.current) {

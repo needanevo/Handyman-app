@@ -255,7 +255,7 @@ export const handymanAPI = {
     apiClient.get<any[]>('/handyman/jobs/history', filters),
 
   getJob: (id: string) =>
-    apiClient.get<any>(`/handyman/jobs/${id}`),
+    apiClient.get<any>(`/jobs/${id}`),
 
   // Wallet
   getWalletSummary: () =>

@@ -50,6 +50,18 @@ export function TrustBanner({
           actionRoute: null,
         };
 
+      case 'restricted':
+        return {
+          icon: 'warning' as const,
+          iconColor: colors.neutral[600],
+          backgroundColor: colors.neutral[100],
+          borderColor: colors.neutral[300],
+          title: 'Account restricted',
+          message: 'You can browse jobs, but cannot accept until your provider profile is active.',
+          actionText: 'Contact Support',
+          actionRoute: 'mailto:support@therealjohnson.com',
+};
+
       default:
         return null;
     }

@@ -53,7 +53,9 @@
       "Bash(git rm:*)",
       "Bash(grep:*)",
       "Bash(git restore:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(git switch:*)",
+      "Bash(git branch:*)"
     ],
     "deny": [],
     "ask": []

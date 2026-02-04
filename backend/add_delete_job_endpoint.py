@@ -29,8 +29,8 @@ async def delete_job(
     if job["customer_id"] != current_user.id:
         raise HTTPException(403, detail="You can only delete your own jobs")
 
-    # Check if job can be deleted (only pending/draft jobs)
-    if job["status"] not in ["pending", "draft"]:
+    # Check if job can be deleted (only draft or posted jobs)
+    if job["status"] not in ["draft", "posted"]:
         raise HTTPException(
             400,
             detail=f"Cannot delete job in '{job['status']}' status. Only pending or draft jobs can be deleted."

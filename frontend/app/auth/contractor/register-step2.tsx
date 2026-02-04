@@ -78,8 +78,8 @@ export default function ContractorRegisterStep2() {
       // Save documents to database
       await contractorAPI.updateDocuments({
         license: driversLicense[0],
-        business_license: businessLicenses[0] || null,
-        insurance: insurance[0] || null,
+        business_license: businessLicenses.length ? [businessLicenses[0]] : undefined,
+        insurance: insurance[0] || undefined,
       });
 
       // Save license number and insurance policy number if provided
