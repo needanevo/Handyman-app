@@ -263,8 +263,97 @@ Start Conditions: Phase 5 provider onboarding unification complete.
 1. Define eligibility rule table (role × category × consent × provider status).
 2. Implement filtered quote list queries (or client-side filtering if backend not ready).
 3. Enforce consent + category restrictions in UI and API calls.
-4. Implement “Accept Quote → Create Job” transition.
+4. Implement "Accept Quote → Create Job" transition.
 5. Add regression tests for visibility rules.
+
+### Phase 6A — Accept Job & Submit Bid (Job Action Buttons)
+
+**Objective:** Make the "Accept Job" and "Submit Bid" buttons on job detail cards fully functional for both contractor and handyman roles.
+
+**Start Conditions:** Job feed displays correctly for contractors and handymen. Existing proposal endpoints (`POST /jobs/{job_id}/proposals`, `POST /proposals/{proposal_id}/accept`) are deployed.
+
+**Completion Criteria:**
+
+- **Accept Job flow:**
+  - Provider taps "Accept Job" → confirms acceptance at the AI-quoted price (shown as "agreed amount" on card).
+  - Backend creates a binding agreement: assigns provider to job, sets status to `ACCEPTED`.
+  - Schedule dates are created: `materials_deliver_by`, `work_start_by`, `estimated_completion`, `actual_completion`.
+  - Customer is notified that a provider accepted their job.
+  - Job moves off the available feed for other providers.
+
+- **Submit Bid flow:**
+  - Provider taps "Submit Bid" → navigates to a bid form screen.
+  - Bid form allows line-item entry: **Labor** (hours × rate), **Materials** (itemized list), **Incidentals** (permits, disposal, travel, etc.).
+  - Bid is submitted as a Proposal with line-item breakdown stored.
+  - Customer sees the bid on their jobs screen and can accept or reject.
+  - On customer accept → same binding agreement flow as Accept Job, using bid total as agreed amount.
+
+- **Job card updates:**
+  - "Agreed amount" field shows the AI-quoted amount (`budget_max` from quote).
+  - Status badge on job card uses display-friendly labels:
+    - `posted` → "Open for Bids"
+    - `accepted` → "Job Taken"
+    - `in_progress` → "Work In Progress"
+    - `in_review` → "Awaiting Customer Review"
+    - `completed` → "Completed"
+    - `paid` → "Paid"
+  - When a bid is pending: "Awaiting Bid Acceptance" shown on provider's My Jobs screen.
+
+- **Job completion flow:**
+  - Provider marks job complete → status moves to `IN_REVIEW`.
+  - Customer reviews and approves → status moves to `COMPLETED`.
+  - Completion generates a receipt for the customer (job summary, agreed amount, provider info, dates).
+  - Provider's record is updated: `completed_jobs_count` incremented, `total_earned` updated.
+  - Financial fields linked to provider's JWT-identified account.
+
+**Guardrails:**
+- Do NOT implement payment processing (Phase 8).
+- Do NOT implement messaging/chat (Phase 9).
+- Do NOT implement dispute resolution (Phase 10).
+- Receipts are in-app only — no PDF/email generation yet.
+
+**Data model changes needed:**
+
+```
+Proposal (add fields):
+  labor_cost: float
+  labor_hours: float
+  labor_rate: float
+  materials: [{name, quantity, unit_cost, total}]
+  incidentals: [{description, cost}]
+  total_bid: float  (computed: labor + materials + incidentals)
+
+Job (add fields):
+  agreed_amount: float          # AI quote or accepted bid total
+  materials_deliver_by: datetime
+  work_start_by: datetime
+  estimated_completion: datetime
+  actual_completion: datetime
+  completion_receipt: {          # Generated on completion
+    receipt_id, job_id, customer_id, provider_id,
+    agreed_amount, completion_date, summary
+  }
+
+User/Provider (add fields):
+  completed_jobs_count: int
+  total_earned: float
+```
+
+**Tasks:**
+6. Extend Proposal model with line-item fields (labor, materials, incidentals, total_bid).
+7. Extend Job model with schedule dates and `agreed_amount` field.
+8. Add `completed_jobs_count` and `total_earned` fields to User model.
+9. Build Submit Bid screen — form with labor/materials/incidentals sections + total calculation.
+10. Wire "Accept Job" button: call backend, create binding agreement at AI-quoted price, set schedule dates.
+11. Wire "Submit Bid" button: navigate to bid form, submit proposal with line items.
+12. Update job card UI: show `agreed_amount`, status badge with display labels.
+13. Build job completion flow: provider marks complete → customer reviews → receipt generated → provider stats updated.
+14. Flip `ENABLE_JOB_ACTIONS = true` on both contractor and handyman job detail screens.
+15. Add backend endpoint `POST /jobs/{job_id}/accept-direct` for accepting at quoted price (no bid).
+16. Update `POST /jobs/{job_id}/proposals` to accept line-item breakdown.
+17. Add backend endpoint `POST /jobs/{job_id}/complete` — generates receipt, updates provider stats.
+
+**Branch:** `Phase_6A-Submit_Buttons`
 
 ---
 
