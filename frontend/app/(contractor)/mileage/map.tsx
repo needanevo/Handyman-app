@@ -31,20 +31,6 @@ if (Platform.OS !== 'web') {
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { useAuth } from '../../../src/contexts/AuthContext';
 
-// Conditionally import MapView only on native platforms
-let MapView: any;
-let Circle: any;
-let Marker: any;
-let PROVIDER_GOOGLE: any;
-
-if (Platform.OS !== 'web') {
-  const Maps = require('react-native-maps');
-  MapView = Maps.default;
-  Circle = Maps.Circle;
-  Marker = Maps.Marker;
-  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
-}
-
 const METERS_PER_MILE = 1609.34;
 const SERVICE_RADIUS_MILES = 50;
 const SERVICE_RADIUS_METERS = SERVICE_RADIUS_MILES * METERS_PER_MILE;
