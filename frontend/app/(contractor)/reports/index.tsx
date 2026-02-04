@@ -22,7 +22,6 @@ import { colors, spacing, typography, borderRadius, shadows } from '../../../src
 import { TaxReport } from '../../../src/types/contractor';
 import { Card } from '../../../src/components/Card';
 import { Button } from '../../../src/components/Button';
-import { Ionicons } from '@expo/vector-icons';
 
 export default function TaxReportsScreen() {
   const router = useRouter();
