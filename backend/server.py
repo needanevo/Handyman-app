@@ -1925,9 +1925,9 @@ async def get_available_jobs(
     """
     logger.info(f"[AVAILABLE_JOBS] User {current_user.id} role={current_user.role} skills={current_user.skills}")
     
-    # Only contractors can access this endpoint
-    if current_user.role != UserRole.CONTRACTOR:
-        raise HTTPException(403, detail="Only contractors can access available jobs. Handymen should use /handyman/jobs/feed")
+    # Only contractors and handymen can access this endpoint
+    if current_user.role not in (UserRole.CONTRACTOR, UserRole.HANDYMAN):
+        raise HTTPException(403, detail="Only contractors and handymen can access available jobs")
 
     # Get contractor's business address
     if not current_user.addresses:
