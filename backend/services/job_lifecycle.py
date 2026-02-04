@@ -3,6 +3,11 @@ JobLifecycleService - State machine for job status transitions.
 
 This is the ONLY place where job status changes should be applied.
 Enforces allowed transitions and handles side effects.
+
+Provider Assignment:
+- assigned_provider_id is the canonical field for provider assignment
+- Legacy fields (contractor_id, assigned_contractor_id) are kept for backward compatibility
+- Use get_assigned_provider_id() and set_assigned_provider_id() helpers
 """
 
 from typing import Optional, Dict, Any
@@ -10,6 +15,7 @@ from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from models import Job, JobStatus, Payout, PayoutStatus, PayoutProvider
+from models.job import serialize_mongo_doc
 
 
 class JobLifecycleError(Exception):
@@ -17,32 +23,67 @@ class JobLifecycleError(Exception):
     pass
 
 
+def get_assigned_provider_id(job: dict) -> Optional[str]:
+    """
+    Get the assigned provider ID from a job document.
+    
+    Returns the first non-null value from:
+    1. assigned_provider_id (canonical)
+    2. assigned_contractor_id (legacy)
+    3. contractor_id (legacy)
+    """
+    return job.get('assigned_provider_id') or \
+           job.get('assigned_contractor_id') or \
+           job.get('contractor_id')
+
+
+def set_assigned_provider_id(job_id: str, provider_id: str) -> dict:
+    """
+    Generate update dict that sets provider assignment on all fields.
+    
+    This ensures backward compatibility with legacy fields.
+    """
+    now = datetime.utcnow().isoformat()
+    return {
+        "$set": {
+            "assigned_provider_id": provider_id,
+            "assigned_contractor_id": provider_id,  # Legacy
+            "contractor_id": provider_id,  # Legacy
+            "updated_at": now
+        }
+    }
+
+
 class JobLifecycleService:
     """
     Manages job status transitions and side effects.
 
-    Allowed transitions (actor → status):
-    1. draft → published (customer)
-    2. published → proposal_selected (customer)
-    3. proposal_selected → scheduled (contractor)
-    4. scheduled → in_progress (contractor)
-    5. in_progress → completed_pending_review (contractor)
-    6. completed_pending_review → completed (customer or auto)
-    7. any_active → cancelled_by_customer (customer)
-    8. any_active → cancelled_by_contractor (contractor)
+    Simplified Job Lifecycle:
+    1. draft -> posted (customer)
+    2. posted -> accepted (provider) - provider claims the job
+    3. accepted -> in_progress (provider)
+    4. in_progress -> completed (provider)
+    5. completed -> in_review (customer)
+    6. in_review -> paid (admin/customer)
+    
+    Cancellation paths:
+    - posted -> cancelled_before_accept (customer)
+    - accepted -> cancelled_after_accept (customer or provider)
+    - in_progress -> cancelled_in_progress (customer or provider)
     """
 
     # Define allowed transitions
     TRANSITIONS = {
-        JobStatus.DRAFT: [JobStatus.PUBLISHED, JobStatus.CANCELLED_BY_CUSTOMER],
-        JobStatus.PUBLISHED: [JobStatus.PROPOSAL_SELECTED, JobStatus.CANCELLED_BY_CUSTOMER],
-        JobStatus.PROPOSAL_SELECTED: [JobStatus.SCHEDULED, JobStatus.CANCELLED_BY_CUSTOMER, JobStatus.CANCELLED_BY_CONTRACTOR],
-        JobStatus.SCHEDULED: [JobStatus.IN_PROGRESS, JobStatus.CANCELLED_BY_CUSTOMER, JobStatus.CANCELLED_BY_CONTRACTOR],
-        JobStatus.IN_PROGRESS: [JobStatus.COMPLETED_PENDING_REVIEW, JobStatus.CANCELLED_BY_CUSTOMER, JobStatus.CANCELLED_BY_CONTRACTOR],
-        JobStatus.COMPLETED_PENDING_REVIEW: [JobStatus.COMPLETED, JobStatus.CANCELLED_BY_CUSTOMER],
-        JobStatus.COMPLETED: [],  # Terminal state
-        JobStatus.CANCELLED_BY_CUSTOMER: [],  # Terminal state
-        JobStatus.CANCELLED_BY_CONTRACTOR: [],  # Terminal state
+        JobStatus.DRAFT: [JobStatus.POSTED, JobStatus.CANCELLED_BEFORE_ACCEPT],
+        JobStatus.POSTED: [JobStatus.ACCEPTED, JobStatus.CANCELLED_BEFORE_ACCEPT],
+        JobStatus.ACCEPTED: [JobStatus.IN_PROGRESS, JobStatus.CANCELLED_AFTER_ACCEPT],
+        JobStatus.IN_PROGRESS: [JobStatus.COMPLETED, JobStatus.CANCELLED_IN_PROGRESS],
+        JobStatus.COMPLETED: [JobStatus.IN_REVIEW],
+        JobStatus.IN_REVIEW: [JobStatus.PAID],
+        JobStatus.PAID: [],  # Terminal state
+        JobStatus.CANCELLED_BEFORE_ACCEPT: [],  # Terminal state
+        JobStatus.CANCELLED_AFTER_ACCEPT: [],  # Terminal state
+        JobStatus.CANCELLED_IN_PROGRESS: [],  # Terminal state
     }
 
     def __init__(self, db: AsyncIOMotorDatabase):
@@ -50,153 +91,125 @@ class JobLifecycleService:
 
     async def apply_transition(
         self,
-        job: Job,
+        job_id: str,
         new_status: JobStatus,
         actor_id: str,
         actor_role: str,
         additional_data: Optional[Dict[str, Any]] = None
-    ) -> Job:
+    ) -> dict:
         """
         Apply a status transition to a job.
 
         Args:
-            job: Current job object
+            job_id: ID of job to transition
             new_status: Desired new status
             actor_id: ID of user making the change
             actor_role: Role of user (customer, handyman, contractor, admin)
-            additional_data: Optional dict with fields like scheduled_start, scheduled_end, etc.
+            additional_data: Optional dict with fields like scheduled_start, etc.
 
         Returns:
-            Updated job object
+            Updated job document (dict)
 
         Raises:
             JobLifecycleError: If transition is not allowed
         """
+        # Fetch current job
+        job = await self.db.jobs.find_one({"id": job_id})
+        if not job:
+            raise JobLifecycleError(f"Job {job_id} not found")
+
+        current_status = JobStatus.from_string(job.get("status", "draft"))
+
         # Validate transition is allowed
-        if new_status not in self.TRANSITIONS.get(job.status, []):
+        if new_status not in self.TRANSITIONS.get(current_status, []):
             raise JobLifecycleError(
-                f"Cannot transition from {job.status} to {new_status}"
+                f"Cannot transition from {current_status.value} to {new_status.value}"
             )
 
         # Prepare update data
         update_data = {
-            "status": new_status,
-            "updated_at": datetime.utcnow()
+            "status": new_status.value,
+            "updated_at": datetime.utcnow().isoformat()
         }
 
         # Apply side effects based on transition
-        if new_status == JobStatus.PUBLISHED:
-            # Job enters matching queue (no additional action needed here)
+        if new_status == JobStatus.POSTED:
+            # Job enters matching queue - no additional action
             pass
 
-        elif new_status == JobStatus.PROPOSAL_SELECTED:
-            # Customer selected a proposal - must have accepted_proposal_id
-            if not additional_data or "accepted_proposal_id" not in additional_data:
-                raise JobLifecycleError("accepted_proposal_id required for proposal_selected status")
-            if not additional_data or "assigned_contractor_id" not in additional_data:
-                raise JobLifecycleError("assigned_contractor_id required for proposal_selected status")
+        elif new_status == JobStatus.ACCEPTED:
+            # Provider accepts job - must have provider_id
+            if not additional_data or "provider_id" not in additional_data:
+                raise JobLifecycleError("provider_id required for accepted status")
 
-            update_data["accepted_proposal_id"] = additional_data["accepted_proposal_id"]
-            update_data["assigned_contractor_id"] = additional_data["assigned_contractor_id"]
-
-            # Update proposal statuses (accept one, reject others)
-            await self._update_proposals_for_job(
-                job.id,
-                accepted_proposal_id=additional_data["accepted_proposal_id"]
-            )
-
-        elif new_status == JobStatus.SCHEDULED:
-            # Contractor confirmed schedule
-            if additional_data:
-                if "scheduled_start" in additional_data:
-                    update_data["scheduled_start"] = additional_data["scheduled_start"]
-                if "scheduled_end" in additional_data:
-                    update_data["scheduled_end"] = additional_data["scheduled_end"]
+            provider_id = additional_data["provider_id"]
+            # Set canonical provider ID and legacy fields
+            update_data["assigned_provider_id"] = provider_id
+            update_data["assigned_contractor_id"] = provider_id  # Legacy
+            update_data["contractor_id"] = provider_id  # Legacy
+            update_data["accepted_at"] = datetime.utcnow().isoformat()
 
         elif new_status == JobStatus.IN_PROGRESS:
-            # Contractor marked "On the job"
-            pass
-
-        elif new_status == JobStatus.COMPLETED_PENDING_REVIEW:
-            # Contractor marked "Work finished" - create payout
-            payout = await self._create_payout_for_job(job)
-            update_data["payout_id"] = payout.id
+            # Provider marked "On the job"
+            update_data["started_at"] = datetime.utcnow().isoformat()
 
         elif new_status == JobStatus.COMPLETED:
-            # Customer confirmed OR auto after N days - queue payout
-            if job.payout_id:
-                await self._queue_payout_for_transfer(job.payout_id)
+            # Provider marked work complete - create payout
+            provider_id = get_assigned_provider_id(job)
+            payout = await self._create_payout_for_job(job_id, provider_id)
+            update_data["payout_id"] = payout.id
+            update_data["completed_at"] = datetime.utcnow().isoformat()
 
-        elif new_status in [JobStatus.CANCELLED_BY_CUSTOMER, JobStatus.CANCELLED_BY_CONTRACTOR]:
-            # Job cancelled - handle any cleanup
-            pass
+        elif new_status == JobStatus.PAID:
+            # Payment processed - queue payout for transfer
+            payout_id = job.get("payout_id")
+            if payout_id:
+                await self._queue_payout_for_transfer(payout_id)
+
+        elif new_status in [
+            JobStatus.CANCELLED_BEFORE_ACCEPT,
+            JobStatus.CANCELLED_AFTER_ACCEPT,
+            JobStatus.CANCELLED_IN_PROGRESS
+        ]:
+            # Job cancelled - record cancellation
+            update_data["cancelled_at"] = datetime.utcnow().isoformat()
+            if additional_data and "cancellation_reason" in additional_data:
+                update_data["cancellation_reason"] = additional_data["cancellation_reason"]
+            if additional_data and "cancelled_by" in additional_data:
+                update_data["cancelled_by"] = additional_data["cancelled_by"]
 
         # Update job in database
         await self.db.jobs.update_one(
-            {"id": job.id},
-            {"$set": update_data}
+            {"id": job_id},
+            update_data
         )
 
-        # Refresh job object
-        updated_job_data = await self.db.jobs.find_one({"id": job.id})
-        if not updated_job_data:
-            raise JobLifecycleError(f"Job {job.id} not found after update")
+        # Fetch and return updated job
+        updated_job = await self.db.jobs.find_one({"id": job_id})
+        return serialize_mongo_doc(updated_job)
 
-        # Convert to Job model
-        updated_job = Job(**updated_job_data)
-
-        return updated_job
-
-    async def _update_proposals_for_job(self, job_id: str, accepted_proposal_id: str):
+    async def _create_payout_for_job(self, job_id: str, provider_id: str) -> Payout:
         """
-        Update proposals: mark one accepted, others rejected.
-        """
-        # Accept the selected proposal
-        await self.db.proposals.update_one(
-            {"id": accepted_proposal_id, "job_id": job_id},
-            {
-                "$set": {
-                    "status": "accepted",
-                    "updated_at": datetime.utcnow()
-                }
-            }
-        )
-
-        # Reject all other pending proposals for this job
-        await self.db.proposals.update_many(
-            {
-                "job_id": job_id,
-                "id": {"$ne": accepted_proposal_id},
-                "status": "pending"
-            },
-            {
-                "$set": {
-                    "status": "rejected",
-                    "updated_at": datetime.utcnow()
-                }
-            }
-        )
-
-    async def _create_payout_for_job(self, job: Job) -> Payout:
-        """
-        Create a payout when job is completed_pending_review.
+        Create a payout when job is completed.
         Platform fee is 15% of gross amount.
         """
-        # Get the accepted proposal to determine amount
+        # Get job to find the amount
+        job = await self.db.jobs.find_one({"id": job_id})
+        if not job:
+            raise JobLifecycleError(f"Job {job_id} not found")
+
+        # Get accepted proposal to determine amount
         proposal = await self.db.proposals.find_one({
-            "id": job.accepted_proposal_id
+            "id": job.get("accepted_proposal_id")
         })
 
-        if not proposal:
-            raise JobLifecycleError(f"Accepted proposal {job.accepted_proposal_id} not found")
-
-        amount_gross = proposal["quoted_price"]
+        amount_gross = proposal.get("quoted_price", 0) if proposal else job.get("budget_max", 0)
         platform_fee_amount = amount_gross * 0.15
         amount_net = amount_gross - platform_fee_amount
 
         payout = Payout(
-            job_id=job.id,
-            contractor_id=job.assigned_contractor_id,
+            job_id=job_id,
+            contractor_id=provider_id,
             amount_gross=amount_gross,
             platform_fee_amount=platform_fee_amount,
             amount_net=amount_net,
@@ -213,7 +226,7 @@ class JobLifecycleService:
     async def _queue_payout_for_transfer(self, payout_id: str):
         """
         Move payout to queued_for_transfer status.
-        Background worker will pick this up and process payment.
+        Background worker will process payment.
         """
         await self.db.payouts.update_one(
             {"id": payout_id},

@@ -94,6 +94,7 @@ from services.contractor_routing import ContractorRouter
 from services.job_lifecycle import JobLifecycleService
 from services.proposal_service import ProposalService
 from services.job_feed_service import JobFeedService
+from services.job_lifecycle import JobLifecycleService, JobLifecycleError
 from services.payout_service import PayoutService
 from services.growth_service import GrowthService
 
@@ -1629,10 +1630,21 @@ async def get_job(
     if not job:
         raise HTTPException(404, detail="Job not found")
 
-    # Check authorization
-    if (current_user.role == UserRole.CUSTOMER and job["customer_id"] != current_user.id) or \
-       (current_user.role == UserRole.CONTRACTOR and job.get("contractor_id") != current_user.id):
-        raise HTTPException(403, detail="Not authorized to view this job")
+    # Check authorization based on user role
+    if current_user.role == UserRole.CUSTOMER:
+        # Customer can only view their own jobs
+        if job.get("customer_id") != current_user.id:
+            raise HTTPException(403, detail="Not authorized to view this job")
+    elif current_user.role in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        # Contractor/Handyman can view if:
+        # 1. They are assigned to the job (contractor_id or assigned_contractor_id)
+        # 2. OR the job is available (posted status)
+        is_assigned = job.get("contractor_id") == current_user.id or \
+                      job.get("assigned_contractor_id") == current_user.id
+        is_available = job.get("status") == "posted"
+        if not is_assigned and not is_available:
+            raise HTTPException(403, detail="Not authorized to view this job")
+    # Admins can view all jobs
 
     return Job(**job)
 
@@ -3019,12 +3031,20 @@ async def get_contractor_job(
     current_user: User = Depends(get_current_user_dependency)
 ):
     """Get specific job details for contractor"""
-    if current_user.role != UserRole.CONTRACTOR:
-        raise HTTPException(403, detail="Only contractors can access this endpoint")
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only contractors/handymen can access this endpoint")
 
-    job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
+    # Find job - either assigned to this provider OR available (posted status)
+    job = await db.jobs.find_one({
+        "id": job_id,
+        "$or": [
+            {"contractor_id": current_user.id},
+            {"assigned_contractor_id": current_user.id},
+            {"status": "posted"}
+        ]
+    })
     if not job:
-        raise HTTPException(404, detail="Job not found or not assigned to you")
+        raise HTTPException(404, detail="Job not found or not available")
 
     job.pop('_id', None)
     return job
@@ -3035,9 +3055,14 @@ async def accept_contractor_job(
     job_id: str,
     current_user: User = Depends(get_current_user_dependency)
 ):
-    """Accept/claim a job"""
-    if current_user.role != UserRole.CONTRACTOR:
-        raise HTTPException(403, detail="Only contractors can accept jobs")
+    """
+    Accept/claim a job as a contractor or handyman.
+    
+    Uses JobLifecycleService for all status transitions and assignments.
+    """
+    # Allow both CONTRACTOR and HANDYMAN roles
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only contractors/handymen can accept jobs")
 
     # Check provider_status - only active providers can accept jobs
     if current_user.provider_status != "active":
@@ -3050,32 +3075,51 @@ async def accept_contractor_job(
             }
         )
 
-    # Find the job
+    # Fetch job
     job = await db.jobs.find_one({"id": job_id})
     if not job:
         raise HTTPException(404, detail="Job not found")
 
-    # Check if already assigned
-    if job.get('contractor_id'):
-        raise HTTPException(400, detail="Job already assigned to another contractor")
+    # Check if job is available (posted status)
+    current_status = job.get("status", "draft")
+    if current_status != "posted":
+        raise HTTPException(
+            400,
+            detail=f"Job cannot be accepted. Current status: {current_status}"
+        )
 
-    # Assign job to contractor
-    await db.jobs.update_one(
-        {"id": job_id},
-        {"$set": {
-            "contractor_id": current_user.id,
-            "status": "accepted",
-            "accepted_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
-        }}
+    # Check if already assigned using helper
+    from services.job_lifecycle import get_assigned_provider_id
+    existing_assignment = get_assigned_provider_id(job)
+    if existing_assignment:
+        raise HTTPException(400, detail="Job already assigned to another provider")
+
+    # Use lifecycle service to transition to accepted and set assignment
+    updated_job = await job_lifecycle.apply_transition(
+        job_id=job_id,
+        new_status=JobStatus.ACCEPTED,
+        actor_id=current_user.id,
+        actor_role=current_user.role.value,
+        additional_data={"provider_id": current_user.id}
     )
 
-    logger.info(f"Job {job_id} accepted by contractor {current_user.id}")
+    logger.info(f"Job {job_id} accepted by {current_user.role.value} {current_user.id}")
 
-    # Return updated job
-    updated_job = await db.jobs.find_one({"id": job_id})
-    updated_job.pop('_id', None)
     return updated_job
+
+
+@api_router.post("/handyman/jobs/{job_id}/accept")
+async def accept_handyman_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Accept/claim a job as a handyman.
+    
+    This is an alias endpoint for handymen to accept jobs.
+    Uses the same internal logic as contractor accept.
+    """
+    return await accept_contractor_job(job_id, current_user)
 
 
 @api_router.patch("/contractor/jobs/{job_id}/status")
@@ -3084,40 +3128,118 @@ async def update_contractor_job_status(
     status_update: dict = Body(...),
     current_user: User = Depends(get_current_user_dependency)
 ):
-    """Update job status"""
-    if current_user.role != UserRole.CONTRACTOR:
-        raise HTTPException(403, detail="Only contractors can update job status")
+    """
+    Update job status for contractor.
+    
+    All status transitions go through JobLifecycleService.
+    Provider can only update jobs they own (using assigned_provider_id or legacy fields).
+    """
+    # Allow both CONTRACTOR and HANDYMAN roles
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only contractors/handymen can update job status")
 
-    # Verify job belongs to this contractor
-    job = await db.jobs.find_one({"id": job_id, "contractor_id": current_user.id})
+    # Verify job belongs to this provider (check all assignment fields)
+    from services.job_lifecycle import get_assigned_provider_id
+    job = await db.jobs.find_one({"id": job_id})
     if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    assigned_provider = get_assigned_provider_id(job)
+    if assigned_provider != current_user.id:
         raise HTTPException(404, detail="Job not found or not assigned to you")
 
-    new_status = status_update.get('status')
-    valid_statuses = ['accepted', 'scheduled', 'in_progress', 'completed', 'cancelled']
+    new_status_str = status_update.get('status')
+    if not new_status_str:
+        raise HTTPException(400, detail="status field is required")
 
-    if new_status not in valid_statuses:
-        raise HTTPException(400, detail=f"Invalid status. Must be one of: {valid_statuses}")
+    # Convert string to JobStatus enum
+    try:
+        new_status = JobStatus(new_status_str)
+    except ValueError:
+        raise HTTPException(400, detail=f"Invalid status: {new_status_str}")
 
-    update_data = {
-        "status": new_status,
-        "updated_at": datetime.utcnow().isoformat()
-    }
-
-    # Add completion timestamp if completing
-    if new_status == 'completed':
-        update_data["completed_at"] = datetime.utcnow().isoformat()
-
-    await db.jobs.update_one(
-        {"id": job_id},
-        {"$set": update_data}
+    # Use lifecycle service to apply transition
+    updated_job = await job_lifecycle.apply_transition(
+        job_id=job_id,
+        new_status=new_status,
+        actor_id=current_user.id,
+        actor_role=current_user.role.value,
+        additional_data=status_update
     )
 
-    logger.info(f"Job {job_id} status updated to {new_status}")
+    logger.info(f"Job {job_id} status updated to {new_status_str} by {current_user.role.value} {current_user.id}")
 
-    # Return updated job
-    updated_job = await db.jobs.find_one({"id": job_id})
-    updated_job.pop('_id', None)
+    return updated_job
+
+
+# ==================== JOB CANCELLATION ====================
+
+
+@api_router.post("/jobs/{job_id}/cancel")
+async def cancel_job(
+    job_id: str,
+    cancel_request: dict = Body(...),
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Cancel a job.
+    
+    Logic:
+    - If status is posted -> cancelled_before_accept
+    - If status is accepted -> cancelled_after_accept
+    - If status is in_progress -> cancelled_in_progress
+    - Otherwise reject (completed/in_review/paid cannot be cancelled)
+    
+    Who can cancel:
+    - Customer: can cancel any job they own
+    - Provider: can only cancel jobs assigned to them (accepted or in_progress)
+    - Admin: can cancel any job
+    """
+    from services.job_lifecycle import get_assigned_provider_id
+    
+    # Fetch job
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    # Authorization check
+    is_customer = job.get("customer_id") == current_user.id
+    is_provider = get_assigned_provider_id(job) == current_user.id
+    is_admin = current_user.role == UserRole.ADMIN
+    
+    if not (is_customer or is_provider or is_admin):
+        raise HTTPException(403, detail="Not authorized to cancel this job")
+
+    # Determine cancellation status based on current status
+    current_status = job.get("status", "draft")
+    
+    if current_status == "posted":
+        new_status = JobStatus.CANCELLED_BEFORE_ACCEPT
+    elif current_status == "accepted":
+        new_status = JobStatus.CANCELLED_AFTER_ACCEPT
+    elif current_status == "in_progress":
+        new_status = JobStatus.CANCELLED_IN_PROGRESS
+    else:
+        raise HTTPException(
+            400,
+            detail=f"Cannot cancel job in status: {current_status}. "
+                   "Only posted, accepted, or in_progress jobs can be cancelled."
+        )
+
+    # Use lifecycle service to apply transition
+    updated_job = await job_lifecycle.apply_transition(
+        job_id=job_id,
+        new_status=new_status,
+        actor_id=current_user.id,
+        actor_role=current_user.role.value,
+        additional_data={
+            "cancellation_reason": cancel_request.get("reason", ""),
+            "cancelled_by": current_user.id
+        }
+    )
+
+    logger.info(f"Job {job_id} cancelled to {new_status.value} by {current_user.role.value} {current_user.id}")
+
     return updated_job
 
 
