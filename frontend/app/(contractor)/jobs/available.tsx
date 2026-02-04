@@ -176,7 +176,7 @@ export default function AvailableJobs() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.jobCard}
-            onPress={() => router.push(`/(contractor)/jobs/${item.id}` as any)}
+            onPress={() => router.push(`/(contractor)/jobs/available/${item.id}` as any)}
           >
             <View style={styles.jobHeader}>
               <View style={styles.categoryBadge}>
@@ -223,7 +223,7 @@ export default function AvailableJobs() {
               </View>
               <TouchableOpacity
                 style={styles.viewJobButton}
-                onPress={() => router.push(`/(contractor)/jobs/${item.id}` as any)}
+                onPress={() => router.push(`/(contractor)/jobs/available/${item.id}` as any)}
               >
                 <Text style={styles.viewJobText}>
                   {item.itemType === 'quote' ? 'Submit Bid' : 'Accept Job'}
