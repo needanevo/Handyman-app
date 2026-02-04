@@ -12,16 +12,45 @@ import uuid
 
 
 class JobStatus(str, Enum):
-    """Job lifecycle states"""
+    """Simplified job lifecycle states"""
     DRAFT = "draft"
-    PUBLISHED = "published"  # Visible in feed, accepting proposals
-    PROPOSAL_SELECTED = "proposal_selected"  # Customer chose a proposal
-    SCHEDULED = "scheduled"
+    POSTED = "posted"  # Visible in feed, accepting proposals
+    ACCEPTED = "accepted"  # Provider assigned, work scheduled
     IN_PROGRESS = "in_progress"
-    COMPLETED_PENDING_REVIEW = "completed_pending_review"
-    COMPLETED = "completed"
-    CANCELLED_BY_CUSTOMER = "cancelled_by_customer"
-    CANCELLED_BY_CONTRACTOR = "cancelled_by_contractor"
+    IN_REVIEW = "in_review"  # Work completed, awaiting review
+    COMPLETED = "completed"  # Reviewed and approved
+    PAID = "paid"  # Payout processed
+
+    # Cancellation states
+    CANCELLED_BEFORE_ACCEPT = "cancelled_before_accept"
+    CANCELLED_AFTER_ACCEPT = "cancelled_after_accept"
+    CANCELLED_IN_PROGRESS = "cancelled_in_progress"
+
+    @classmethod
+    def from_string(cls, status_str: str) -> "JobStatus":
+        """Backward compatibility: map old status strings to new enum values"""
+        mapping = {
+            "published": cls.POSTED,
+            "proposal_selected": cls.POSTED,  # Falls back to posted for feed visibility
+            "scheduled": cls.ACCEPTED,
+            "in_progress": cls.IN_PROGRESS,
+            "completed_pending_review": cls.IN_REVIEW,
+            "completed": cls.COMPLETED,
+            "cancelled_by_customer": cls.CANCELLED_AFTER_ACCEPT,
+            "cancelled_by_contractor": cls.CANCELLED_AFTER_ACCEPT,
+        }
+        return mapping.get(status_str, cls(status_str))
+
+
+def serialize_mongo_doc(doc: dict) -> dict:
+    """Strip _id field and convert ObjectId/strings for Pydantic compatibility"""
+    if doc is None:
+        return None
+    result = {k: v for k, v in doc.items() if k != "_id"}
+    # Ensure status is a string (not ObjectId or enum)
+    if "status" in result:
+        result["status"] = str(result["status"])
+    return result
 
 
 class ContractorTypePreference(str, Enum):
