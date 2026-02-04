@@ -931,16 +931,16 @@ async def request_quote(
                 "street": address.street,
                 "city": address.city,
                 "state": address.state,
-                "zip_code": address.zip_code,
-                "latitude": address.latitude,
-                "longitude": address.longitude,
+                "zip": address.zip_code,
+                "lat": address.latitude,
+                "lon": address.longitude,
             },
             "service_category": quote_request.service_category,
             "description": quote_request.description,
             "photos": photo_urls,
             "urgency": quote_request.urgency,
             "budget_max": total_amount,
-            "status": "published",
+            "status": JobStatus.POSTED.value,
             "contractor_id": None,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
@@ -1201,19 +1201,19 @@ async def respond_to_quote(
 
                 if contractor_id:
                     job.assigned_contractor_id = contractor_id
-                    job.status = JobStatus.SCHEDULED
+                    job.status = JobStatus.ACCEPTED
                     logger.info(f"Job {job.id} auto-assigned to contractor {contractor_id}")
                     # TODO: Send email to contractor about new job
                 else:
                     # No contractor found - publish job so contractors can see it
-                    job.status = JobStatus.PUBLISHED
+                    job.status = JobStatus.POSTED
                     logger.info(f"Job {job.id} created, awaiting manual routing - published to feed")
                     # TODO: Send email to admin for manual assignment
 
             except Exception as e:
                 logger.error(f"Contractor routing failed for job {job.id}: {e}")
                 # Publish job so contractors can see it
-                job.status = JobStatus.PUBLISHED
+                job.status = JobStatus.POSTED
                 logger.info(f"Job {job.id} published to feed after routing failure")
 
             # Save job to database
@@ -1756,7 +1756,7 @@ async def get_contractor_dashboard_stats(
             {"contractor_id": None},
             {"contractor_id": {"$exists": False}}
         ],
-        "status": "published"
+        "status": "posted"
     })
 
     # Count accepted jobs (assigned to this contractor, not yet scheduled)
@@ -1955,17 +1955,28 @@ async def get_available_jobs(
     available_jobs = []
     
     # Get all posted jobs (no contractor assigned)
-    pending_jobs_cursor = db.jobs.find({
+    query = {
         "$or": [
             {"assigned_contractor_id": None},
             {"assigned_contractor_id": {"$exists": False}}
         ],
         "status": "posted"
-    })
+    }
+    
+    # Debug: Count jobs matching query before iterating
+    jobs_count = await db.jobs.count_documents(query)
+    logger.info(f"[AVAILABLE_JOBS DEBUG] Query matched {jobs_count} jobs with status='posted'")
+    
+    pending_jobs_cursor = db.jobs.find(query)
     
     async for job_doc in pending_jobs_cursor:
+        job_id = job_doc.get('id', 'unknown')[:12]
+        logger.info(f"[AVAILABLE_JOBS DEBUG] Processing job {job_id}")
+        
         # Use embedded address when available, fall back to customer lookup
         job_address = job_doc.get("address")
+        logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} has address: {bool(job_address)}")
+        
         if not job_address:
             customer = await db.users.find_one({"id": job_doc["customer_id"]})
             if not customer or not customer.get("addresses"):
@@ -1981,20 +1992,25 @@ async def get_available_jobs(
         # Calculate distance
         job_location = (job_address["lat"], job_address["lon"])
         distance = geodesic(contractor_location, job_location).miles
+        logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} at distance {distance:.1f} miles (max={max_distance})\n")
 
         # Only include jobs within specified distance
-        if distance <= max_distance:
-            # Check if contractor has matching skill
-            service_category = job_doc.get("service_category", "")
-            
-            # If category filter specified, match it
+        if distance > max_distance:
+            logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} exceeds distance - skipping\n")
+            continue
+        
+        # Check if contractor has matching skill
+        service_category = job_doc.get("service_category", "")
+        logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} category={service_category}\n")
+        
+        # If category filter specified, match it
             if category and service_category.lower() != category.lower():
                 continue
             
-            # Check skills - if contractor has skills defined, job must match one
+            # Check skills - if contractor has defined skills, job must match one
             contractor_skills = current_user.skills or []
             if contractor_skills and service_category not in contractor_skills:
-                logger.debug(f"[AVAILABLE_JOBS] Skipping job {job_doc.get('id')} - category '{service_category}' not in skills")
+                logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} skills mismatch - contractor has {contractor_skills}\n")
                 continue
             
             # All checks passed - include job
@@ -4619,7 +4635,7 @@ async def accept_proposal(
         from services.job_lifecycle import JobLifecycleError
         updated_job = await job_lifecycle.apply_transition(
             job=job,
-            new_status=JobStatus.PROPOSAL_SELECTED,
+            new_status=JobStatus.ACCEPTED,
             actor_id=current_user.id,
             actor_role=current_user.role.value,
             additional_data={

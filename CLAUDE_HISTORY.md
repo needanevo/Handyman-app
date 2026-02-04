@@ -2420,3 +2420,26 @@ Commit: `f5b0799` on `dev`
 
 Git housekeeping also performed: merged dev→main, deleted 6 stale local branches. Remote branch deletion blocked by GitHub repository rules (needs admin UI deletion).
 
+[2026-02-04 17:15] Fix — Jobs invisible to contractors/handymen (3 blockers)
+
+**Summary:**
+Fixed three root-cause blockers preventing contractors and handymen from seeing any jobs in their feeds. (1) Status mismatch: `request_quote()` wrote `"published"` but feeds queried for `"posted"` — changed to `JobStatus.POSTED.value`. (2) Address field names: wrote `latitude/longitude/zip_code` but feeds expected `lat/lon/zip` — renamed fields. (3) `job_lifecycle.py` `update_one()` was missing the `{"$set": ...}` wrapper required by Motor — added it. Also fixed 6 stale enum references (`SCHEDULED`, `PUBLISHED`, `PROPOSAL_SELECTED`) across `server.py` and `proposal_service.py` that would crash at runtime.
+
+**Files changed:**
+- `backend/server.py` — Fixed address field names in `request_quote()` (zip_code→zip, latitude→lat, longitude→lon), status from `"published"` to `JobStatus.POSTED.value`, 4 stale enum references (SCHEDULED→ACCEPTED, PUBLISHED→POSTED ×2, PROPOSAL_SELECTED→ACCEPTED), dashboard stats query `"published"`→`"posted"`.
+- `backend/services/job_lifecycle.py` — Wrapped `update_data` in `{"$set": update_data}` for Motor `update_one()`.
+- `backend/services/proposal_service.py` — Changed `JobStatus.PUBLISHED` to `JobStatus.POSTED.value` in proposal validation.
+
+**DB migration needed (run on server after deploy):**
+```javascript
+db.jobs.updateMany({status: "published"}, {$set: {status: "posted"}});
+db.jobs.find({"address.latitude": {$exists: true}}).forEach(function(job) {
+  db.jobs.updateOne({id: job.id}, {
+    $set: {"address.lat": job.address.latitude, "address.lon": job.address.longitude, "address.zip": job.address.zip_code || ""},
+    $unset: {"address.latitude": "", "address.longitude": "", "address.zip_code": ""}
+  });
+});
+```
+
+Commit: `3a5c7da` on `fix/job-detail-routes-ts-clean`
+

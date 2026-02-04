@@ -181,7 +181,7 @@ class JobLifecycleService:
         # Update job in database
         await self.db.jobs.update_one(
             {"id": job_id},
-            update_data
+            {"$set": update_data}
         )
 
         # Fetch and return updated job
