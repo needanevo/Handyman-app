@@ -1927,7 +1927,7 @@ async def get_available_jobs(
     
     # Only contractors can access this endpoint
     if current_user.role != UserRole.CONTRACTOR:
-        raise HTTPException(403, detail="Only contractors can access available jobs")
+        raise HTTPException(403, detail="Only contractors can access available jobs. Handymen should use /handyman/jobs/feed")
 
     # Get contractor's business address
     if not current_user.addresses:
@@ -1954,13 +1954,13 @@ async def get_available_jobs(
 
     available_jobs = []
     
-    # Get all published jobs (no contractor assigned)
+    # Get all posted jobs (no contractor assigned)
     pending_jobs_cursor = db.jobs.find({
         "$or": [
             {"assigned_contractor_id": None},
             {"assigned_contractor_id": {"$exists": False}}
         ],
-        "status": "published"
+        "status": "posted"
     })
     
     async for job_doc in pending_jobs_cursor:
@@ -1975,11 +1975,11 @@ async def get_available_jobs(
                 None
             )
 
-        if not job_address or not job_address.get("latitude") or not job_address.get("longitude"):
+        if not job_address or not job_address.get("lat") or not job_address.get("lon"):
             continue
 
         # Calculate distance
-        job_location = (job_address["latitude"], job_address["longitude"])
+        job_location = (job_address["lat"], job_address["lon"])
         distance = geodesic(contractor_location, job_location).miles
 
         # Only include jobs within specified distance
@@ -2004,8 +2004,8 @@ async def get_available_jobs(
                 "city": job_address.get("city", ""),
                 "state": job_address.get("state", ""),
                 "zipCode": job_address.get("zip_code", ""),
-                "latitude": job_address.get("latitude"),
-                "longitude": job_address.get("longitude"),
+                "latitude": job_address.get("lat"),
+                "longitude": job_address.get("lon"),
             }
             job_doc["item_type"] = "job"
             job_doc["title"] = job_doc.get("title") or job_doc.get("description", "Untitled Job")
