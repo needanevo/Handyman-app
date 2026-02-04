@@ -2004,32 +2004,32 @@ async def get_available_jobs(
         logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} category={service_category}\n")
         
         # If category filter specified, match it
-            if category and service_category.lower() != category.lower():
-                continue
-            
-            # Check skills - if contractor has defined skills, job must match one
-            contractor_skills = current_user.skills or []
-            if contractor_skills and service_category not in contractor_skills:
-                logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} skills mismatch - contractor has {contractor_skills}\n")
-                continue
-            
-            # All checks passed - include job
-            job_doc["distance_miles"] = round(distance, 2)
-            job_doc["distance"] = round(distance, 2)  # Frontend expects 'distance'
-            job_doc["location"] = {  # Frontend expects 'location'
-                "city": job_address.get("city", ""),
-                "state": job_address.get("state", ""),
-                "zipCode": job_address.get("zip_code", ""),
-                "latitude": job_address.get("lat"),
-                "longitude": job_address.get("lon"),
-            }
-            job_doc["item_type"] = "job"
-            job_doc["title"] = job_doc.get("title") or job_doc.get("description", "Untitled Job")
-            job_doc["price"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
-            job_doc["total_amount"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
-            job_doc["category"] = job_doc.get("service_category", "")  # Frontend expects 'category'
-            available_jobs.append(job_doc)
-            logger.info(f"[AVAILABLE_JOBS] Found job {job_doc.get('id')} - {service_category} at {distance:.1f} miles")
+        if category and service_category.lower() != category.lower():
+            continue
+
+        # Check skills - if contractor has defined skills, job must match one
+        contractor_skills = current_user.skills or []
+        if contractor_skills and service_category not in contractor_skills:
+            logger.info(f"[AVAILABLE_JOBS DEBUG] Job {job_id} skills mismatch - contractor has {contractor_skills}\n")
+            continue
+
+        # All checks passed - include job
+        job_doc["distance_miles"] = round(distance, 2)
+        job_doc["distance"] = round(distance, 2)  # Frontend expects 'distance'
+        job_doc["location"] = {  # Frontend expects 'location'
+            "city": job_address.get("city", ""),
+            "state": job_address.get("state", ""),
+            "zipCode": job_address.get("zip_code", ""),
+            "latitude": job_address.get("lat"),
+            "longitude": job_address.get("lon"),
+        }
+        job_doc["item_type"] = "job"
+        job_doc["title"] = job_doc.get("title") or job_doc.get("description", "Untitled Job")
+        job_doc["price"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
+        job_doc["total_amount"] = job_doc.get("agreed_amount") or job_doc.get("budget_max", 0)
+        job_doc["category"] = job_doc.get("service_category", "")  # Frontend expects 'category'
+        available_jobs.append(job_doc)
+        logger.info(f"[AVAILABLE_JOBS] Found job {job_doc.get('id')} - {service_category} at {distance:.1f} miles")
     
     # ALSO FETCH QUOTES (open for bids from customers)
     try:
