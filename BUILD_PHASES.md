@@ -294,6 +294,36 @@ Make sure you ask me about Contractors with employees and the heirarchy for phot
 3. Implement customer status timeline view.
 4. Implement completion flow and warranty trigger stub.
 
+### Admin System (Phase 7 Addendum)
+
+**Objective:** Stand up a minimal admin portal so the platform owner can manage users, oversee jobs, and intervene when needed. Admin is a prerequisite for manual job routing, dispute resolution, and user management.
+
+**Completion Criteria:**
+- Admin account creation via seed script or CLI (no public registration).
+- Admin login screen at `/admin/login` with role gate (`role === 'admin'`).
+- `(admin)/_layout.tsx` enforces admin role — redirects all non-admins.
+- Admin dashboard MVP with:
+  - **User management:** search/view users, change roles, disable accounts.
+  - **Job oversight:** view all jobs by status, reassign contractor, cancel/flag jobs.
+  - **Quote moderation:** view flagged quotes, manual pricing override.
+  - **System stats:** user counts by role, job counts by status, basic revenue metrics.
+
+**Guardrails:**
+- Do NOT build full audit logging yet (Phase 10).
+- Do NOT build automated compliance/verification workflows (Phase 10).
+- Do NOT build admin-to-user messaging (Phase 9).
+- Admin is read-heavy at first — only essential write actions (role change, job reassign, disable account).
+
+**Tasks:**
+5. Create admin seed script (`backend/scripts/create_admin.py`) — promotes existing user or creates new admin user.
+6. Implement `/admin/login` screen with admin role check.
+7. Fix `(admin)/_layout.tsx` to enforce admin role guard with redirect.
+8. Fix `(admin)/jobs/index.tsx` crash (missing default export).
+9. Build admin dashboard home screen with stat cards (user counts, job counts, revenue).
+10. Build admin user management screen (list, search, role change, disable).
+11. Build admin job management screen (list all jobs, filter by status, reassign contractor).
+12. Add backend admin endpoints: `GET /admin/users`, `PATCH /admin/users/:id/role`, `GET /admin/jobs`, `PATCH /admin/jobs/:id/reassign`.
+
 ---
 
 # PHASE 8 — Business Suite
