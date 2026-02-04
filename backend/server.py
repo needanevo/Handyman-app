@@ -1762,7 +1762,7 @@ async def get_contractor_dashboard_stats(
     # Count accepted jobs (assigned to this contractor, not yet scheduled)
     accepted_jobs_count = await db.jobs.count_documents({
         "contractor_id": current_user.id,
-        "status": {"$in": ["pending", "accepted"]}
+        "status": {"$in": ["posted", "accepted"]}
     })
 
     # Count scheduled jobs (assigned to this contractor with scheduled date)

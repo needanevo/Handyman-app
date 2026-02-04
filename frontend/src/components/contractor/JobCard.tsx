@@ -47,14 +47,13 @@ export function JobCard({ job, showPhotoBadge = true }: JobCardProps) {
 
   const getStatusColor = () => {
     switch (job.status) {
-      case 'AVAILABLE':
+      case 'posted':
         return colors.neutral[100];
-      case 'ACCEPTED':
+      case 'accepted':
         return colors.warning.lightest;
-      case 'SCHEDULED':
-      case 'IN_PROGRESS':
+      case 'in_progress':
         return colors.primary.lightest;
-      case 'COMPLETED':
+      case 'completed':
         return colors.success.lightest;
       default:
         return colors.background.primary;

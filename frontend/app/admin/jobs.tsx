@@ -28,7 +28,7 @@ interface Job {
   contractor_name?: string;
 }
 
-type FilterStatus = 'ALL' | 'REQUESTED' | 'ACCEPTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+type FilterStatus = 'all' | 'posted' | 'accepted' | 'in_progress' | 'completed' | 'cancelled_before_accept' | 'cancelled_after_accept' | 'cancelled_in_progress';
 
 export default function AdminJobsScreen() {
   const router = useRouter();
@@ -36,7 +36,7 @@ export default function AdminJobsScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
 
   useEffect(() => {
     fetchJobs();
@@ -61,7 +61,7 @@ export default function AdminJobsScreen() {
     let filtered = jobs;
 
     // Filter by status
-    if (filterStatus !== 'ALL') {
+    if (filterStatus !== 'all') {
       filtered = filtered.filter((job) => job.status.toUpperCase() === filterStatus);
     }
 
@@ -158,42 +158,42 @@ export default function AdminJobsScreen() {
         {/* Status Filters */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersContainer}>
           <TouchableOpacity
-            style={[styles.filterChip, filterStatus === 'ALL' && styles.filterChipActive]}
-            onPress={() => setFilterStatus('ALL')}
+            style={[styles.filterChip, filterStatus === 'all' && styles.filterChipActive]}
+            onPress={() => setFilterStatus('all')}
           >
-            <Text style={[styles.filterChipText, filterStatus === 'ALL' && styles.filterChipTextActive]}>
+            <Text style={[styles.filterChipText, filterStatus === 'all' && styles.filterChipTextActive]}>
               All ({jobs.length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.filterChip, filterStatus === 'REQUESTED' && styles.filterChipActive]}
-            onPress={() => setFilterStatus('REQUESTED')}
+            style={[styles.filterChip, filterStatus === 'posted' && styles.filterChipActive]}
+            onPress={() => setFilterStatus('posted')}
           >
-            <Text style={[styles.filterChipText, filterStatus === 'REQUESTED' && styles.filterChipTextActive]}>
-              Requested ({jobs.filter((j) => j.status.toLowerCase() === 'requested').length})
+            <Text style={[styles.filterChipText, filterStatus === 'posted' && styles.filterChipTextActive]}>
+              Requested ({jobs.filter((j) => j.status.toLowerCase() === 'posted').length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.filterChip, filterStatus === 'ACCEPTED' && styles.filterChipActive]}
-            onPress={() => setFilterStatus('ACCEPTED')}
+            style={[styles.filterChip, filterStatus === 'accepted' && styles.filterChipActive]}
+            onPress={() => setFilterStatus('accepted')}
           >
-            <Text style={[styles.filterChipText, filterStatus === 'ACCEPTED' && styles.filterChipTextActive]}>
+            <Text style={[styles.filterChipText, filterStatus === 'accepted' && styles.filterChipTextActive]}>
               Accepted ({jobs.filter((j) => j.status.toLowerCase() === 'accepted').length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.filterChip, filterStatus === 'IN_PROGRESS' && styles.filterChipActive]}
-            onPress={() => setFilterStatus('IN_PROGRESS')}
+            style={[styles.filterChip, filterStatus === 'in_progress' && styles.filterChipActive]}
+            onPress={() => setFilterStatus('in_progress')}
           >
-            <Text style={[styles.filterChipText, filterStatus === 'IN_PROGRESS' && styles.filterChipTextActive]}>
+            <Text style={[styles.filterChipText, filterStatus === 'in_progress' && styles.filterChipTextActive]}>
               In Progress ({jobs.filter((j) => j.status.toLowerCase() === 'in_progress').length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.filterChip, filterStatus === 'COMPLETED' && styles.filterChipActive]}
-            onPress={() => setFilterStatus('COMPLETED')}
+            style={[styles.filterChip, filterStatus === 'completed' && styles.filterChipActive]}
+            onPress={() => setFilterStatus('completed')}
           >
-            <Text style={[styles.filterChipText, filterStatus === 'COMPLETED' && styles.filterChipTextActive]}>
+            <Text style={[styles.filterChipText, filterStatus === 'completed' && styles.filterChipTextActive]}>
               Completed ({jobs.filter((j) => j.status.toLowerCase() === 'completed').length})
             </Text>
           </TouchableOpacity>

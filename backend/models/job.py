@@ -117,7 +117,7 @@ class JobCreateRequest(BaseModel):
     urgency: str = "low"
     preferred_timing: Optional[str] = None
     contractor_type_preference: Optional[ContractorTypePreference] = None
-    status: JobStatus = JobStatus.DRAFT  # Can be DRAFT or PUBLISHED
+    status: JobStatus = JobStatus.DRAFT  # Can be DRAFT or POSTED
 
 
 class JobStatusUpdate(BaseModel):
