@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { colors, spacing, typography, borderRadius } from '../constants/theme';
 
 interface TrustBannerProps {
-  providerStatus: 'draft' | 'submitted' | 'active';
+  providerStatus: 'draft' | 'submitted' | 'active' | 'sandbox' | 'restricted';
   providerCompleteness: number;
   role: 'handyman' | 'contractor';
 }
@@ -17,8 +17,8 @@ export function TrustBanner({
 }: TrustBannerProps) {
   const router = useRouter();
 
-  // Don't show banner if provider is active
-  if (providerStatus === 'active') {
+  // Don't show banner if provider is active or sandbox (can accept jobs)
+  if (providerStatus === 'active' || providerStatus === 'sandbox') {
     return null;
   }
 
@@ -45,9 +45,11 @@ export function TrustBanner({
           backgroundColor: colors.primary.lightest,
           borderColor: colors.primary.main,
           title: 'Verification Pending',
-          message: 'Your profile is under review. You\'ll be notified when verification is complete.',
-          actionText: null,
-          actionRoute: null,
+          message: 'Your profile is under review. Complete all required fields to be activated.',
+          actionText: 'Complete Profile',
+          actionRoute: role === 'handyman'
+            ? '/auth/handyman/register-step2'
+            : '/auth/contractor/register-step2',
         };
 
       case 'restricted':

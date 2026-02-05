@@ -515,31 +515,141 @@ async def complete_onboarding(
 
     Call this when user confirms final step (step 5).
     Sets onboarding_completed=True and onboarding_step=None.
+    
+    If all required fields are populated (including banking info), 
+    automatically sets provider_status to "active".
     """
     # Only providers need onboarding tracking
     if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
         raise HTTPException(400, detail="Onboarding completion only applies to providers")
 
-    # Mark onboarding as complete
+    # Check if all required fields are populated
+    required_fields = [
+        current_user.profile_photo,  # Profile photo required
+        current_user.banking_info,  # Banking info required
+        current_user.business_name,  # Business name required
+        current_user.skills and len(current_user.skills) > 0,  # At least one skill
+    ]
+    
+    all_fields_complete = all(required_fields)
+    
+    # Set status based on completeness
+    new_status = "active" if all_fields_complete else "submitted"
+    
+    # Update user
     await db.users.update_one(
         {"id": current_user.id},
         {
             "$set": {
                 "onboarding_completed": True,
                 "onboarding_step": None,  # Clear step since onboarding is done
-                "provider_status": "submitted",  # Auto-advance to submitted status
+                "provider_status": new_status,
+                "provider_completeness": 100 if all_fields_complete else 80,
                 "updated_at": datetime.utcnow()
             }
         }
     )
 
-    logger.info(f"User {current_user.id} ({current_user.role}) completed full onboarding")
+    logger.info(f"User {current_user.id} ({current_user.role}) completed full onboarding - status: {new_status}")
 
-    return {
-        "success": True,
-        "message": "Onboarding complete! Welcome to The Real Johnson.",
-        "provider_status": "submitted"
+    if all_fields_complete:
+        return {
+            "success": True,
+            "message": "Onboarding complete! Your provider account is now active. You can accept jobs.",
+            "provider_status": "active"
+        }
+    else:
+        return {
+            "success": True,
+            "message": "Onboarding complete! Your application is under review. Please ensure all required fields are complete to activate your account.",
+            "provider_status": "submitted",
+            "missing_requirements": [
+                "profile_photo" if not current_user.profile_photo else None,
+                "banking_info" if not current_user.banking_info else None,
+                "business_name" if not current_user.business_name else None,
+                "skills" if not current_user.skills or len(current_user.skills) == 0 else None,
+            ]
+        }
+
+
+@api_router.get("/auth/onboarding/status")
+async def get_onboarding_status(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Get current onboarding status and progress.
+    Returns which required fields are complete.
+    """
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
+        raise HTTPException(400, detail="Onboarding status only applies to providers")
+    
+    # Check required fields
+    required_fields = {
+        "profile_photo": bool(current_user.profile_photo),
+        "banking_info": bool(current_user.banking_info),
+        "business_name": bool(current_user.business_name),
+        "skills": bool(current_user.skills) and len(current_user.skills) > 0,
     }
+    
+    complete_count = sum(1 for v in required_fields.values() if v)
+    completeness = int((complete_count / len(required_fields)) * 100)
+    
+    return {
+        "onboarding_completed": current_user.onboarding_completed,
+        "onboarding_step": current_user.onboarding_step,
+        "provider_status": current_user.provider_status,
+        "provider_completeness": completeness,
+        "required_fields": required_fields,
+        "is_active": current_user.provider_status == "active",
+        "can_accept_jobs": current_user.provider_status in ["active", "sandbox"],
+    }
+
+
+@api_router.post("/auth/onboarding/verify")
+async def verify_and_activate(
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Check if provider has all required fields and activate if complete.
+    """
+    if current_user.role not in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
+        raise HTTPException(400, detail="This endpoint only applies to providers")
+    
+    # Check required fields
+    required_fields = {
+        "profile_photo": bool(current_user.profile_photo),
+        "banking_info": bool(current_user.banking_info),
+        "business_name": bool(current_user.business_name),
+        "skills": bool(current_user.skills) and len(current_user.skills) > 0,
+    }
+    
+    all_complete = all(required_fields.values())
+    
+    if all_complete:
+        # Activate the provider
+        await db.users.update_one(
+            {"id": current_user.id},
+            {
+                "$set": {
+                    "provider_status": "active",
+                    "provider_completeness": 100,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        return {
+            "success": True,
+            "message": "Provider activated! You can now accept jobs.",
+            "provider_status": "active"
+        }
+    else:
+        missing = [k for k, v in required_fields.items() if not v]
+        return {
+            "success": False,
+            "message": f"Missing {len(missing)} required field(s)",
+            "provider_status": current_user.provider_status,
+            "missing_fields": missing
+        }
 
 
 @api_router.post("/customers/verify-location")
@@ -1690,8 +1800,8 @@ async def accept_job_at_quote_price(
     if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
         raise HTTPException(403, detail="Only contractors/handymen can accept jobs")
 
-    # Check provider_status
-    if current_user.provider_status != "active":
+    # Check provider_status (allow sandbox for testing)
+    if current_user.provider_status not in ["active", "sandbox"]:
         raise HTTPException(
             403,
             detail={
@@ -4727,8 +4837,8 @@ async def submit_custom_bid(
     if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
         raise HTTPException(403, detail="Only contractors/handymen can submit bids")
 
-    # Check provider_status
-    if current_user.provider_status != "active":
+    # Check provider_status (allow sandbox for testing)
+    if current_user.provider_status not in ["active", "sandbox"]:
         raise HTTPException(
             403,
             detail={
