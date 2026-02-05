@@ -1852,7 +1852,7 @@ async def accept_job_at_quote_price(
 
     return {
         "message": "Job accepted at AI-quoted price",
-        "job": updated_job.model_dump(),
+        "job": updated_job,
         "agreed_amount": budget_max
     }
 
