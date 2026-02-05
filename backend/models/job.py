@@ -12,11 +12,12 @@ import uuid
 
 
 class JobStatus(str, Enum):
-    """Simplified job lifecycle states"""
-    DRAFT = "draft"
+    """Job lifecycle states"""
+    DRAFT = "draft"  # Initial state, not visible
     POSTED = "posted"  # Visible in feed, accepting proposals
-    ACCEPTED = "accepted"  # Provider assigned, work scheduled
-    IN_PROGRESS = "in_progress"
+    ACCEPTED = "accepted"  # Provider claimed the job, awaiting scheduling
+    SCHEDULED = "scheduled"  # Work date/time set
+    IN_PROGRESS = "in_progress"  # Provider on site, working
     IN_REVIEW = "in_review"  # Work completed, awaiting review
     COMPLETED = "completed"  # Reviewed and approved
     PAID = "paid"  # Payout processed

@@ -3233,7 +3233,7 @@ async def get_scheduled_contractor_jobs(
 
     jobs = await db.jobs.find({
         "assigned_provider_id": current_user.id,
-        "status": "scheduled"
+        "status": {"$in": ["scheduled", "accepted"]}
     }).sort("scheduled_date", 1).to_list(100)
 
     for job in jobs:
@@ -4701,6 +4701,66 @@ async def get_job_history(
     return [job.model_dump() for job in jobs]
 
 
+@api_router.post("/jobs/{job_id}/schedule")
+async def schedule_job(
+    job_id: str,
+    schedule_data: dict,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Schedule a job (transition from accepted to scheduled).
+    
+    Provider sets the scheduled_date/time for the job.
+    """
+    # Only contractors/handymen can schedule jobs
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only providers can schedule jobs")
+    
+    # Check provider_status
+    if current_user.provider_status not in ["active", "sandbox"]:
+        raise HTTPException(403, detail="Provider not active")
+    
+    # Fetch job
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+    
+    # Check if user is assigned
+    from services.job_lifecycle import get_assigned_provider_id
+    assigned = get_assigned_provider_id(job)
+    if assigned != current_user.id:
+        raise HTTPException(403, detail="Not assigned to you")
+    
+    # Check current status
+    current_status = job.get("status")
+    if current_status not in ["accepted"]:
+        raise HTTPException(400, detail=f"Cannot schedule job. Current status: {current_status}")
+    
+    # Get scheduled_date from request
+    scheduled_date = schedule_data.get("scheduled_date")
+    if not scheduled_date:
+        raise HTTPException(400, detail="scheduled_date is required")
+    
+    # Apply transition
+    from services.job_lifecycle import job_lifecycle, JobLifecycleError
+    try:
+        updated_job = await job_lifecycle.apply_transition(
+            job_id=job_id,
+            new_status=JobStatus.SCHEDULED,
+            actor_id=current_user.id,
+            actor_role=current_user.role.value,
+            additional_data={"scheduled_date": scheduled_date}
+        )
+        
+        return {
+            "message": "Job scheduled successfully",
+            "job": updated_job,
+            "scheduled_date": scheduled_date
+        }
+    except JobLifecycleError as e:
+        raise HTTPException(400, detail=str(e))
+
+
 @api_router.patch("/jobs/{job_id}/status")
 async def update_job_status(
     job_id: str,
@@ -4726,7 +4786,8 @@ async def update_job_status(
         if job.customer_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not your job")
     elif current_user.role in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
-        if job.assigned_contractor_id != current_user.id:
+        from services.job_lifecycle import get_assigned_provider_id
+        if get_assigned_provider_id(job) != current_user.id:
             raise HTTPException(status_code=403, detail="Not assigned to you")
 
     # Prepare additional data

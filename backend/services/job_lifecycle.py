@@ -76,7 +76,8 @@ class JobLifecycleService:
     TRANSITIONS = {
         JobStatus.DRAFT: [JobStatus.POSTED, JobStatus.CANCELLED_BEFORE_ACCEPT],
         JobStatus.POSTED: [JobStatus.ACCEPTED, JobStatus.CANCELLED_BEFORE_ACCEPT],
-        JobStatus.ACCEPTED: [JobStatus.IN_PROGRESS, JobStatus.CANCELLED_AFTER_ACCEPT],
+        JobStatus.ACCEPTED: [JobStatus.SCHEDULED, JobStatus.IN_PROGRESS, JobStatus.CANCELLED_AFTER_ACCEPT],
+        JobStatus.SCHEDULED: [JobStatus.IN_PROGRESS, JobStatus.CANCELLED_AFTER_ACCEPT],
         JobStatus.IN_PROGRESS: [JobStatus.COMPLETED, JobStatus.CANCELLED_IN_PROGRESS],
         JobStatus.COMPLETED: [JobStatus.IN_REVIEW],
         JobStatus.IN_REVIEW: [JobStatus.PAID],
@@ -148,6 +149,11 @@ class JobLifecycleService:
             update_data["assigned_contractor_id"] = provider_id  # Legacy
             update_data["contractor_id"] = provider_id  # Legacy
             update_data["accepted_at"] = datetime.utcnow().isoformat()
+
+        elif new_status == JobStatus.SCHEDULED:
+            # Job scheduled for a specific date
+            update_data["scheduled_date"] = additional_data.get("scheduled_date") if additional_data else None
+            update_data["scheduled_at"] = datetime.utcnow().isoformat()
 
         elif new_status == JobStatus.IN_PROGRESS:
             # Provider marked "On the job"
