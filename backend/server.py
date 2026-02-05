@@ -1398,6 +1398,80 @@ async def reject_quote(
     return await respond_to_quote(quote_id, quote_response, current_user)
 
 
+# ==================== PROVIDER INFO ENDPOINT ====================
+
+class ProviderInfoResponse(BaseModel):
+    """Provider info for customer to see assigned contractor/handyman"""
+    id: str
+    name: str  # First + last name or business name
+    business_name: Optional[str] = None
+    role: str  # "handyman" or "contractor"
+    profile_photo: Optional[str] = None
+    phone: str
+    rating: Optional[float] = None
+    completed_jobs: Optional[int] = 0
+
+
+@api_router.get("/providers/{provider_id}", response_model=ProviderInfoResponse)
+async def get_provider_info(
+    provider_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Get provider (contractor/handyman) details.
+    
+    Customers can view info about their assigned provider including:
+    - Name and business name
+    - Profile photo
+    - Phone number (for contact)
+    - Rating and completed jobs count
+    """
+    # Only customers can access this endpoint
+    if current_user.role != UserRole.CUSTOMER:
+        raise HTTPException(403, detail="Only customers can view provider details")
+    
+    # Fetch provider from database
+    provider = await db.users.find_one({"id": provider_id})
+    if not provider:
+        raise HTTPException(404, detail="Provider not found")
+    
+    # Only allow viewing providers (not regular users)
+    if provider.get("role") not in [UserRole.HANDYMAN, UserRole.CONTRACTOR, "handyman", "contractor"]:
+        raise HTTPException(400, detail="Invalid provider ID")
+    
+    # Build name from first/last or use business name
+    first_name = provider.get("first_name", "")
+    last_name = provider.get("last_name", "")
+    business_name = provider.get("business_name")
+    
+    if business_name:
+        name = business_name
+    elif first_name or last_name:
+        name = f"{first_name} {last_name}".strip()
+    else:
+        name = "Provider"
+    
+    # Determine role label
+    role = provider.get("role")
+    if isinstance(role, str):
+        role_label = role.lower()
+    elif hasattr(role, 'value'):
+        role_label = role.value
+    else:
+        role_label = "handyman"
+    
+    return ProviderInfoResponse(
+        id=provider["id"],
+        name=name,
+        business_name=business_name,
+        role=role_label,
+        profile_photo=provider.get("profile_photo"),
+        phone=provider.get("phone", ""),
+        rating=provider.get("rating"),
+        completed_jobs=provider.get("completed_jobs", 0)
+    )
+
+
 @api_router.delete("/quotes/{quote_id}")
 async def delete_quote(
     quote_id: str,

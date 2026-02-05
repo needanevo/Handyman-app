@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,44 +8,28 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Linking,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
+import { colors, spacing, typography, borderRadius } from '../../../src/constants/theme';
 import { Button } from '../../../src/components/Button';
 import { Card } from '../../../src/components/Card';
 import { Badge } from '../../../src/components/Badge';
 import { ProgressBar } from '../../../src/components/ProgressBar';
 import { jobsAPI } from '../../../src/services/api';
 
-// Types for job data
-interface JobContractor {
+interface JobProvider {
   id: string;
   name: string;
-  rating: number;
-  completedJobs: number;
-  photo?: string;
-  role: 'handyman' | 'contractor';
-}
-
-interface JobPayment {
-  total: number;
-  upfrontPaid: number;
-  materialsReleased: number;
-  milestone50Released: number;
-  finalRelease: number;
-  escrowBalance: number;
-}
-
-interface Milestone {
-  id: string;
-  name: string;
-  status: 'completed' | 'pending_approval' | 'pending';
-  date?: string;
-  amount: number;
-  evidence?: string[];
-  notes?: string;
+  business_name?: string;
+  role: string;
+  profile_photo?: string;
+  phone: string;
+  rating?: number;
+  completed_jobs?: number;
 }
 
 interface TimelineEvent {
@@ -61,88 +45,57 @@ interface JobData {
   status: string;
   agreed_amount?: number;
   budget_max?: number;
-  assigned_provider?: {
-    id: string;
-    name: string;
-    rating?: number;
-    completed_jobs?: number;
-    photo_url?: string;
-    role?: string;
-  };
+  assigned_provider_id?: string;
   created_at: string;
 }
 
 export default function JobDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [selectedMilestone, setSelectedMilestone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [job, setJob] = useState<JobData | null>(null);
-  
-  // Mock milestones for now - would come from milestones API in future
-  const [milestones] = useState<Milestone[]>([
-    {
-      id: 'm1',
-      name: 'Materials Purchase',
-      status: 'completed',
-      date: '2025-11-03',
-      amount: 96,
-      evidence: [
-        'https://via.placeholder.com/300x200/10B981/FFFFFF?text=Receipt+1',
-        'https://via.placeholder.com/300x200/10B981/FFFFFF?text=Receipt+2',
-      ],
-    },
-    {
-      id: 'm2',
-      name: '50% Job Completion',
-      status: 'pending_approval',
-      date: '2025-11-05',
-      amount: 90,
-      evidence: [
-        'https://via.placeholder.com/300x200/F59E0B/FFFFFF?text=Progress+Photo+1',
-        'https://via.placeholder.com/300x200/F59E0B/FFFFFF?text=Progress+Photo+2',
-      ],
-      notes: 'Drywall patched and taped. Ready for texturing and paint.',
-    },
-    {
-      id: 'm3',
-      name: 'Final Completion',
-      status: 'pending',
-      amount: 114,
-    },
-  ]);
+  const [provider, setProvider] = useState<JobProvider | null>(null);
 
-  // Mock timeline - would come from job history in future
-  const timeline: TimelineEvent[] = [
-    { date: '2025-11-02', event: 'Job accepted by contractor', icon: 'checkmark-circle' },
-    { date: '2025-11-02', event: 'Upfront payment received', icon: 'cash' },
-    { date: '2025-11-03', event: 'Materials receipts uploaded', icon: 'document' },
-    { date: '2025-11-03', event: 'Materials payment released', icon: 'checkmark-circle' },
-    { date: '2025-11-05', event: '50% milestone submitted', icon: 'alert-circle' },
-  ];
-
-  useEffect(() => {
-    fetchJob();
-  }, [params.id]);
-
-  const fetchJob = async () => {
+  const fetchJob = useCallback(async () => {
     try {
       setLoading(true);
       const jobId = Array.isArray(params.id) ? params.id[0] : params.id;
-      const response = await jobsAPI.getJob(jobId);
-      setJob(response.data);
+      
+      const jobResponse = await jobsAPI.getJob(jobId);
+      setJob(jobResponse.data || jobResponse);
+      
+      const providerId = jobResponse.data?.assigned_provider_id || jobResponse.assigned_provider_id;
+      if (providerId) {
+        try {
+          const providerResponse = await jobsAPI.getProvider(providerId);
+          setProvider(providerResponse.data || providerResponse);
+        } catch {
+          setProvider(null);
+        }
+      } else {
+        setProvider(null);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load job');
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
 
-  // Transform API job to display format
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchJob();
+    setRefreshing(false);
+  }, [fetchJob]);
+
+  useEffect(() => {
+    fetchJob();
+  }, [fetchJob]);
+
   const getJobTitle = () => {
     if (!job) return 'Loading...';
-    // Use description as title if no separate title field
     return job.description?.split('.')[0] || 'Job';
   };
 
@@ -156,85 +109,170 @@ export default function JobDetailScreen() {
     return job.agreed_amount || job.budget_max || 0;
   };
 
-  const getContractorInfo = (): JobContractor => {
-    if (!job?.assigned_provider) {
-      return {
-        id: 'unknown',
-        name: 'Mike Johnson',
-        rating: 4.8,
-        completedJobs: 47,
-        photo: 'https://ui-avatars.com/api/?name=Mike+Johnson&background=2563EB&color=fff',
-        role: 'contractor',
-      };
+  const getCompletionPercentage = () => {
+    if (!job) return 0;
+    
+    switch (job.status) {
+      case 'completed':
+      case 'paid':
+        return 100;
+      case 'in_review':
+        return 85;
+      case 'in_progress':
+        return 60;
+      case 'scheduled':
+        return 20;
+      case 'accepted':
+        return 10;
+      case 'posted':
+        return 0;
+      default:
+        return 0;
     }
-    const p = job.assigned_provider;
+  };
+
+  const getCompletionLabel = () => {
+    if (!job) return 'Loading...';
+    const pct = getCompletionPercentage();
+    
+    if (pct === 100) return 'Job completed!';
+    if (pct === 85) return '85% - Awaiting your approval';
+    if (pct === 60) return '60% - Provider is working';
+    if (pct === 20) return '20% - Materials delivered, work starting';
+    if (pct === 10) return '10% - Materials ordered';
+    return '0% - Job created, awaiting provider';
+  };
+
+  const getProviderInfo = (): JobProvider => {
+    if (provider) {
+      return provider;
+    }
     return {
-      id: p.id,
-      name: p.name,
-      rating: p.rating || 0,
-      completedJobs: p.completed_jobs || 0,
-      photo: p.photo_url,
-      role: (p.role as 'handyman' | 'contractor') || 'contractor',
+      id: 'unknown',
+      name: 'Mike Johnson',
+      rating: 4.8,
+      completed_jobs: 47,
+      profile_photo: 'https://ui-avatars.com/api/?name=Mike+Johnson&background=2563EB&color=fff',
+      role: 'contractor',
+      phone: '(555) 123-4567',
     };
   };
 
-  const getPaymentInfo = (): JobPayment => {
+  const getPaymentInfo = () => {
     const total = getTotalAmount();
-    // Mock payment calculation based on total
-    return {
-      total,
-      upfrontPaid: total * 0.4,
-      materialsReleased: total * 0.32,
-      milestone50Released: total * 0.3,
-      finalRelease: total * 0.38,
-      escrowBalance: total * 0.6,
-    };
+    let upfrontPaid = 0;
+    let materialsReleased = 0;
+    let milestone50Released = 0;
+    let finalRelease = 0;
+    let escrowBalance = 0;
+
+    if (job) {
+      switch (job.status) {
+        case 'completed':
+        case 'paid':
+          upfrontPaid = total * 0.4;
+          materialsReleased = total * 0.32;
+          milestone50Released = total * 0.3;
+          finalRelease = total * 0.38;
+          escrowBalance = 0;
+          break;
+        case 'in_review':
+          upfrontPaid = total * 0.4;
+          materialsReleased = total * 0.32;
+          milestone50Released = total * 0.3;
+          finalRelease = 0;
+          escrowBalance = total * 0.38;
+          break;
+        case 'in_progress':
+          upfrontPaid = total * 0.4;
+          materialsReleased = total * 0.32;
+          milestone50Released = 0;
+          finalRelease = 0;
+          escrowBalance = total * 0.68;
+          break;
+        case 'scheduled':
+        case 'accepted':
+          upfrontPaid = total * 0.4;
+          materialsReleased = 0;
+          milestone50Released = 0;
+          finalRelease = 0;
+          escrowBalance = total * 0.6;
+          break;
+        case 'posted':
+        default:
+          upfrontPaid = 0;
+          materialsReleased = 0;
+          milestone50Released = 0;
+          finalRelease = 0;
+          escrowBalance = total;
+          break;
+      }
+    }
+
+    return { total, upfrontPaid, materialsReleased, milestone50Released, finalRelease, escrowBalance };
   };
 
-  const jobContractor = getContractorInfo();
+  const getTimeline = (): TimelineEvent[] => {
+    const events: TimelineEvent[] = [];
+    
+    if (!job) return events;
+    
+    events.push({
+      date: job.created_at ? new Date(job.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
+      event: 'Job created',
+      icon: 'create',
+    });
+    
+    if (['accepted', 'scheduled', 'in_progress', 'in_review', 'completed', 'paid'].includes(job.status)) {
+      events.push({ date: '', event: 'Provider accepted this job', icon: 'checkmark-circle' });
+    }
+    
+    if (['accepted', 'scheduled', 'in_progress', 'in_review', 'completed', 'paid'].includes(job.status)) {
+      events.push({ date: '', event: 'Materials ordered (10%)', icon: 'cart' });
+    }
+    
+    if (['scheduled', 'in_progress', 'in_review', 'completed', 'paid'].includes(job.status)) {
+      events.push({ date: '', event: 'Materials delivered (20%)', icon: 'cube' });
+    }
+    
+    if (['in_progress', 'in_review', 'completed', 'paid'].includes(job.status)) {
+      events.push({ date: '', event: 'Provider started work', icon: 'construct' });
+    }
+    
+    if (['in_progress', 'in_review', 'completed', 'paid'].includes(job.status)) {
+      events.push({ date: '', event: 'Working on your job (60%)', icon: 'build' });
+    }
+    
+    if (['in_review', 'completed', 'paid'].includes(job.status)) {
+      events.push({ date: '', event: 'Work complete - awaiting approval (85%)', icon: 'checkmark-done-circle' });
+    }
+    
+    if (['completed', 'paid'].includes(job.status)) {
+      events.push({ date: '', event: 'Job completed! (100%)', icon: 'trophy' });
+    }
+    
+    return events;
+  };
+
+  const jobProvider = getProviderInfo();
   const jobPayment = getPaymentInfo();
-  const completionPercentage = job?.status === 'completed' ? 100 : 50;
+  const completionPercentage = getCompletionPercentage();
+  const timeline = getTimeline();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'pending_approval':
-        return 'warning';
-      case 'pending':
-        return 'neutral';
-      default:
-        return 'neutral';
+  const handleCallProvider = () => {
+    if (jobProvider.phone) {
+      Linking.openURL(`tel:${jobProvider.phone}`).catch(() => {
+        Alert.alert('Error', 'Could not open phone app');
+      });
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'Completed';
-      case 'pending_approval':
-        return 'Awaiting Your Approval';
-      case 'pending':
-        return 'Not Started';
-      default:
-        return status;
+  const handleMessageProvider = () => {
+    if (jobProvider.phone) {
+      Linking.openURL(`sms:${jobProvider.phone}`).catch(() => {
+        Alert.alert('Error', 'Could not open messaging app');
+      });
     }
-  };
-
-  const handleApproveMilestone = (milestoneId: string) => {
-    Alert.alert(
-      'Payment Approval',
-      'This action will be enabled in a future update. Payment approval functionality is coming soon.',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleRejectMilestone = (milestoneId: string) => {
-    Alert.alert(
-      'Request Changes',
-      'This action will be enabled in a future update. Change request functionality is coming soon.',
-      [{ text: 'OK' }]
-    );
   };
 
   if (loading) {
@@ -262,7 +300,10 @@ export default function JobDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Button
@@ -294,53 +335,74 @@ export default function JobDetailScreen() {
           <ProgressBar
             progress={completionPercentage}
             showPercentage
-            variant="success"
+            variant={completionPercentage === 100 ? "success" : "primary"}
             height={12}
           />
-          <Text style={styles.progressLabel}>
-            {completionPercentage === 100
-              ? 'Job completed!'
-              : `${completionPercentage}% complete`}
-          </Text>
+          <Text style={styles.progressLabel}>{getCompletionLabel()}</Text>
+          
+          {/* Progress milestones */}
+          <View style={styles.milestonesContainer}>
+            <View style={[styles.milestoneDot, completionPercentage >= 0 && styles.milestoneDotActive]} />
+            <View style={[styles.milestoneLine, completionPercentage >= 10 && styles.milestoneLineActive]} />
+            <View style={[styles.milestoneDot, completionPercentage >= 10 && styles.milestoneDotActive]} />
+            <View style={[styles.milestoneLine, completionPercentage >= 20 && styles.milestoneLineActive]} />
+            <View style={[styles.milestoneDot, completionPercentage >= 20 && styles.milestoneDotActive]} />
+            <View style={[styles.milestoneLine, completionPercentage >= 60 && styles.milestoneLineActive]} />
+            <View style={[styles.milestoneDot, completionPercentage >= 60 && styles.milestoneDotActive]} />
+            <View style={[styles.milestoneLine, completionPercentage >= 85 && styles.milestoneLineActive]} />
+            <View style={[styles.milestoneDot, completionPercentage >= 85 && styles.milestoneDotActive]} />
+            <View style={[styles.milestoneLine, completionPercentage >= 100 && styles.milestoneLineActive]} />
+            <View style={[styles.milestoneDot, completionPercentage >= 100 && styles.milestoneDotActive]} />
+          </View>
+          <View style={styles.milestoneLabels}>
+            <Text style={styles.milestoneLabel}>Created</Text>
+            <Text style={styles.milestoneLabel}>Ordered</Text>
+            <Text style={styles.milestoneLabel}>Delivered</Text>
+            <Text style={styles.milestoneLabel}>Working</Text>
+            <Text style={styles.milestoneLabel}>Done</Text>
+          </View>
         </Card>
 
         {/* Contractor Card */}
         <Card variant="outlined" padding="base" style={styles.contractorCard}>
           <View style={styles.contractorContent}>
-            <Image source={{ uri: jobContractor.photo || 'https://ui-avatars.com/api/?name=Contractor&background=2563EB&color=fff' }} style={styles.contractorPhoto} />
+            <Image 
+              source={{ 
+                uri: jobProvider.profile_photo || 'https://ui-avatars.com/api/?name=Contractor&background=2563EB&color=fff' 
+              }} 
+              style={styles.contractorPhoto} 
+            />
             <View style={styles.contractorInfo}>
-              {/* Role Label */}
               <View style={styles.roleLabel}>
                 <Text style={styles.roleLabelText}>
-                  {jobContractor.role === 'handyman' ? 'Your Handyman' : 'Your Contractor'}
+                  {jobProvider.role === 'handyman' ? 'Your Handyman' : 'Your Contractor'}
                 </Text>
-                {jobContractor.role === 'handyman' && (
-                  <TouchableOpacity
-                    onPress={() => router.push('/(customer)/handyman-info')}
-                    style={styles.handymanPill}
-                  >
-                    <Ionicons name="information-circle" size={14} color={colors.warning.main} />
-                    <Text style={styles.handymanPillText}>What's this?</Text>
-                  </TouchableOpacity>
-                )}
               </View>
-
-              <Text style={styles.contractorName}>{jobContractor.name}</Text>
+              <Text style={styles.contractorName}>{jobProvider.name}</Text>
               <View style={styles.contractorMeta}>
-                <Ionicons name="star" size={16} color={colors.warning.main} />
-                <Text style={styles.contractorRating}>{jobContractor.rating.toFixed(1)}</Text>
-                <Text style={styles.contractorJobs}>
-                  • {jobContractor.completedJobs} jobs
-                </Text>
+                {jobProvider.rating ? (
+                  <>
+                    <Ionicons name="star" size={16} color={colors.warning.main} />
+                    <Text style={styles.contractorRating}>{jobProvider.rating.toFixed(1)}</Text>
+                  </>
+                ) : null}
+                {jobProvider.completed_jobs ? (
+                  <Text style={styles.contractorJobs}>• {jobProvider.completed_jobs} jobs</Text>
+                ) : null}
               </View>
             </View>
-            <Button
-              title=""
-              onPress={() => router.push(`/(customer)/chat/${params.id}`)}
-              variant="outline"
-              size="small"
-              icon={<Ionicons name="chatbubble" size={20} color={colors.primary.main} />}
-            />
+          </View>
+          
+          {/* Contact buttons */}
+          <View style={styles.contactButtons}>
+            <TouchableOpacity style={[styles.contactButton, styles.callButton]} onPress={handleCallProvider}>
+              <Ionicons name="call" size={20} color={colors.success.main} />
+              <Text style={[styles.contactButtonText, { color: colors.success.main }]}>Call</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.contactButton, styles.messageButton]} onPress={handleMessageProvider}>
+              <Ionicons name="chatbubble" size={20} color={colors.primary.main} />
+              <Text style={[styles.contactButtonText, { color: colors.primary.main }]}>Text</Text>
+            </TouchableOpacity>
           </View>
         </Card>
 
@@ -379,139 +441,33 @@ export default function JobDetailScreen() {
 
           <View style={styles.paymentRow}>
             <Text style={styles.paymentLabelSmall}>Materials Released</Text>
-            <Text style={styles.paymentAmountSmall}>
-              ${jobPayment.materialsReleased.toFixed(2)}
-            </Text>
+            <Text style={styles.paymentAmountSmall}>${jobPayment.materialsReleased.toFixed(2)}</Text>
+          </View>
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabelSmall}>50% Milestone</Text>
+            <Text style={styles.paymentAmountSmall}>${jobPayment.milestone50Released.toFixed(2)}</Text>
+          </View>
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabelSmall}>Final Release</Text>
+            <Text style={styles.paymentAmountSmall}>${jobPayment.finalRelease.toFixed(2)}</Text>
           </View>
         </Card>
-
-        {/* Milestones */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Milestones</Text>
-
-          {milestones.map((milestone) => (
-            <Card
-              key={milestone.id}
-              variant="outlined"
-              padding="base"
-              style={styles.milestoneCard}
-            >
-              <View style={styles.milestoneHeader}>
-                <View style={styles.milestoneTitle}>
-                  <Text style={styles.milestoneName}>{milestone.name}</Text>
-                  <Badge
-                    label={getStatusLabel(milestone.status)}
-                    variant={getStatusColor(milestone.status) as any}
-                    size="sm"
-                  />
-                </View>
-                <Text style={styles.milestoneAmount}>${milestone.amount.toFixed(2)}</Text>
-              </View>
-
-              {milestone.date && (
-                <View style={styles.milestoneDate}>
-                  <Ionicons name="calendar-outline" size={16} color={colors.neutral[600]} />
-                  <Text style={styles.milestoneDateText}>{milestone.date}</Text>
-                </View>
-              )}
-
-              {milestone.notes && (
-                <Text style={styles.milestoneNotes}>{milestone.notes}</Text>
-              )}
-
-              {milestone.evidence && milestone.evidence.length > 0 && (
-                <View style={styles.evidenceSection}>
-                  <Text style={styles.evidenceTitle}>Evidence:</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.evidenceScroll}
-                  >
-                    <View style={styles.evidenceList}>
-                      {milestone.evidence.map((photo, index) => (
-                        <TouchableOpacity
-                          key={index}
-                          onPress={() => {
-                            /* Open image viewer */
-                          }}
-                        >
-                          <Image source={{ uri: photo }} style={styles.evidencePhoto} />
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </ScrollView>
-                </View>
-              )}
-
-              {milestone.status === 'pending_approval' && (
-                <View style={styles.milestoneActions}>
-                  <Button
-                    title="Approve & Release Payment"
-                    onPress={() => handleApproveMilestone(milestone.id)}
-                    variant="success"
-                    size="medium"
-                    fullWidth
-                    icon={<Ionicons name="checkmark-circle" size={20} color="#fff" />}
-                  />
-                  <Button
-                    title="Request Changes"
-                    onPress={() => handleRejectMilestone(milestone.id)}
-                    variant="outline"
-                    size="small"
-                    fullWidth
-                  />
-                </View>
-              )}
-            </Card>
-          ))}
-        </View>
 
         {/* Timeline */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Timeline</Text>
           <Card variant="outlined" padding="base">
             {timeline.map((event, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.timelineEvent,
-                  index === timeline.length - 1 && styles.timelineEventLast,
-                ]}
-              >
+              <View key={index} style={[styles.timelineEvent, index === timeline.length - 1 && styles.timelineEventLast]}>
                 <View style={styles.timelineIcon}>
-                  <Ionicons
-                    name={event.icon as any}
-                    size={20}
-                    color={colors.primary.main}
-                  />
+                  <Ionicons name={event.icon as any} size={20} color={colors.primary.main} />
                 </View>
                 <View style={styles.timelineContent}>
-                  <Text style={styles.timelineEvent}>{event.event}</Text>
+                  <Text style={styles.timelineEventText}>{event.event}</Text>
                   <Text style={styles.timelineDate}>{event.date}</Text>
                 </View>
               </View>
             ))}
-          </Card>
-        </View>
-
-        {/* Change Orders */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Change Orders</Text>
-            <TouchableOpacity
-              onPress={() => router.push(`/(customer)/job-detail/${params.id}/change-orders`)}
-            >
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          <Card variant="outlined" padding="base">
-            <View style={styles.changeOrderEmptyState}>
-              <Ionicons name="document-text-outline" size={48} color={colors.neutral[400]} />
-              <Text style={styles.changeOrderEmptyTitle}>No Change Orders</Text>
-              <Text style={styles.changeOrderEmptyText}>
-                Change orders will appear here when your contractor requests scope changes or additional work.
-              </Text>
-            </View>
           </Card>
         </View>
 
@@ -521,16 +477,9 @@ export default function JobDetailScreen() {
             <Ionicons name="help-circle" size={24} color={colors.primary.main} />
             <View style={styles.supportText}>
               <Text style={styles.supportTitle}>Need Help?</Text>
-              <Text style={styles.supportDescription}>
-                Contact our support team if you have any issues with this job.
-              </Text>
+              <Text style={styles.supportDescription}>Contact support for issues with this job.</Text>
             </View>
-            <Button
-              title="Contact"
-              onPress={() => router.push('/(customer)/support')}
-              variant="outline"
-              size="small"
-            />
+            <Button title="Contact" onPress={() => router.push('/(customer)/support')} variant="outline" size="small" />
           </View>
         </Card>
       </ScrollView>
@@ -539,326 +488,60 @@ export default function JobDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.primary,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  loadingText: {
-    ...typography.body.regular,
-    color: colors.neutral[600],
-    marginTop: spacing.md,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  errorText: {
-    ...typography.body.regular,
-    color: colors.error.main,
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
-    textAlign: 'center',
-  },
-  content: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing['2xl'],
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-  },
-  titleSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.xl,
-  },
-  title: {
-    ...typography.headings.h2,
-    color: colors.neutral[900],
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  progressCard: {
-    marginBottom: spacing.lg,
-  },
-  cardTitle: {
-    ...typography.headings.h5,
-    color: colors.neutral[900],
-    marginBottom: spacing.md,
-  },
-  progressLabel: {
-    ...typography.caption.regular,
-    color: colors.neutral[600],
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  contractorCard: {
-    marginBottom: spacing.lg,
-  },
-  contractorContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  contractorPhoto: {
-    width: 56,
-    height: 56,
-    borderRadius: borderRadius.full,
-  },
-  contractorInfo: {
-    flex: 1,
-  },
-  roleLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-    gap: spacing.sm,
-  },
-  roleLabelText: {
-    ...typography.caption.small,
-    color: colors.neutral[600],
-    textTransform: 'uppercase',
-    fontWeight: typography.weights.semibold,
-    letterSpacing: 0.5,
-  },
-  handymanPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.warning.lightest,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.warning.main,
-  },
-  handymanPillText: {
-    ...typography.caption.small,
-    color: colors.warning.main,
-    fontWeight: typography.weights.medium,
-  },
-  contractorName: {
-    ...typography.headings.h5,
-    color: colors.neutral[900],
-    marginBottom: spacing.xs,
-  },
-  contractorMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  contractorRating: {
-    ...typography.caption.regular,
-    color: colors.neutral[700],
-    fontWeight: typography.weights.medium,
-  },
-  contractorJobs: {
-    ...typography.caption.regular,
-    color: colors.neutral[600],
-  },
-  paymentCard: {
-    marginBottom: spacing.lg,
-  },
-  paymentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  paymentLabel: {
-    ...typography.body.regular,
-    color: colors.neutral[700],
-  },
-  paymentLabelWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  paymentAmount: {
-    ...typography.headings.h5,
-    color: colors.neutral[900],
-  },
-  paymentLabelSmall: {
-    ...typography.caption.regular,
-    color: colors.neutral[600],
-  },
-  paymentAmountSmall: {
-    ...typography.body.regular,
-    fontWeight: typography.weights.medium,
-    color: colors.neutral[700],
-  },
-  paymentDivider: {
-    height: 1,
-    backgroundColor: colors.neutral[200],
-    marginVertical: spacing.md,
-  },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionTitle: {
-    ...typography.headings.h4,
-    color: colors.neutral[900],
-    marginBottom: spacing.md,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  viewAllText: {
-    ...typography.body.small,
-    color: colors.primary.main,
-    fontWeight: typography.weights.semibold,
-  },
-  changeOrderEmptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-  },
-  changeOrderEmptyTitle: {
-    ...typography.headings.h5,
-    color: colors.neutral[700],
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  changeOrderEmptyText: {
-    ...typography.body.small,
-    color: colors.neutral[600],
-    textAlign: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  milestoneCard: {
-    marginBottom: spacing.md,
-  },
-  milestoneHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  milestoneTitle: {
-    flex: 1,
-    gap: spacing.sm,
-  },
-  milestoneName: {
-    ...typography.headings.h5,
-    color: colors.neutral[900],
-  },
-  milestoneAmount: {
-    ...typography.headings.h4,
-    color: colors.primary.main,
-  },
-  milestoneDate: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  milestoneDateText: {
-    ...typography.caption.regular,
-    color: colors.neutral[600],
-  },
-  milestoneNotes: {
-    ...typography.body.regular,
-    color: colors.neutral[700],
-    lineHeight: 24,
-    marginBottom: spacing.md,
-  },
-  evidenceSection: {
-    marginTop: spacing.md,
-  },
-  evidenceTitle: {
-    ...typography.caption.regular,
-    fontWeight: typography.weights.semibold,
-    color: colors.neutral[700],
-    marginBottom: spacing.sm,
-  },
-  evidenceScroll: {
-    marginBottom: spacing.md,
-  },
-  evidenceList: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  evidencePhoto: {
-    width: 120,
-    height: 120,
-    borderRadius: borderRadius.md,
-  },
-  milestoneActions: {
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
-  timelineEvent: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingBottom: spacing.md,
-    borderLeftWidth: 2,
-    borderLeftColor: colors.neutral[200],
-    marginLeft: spacing.sm,
-  },
-  timelineEventLast: {
-    borderLeftWidth: 0,
-    paddingBottom: 0,
-  },
-  timelineIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary.lightest,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: -17,
-  },
-  timelineContent: {
-    flex: 1,
-    paddingTop: spacing.xs,
-  },
-  timelineEventText: {
-    ...typography.body.regular,
-    color: colors.neutral[900],
-    marginBottom: spacing.xs,
-  },
-  timelineDate: {
-    ...typography.caption.regular,
-    color: colors.neutral[600],
-  },
-  supportCard: {
-    marginBottom: spacing.lg,
-  },
-  supportContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  supportText: {
-    flex: 1,
-  },
-  supportTitle: {
-    ...typography.body.regular,
-    fontWeight: typography.weights.semibold,
-    color: colors.neutral[900],
-    marginBottom: spacing.xs,
-  },
-  supportDescription: {
-    ...typography.caption.regular,
-    color: colors.neutral[600],
-    lineHeight: 20,
-  },
+  container: { flex: 1, backgroundColor: colors.background.primary },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  loadingText: { ...typography.body.regular, color: colors.neutral[600], marginTop: spacing.md },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  errorText: { ...typography.body.regular, color: colors.error.main, marginTop: spacing.md, marginBottom: spacing.lg, textAlign: 'center' },
+  content: { flexGrow: 1, paddingHorizontal: spacing.xl, paddingBottom: spacing['2xl'] },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm, marginBottom: spacing.lg },
+  backButton: { alignSelf: 'flex-start' },
+  titleSection: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xl },
+  title: { ...typography.headings.h2, color: colors.neutral[900], flex: 1, marginRight: spacing.md },
+  progressCard: { marginBottom: spacing.lg },
+  cardTitle: { ...typography.headings.h5, color: colors.neutral[900], marginBottom: spacing.md },
+  progressLabel: { ...typography.caption.regular, color: colors.neutral[600], marginTop: spacing.sm, textAlign: 'center' },
+  milestonesContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.lg, paddingHorizontal: spacing.xs },
+  milestoneDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.neutral[300] },
+  milestoneDotActive: { backgroundColor: colors.primary.main },
+  milestoneLine: { flex: 1, height: 3, backgroundColor: colors.neutral[300], marginHorizontal: 2 },
+  milestoneLineActive: { backgroundColor: colors.primary.main },
+  milestoneLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs, paddingHorizontal: 2 },
+  milestoneLabel: { ...typography.caption.small, color: colors.neutral[500], fontSize: 10, textAlign: 'center' },
+  contractorCard: { marginBottom: spacing.lg },
+  contractorContent: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  contractorPhoto: { width: 56, height: 56, borderRadius: borderRadius.full },
+  contractorInfo: { flex: 1 },
+  roleLabel: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs, gap: spacing.sm },
+  roleLabelText: { ...typography.caption.small, color: colors.neutral[600], textTransform: 'uppercase', fontWeight: typography.weights.semibold, letterSpacing: 0.5 },
+  contractorName: { ...typography.headings.h5, color: colors.neutral[900], marginBottom: spacing.xs },
+  contractorMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  contractorRating: { ...typography.caption.regular, color: colors.neutral[700], fontWeight: typography.weights.medium },
+  contractorJobs: { ...typography.caption.regular, color: colors.neutral[600] },
+  contactButtons: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.neutral[200] },
+  contactButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1 },
+  callButton: { backgroundColor: colors.success.lightest, borderColor: colors.success.main },
+  messageButton: { backgroundColor: colors.primary.lightest, borderColor: colors.primary.main },
+  contactButtonText: { ...typography.body.regular, fontWeight: typography.weights.semibold },
+  paymentCard: { marginBottom: spacing.lg },
+  paymentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  paymentLabel: { ...typography.body.regular, color: colors.neutral[700] },
+  paymentLabelWithIcon: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  paymentAmount: { ...typography.headings.h5, color: colors.neutral[900] },
+  paymentLabelSmall: { ...typography.caption.regular, color: colors.neutral[600] },
+  paymentAmountSmall: { ...typography.body.regular, fontWeight: typography.weights.medium, color: colors.neutral[700] },
+  paymentDivider: { height: 1, backgroundColor: colors.neutral[200], marginVertical: spacing.md },
+  section: { marginBottom: spacing.xl },
+  sectionTitle: { ...typography.headings.h4, color: colors.neutral[900], marginBottom: spacing.md },
+  timelineEvent: { flexDirection: 'row', gap: spacing.md, paddingBottom: spacing.md, borderLeftWidth: 2, borderLeftColor: colors.neutral[200], marginLeft: spacing.sm },
+  timelineEventLast: { borderLeftWidth: 0, paddingBottom: 0 },
+  timelineIcon: { width: 32, height: 32, borderRadius: borderRadius.full, backgroundColor: colors.primary.lightest, alignItems: 'center', justifyContent: 'center', marginLeft: -17 },
+  timelineContent: { flex: 1, paddingTop: spacing.xs },
+  timelineEventText: { ...typography.body.regular, color: colors.neutral[900], marginBottom: spacing.xs },
+  timelineDate: { ...typography.caption.regular, color: colors.neutral[600] },
+  supportCard: { marginBottom: spacing.lg },
+  supportContent: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  supportText: { flex: 1 },
+  supportTitle: { ...typography.body.regular, fontWeight: typography.weights.semibold, color: colors.neutral[900], marginBottom: spacing.xs },
+  supportDescription: { ...typography.caption.regular, color: colors.neutral[600], lineHeight: 20 },
 });

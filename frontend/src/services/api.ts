@@ -153,6 +153,10 @@ export const jobsAPI = {
   deleteJob: (id: string) =>
     apiClient.delete<any>(`/jobs/${id}`),
 
+  // Get provider details by ID (for customer job detail)
+  getProvider: (providerId: string) =>
+    apiClient.get<any>(`/providers/${providerId}`),
+
   updateJobStatus: (id: string, status: string) =>
     apiClient.patch<any>(`/jobs/${id}/status`, { status }),
 
