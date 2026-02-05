@@ -42,6 +42,13 @@ class JobStatus(str, Enum):
         return mapping.get(status_str, cls(status_str))
 
 
+class BidStatus(str, Enum):
+    """Bid state for jobs - tracks if custom bids have been submitted"""
+    NO_BID = "no_bid"  # Using AI quote price (budget_max)
+    BID_PENDING = "bid_pending"  # Contractor submitted bid, awaiting customer acceptance
+    BID_ACCEPTED = "bid_accepted"  # Bid was accepted by customer
+
+
 def serialize_mongo_doc(doc: dict) -> dict:
     """Strip _id field and convert ObjectId/strings for Pydantic compatibility"""
     if doc is None:
@@ -88,6 +95,8 @@ class Job(BaseModel):
     description: str
     photos: List[str] = []  # Photo URLs from Linode
     budget_max: Optional[float] = None
+    agreed_amount: Optional[float] = None  # Final agreed price (AI quote or accepted bid)
+    bid_status: BidStatus = BidStatus.NO_BID  # Tracks if custom bid has been submitted
     urgency: str = "low"  # low, medium, high
     preferred_timing: Optional[str] = None  # Free text or ISO window
     contractor_type_preference: Optional[ContractorTypePreference] = None

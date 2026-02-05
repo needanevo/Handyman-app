@@ -5,7 +5,7 @@
  * Allows handymen to view full job information before accepting/bidding.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,17 +15,27 @@ import {
   Alert,
   Image,
   Dimensions,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../../src/constants/theme';
 import { handymanAPI } from '../../../src/services/api';
 import { LoadingSpinner } from '../../../src/components/LoadingSpinner';
 
 // Feature flag — flip to true when backend accept/bid endpoints are ready
-const ENABLE_JOB_ACTIONS = false;
+const ENABLE_JOB_ACTIONS = true;
+
+interface BidFormData {
+  quotedPrice: string;
+  laborCost: string;
+  laborHours: string;
+  laborRate: string;
+  message: string;
+}
 
 const formatDate = (dateStr: string | undefined): string => {
   if (!dateStr) return 'N/A';
@@ -64,6 +74,17 @@ const getStatusLabel = (status: string): string => {
 export default function HandymanJobDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  
+  // Bid modal state
+  const [showBidModal, setShowBidModal] = useState(false);
+  const [bidForm, setBidForm] = useState<BidFormData>({
+    quotedPrice: '',
+    laborCost: '',
+    laborHours: '',
+    laborRate: '',
+    message: '',
+  });
 
   const { data: job, isLoading, error } = useQuery({
     queryKey: ['job-detail', id],
@@ -74,15 +95,90 @@ export default function HandymanJobDetail() {
     enabled: !!id,
   });
 
+  // Accept job mutation
+  const acceptJobMutation = useMutation({
+    mutationFn: () => handymanAPI.acceptJobAtQuote(id!),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['handyman-available-jobs'] });
+      Alert.alert(
+        'Job Accepted',
+        `You have accepted this job at the quoted price of ${data.agreed_amount || job?.budget_max || 0}. The job is now assigned to you.`,
+        [
+          { text: 'View My Jobs', onPress: () => router.push('/(handyman)/jobs/active') },
+          { text: 'OK', onPress: () => router.back() },
+        ]
+      );
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err.detail || err.message || 'Failed to accept job');
+    },
+  });
+
+  // Submit bid mutation
+  const submitBidMutation = useMutation({
+    mutationFn: () => {
+      const bidData = {
+        quoted_price: parseFloat(bidForm.quotedPrice),
+        labor_cost: bidForm.laborCost ? parseFloat(bidForm.laborCost) : undefined,
+        labor_hours: bidForm.laborHours ? parseFloat(bidForm.laborHours) : undefined,
+        labor_rate: bidForm.laborRate ? parseFloat(bidForm.laborRate) : undefined,
+        message: bidForm.message || undefined,
+      };
+      return handymanAPI.submitBid(id!, bidData);
+    },
+    onSuccess: (data) => {
+      setShowBidModal(false);
+      queryClient.invalidateQueries({ queryKey: ['handyman-available-jobs'] });
+      Alert.alert(
+        'Bid Submitted',
+        `Your bid of ${data.quoted_price} has been submitted. The customer will be notified.`,
+        [{ text: 'OK' }]
+      );
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err.detail || err.message || 'Failed to submit bid');
+    },
+  });
+
   const handleAccept = () => {
     if (!ENABLE_JOB_ACTIONS) return;
-    Alert.alert('Not implemented yet', 'Accept job will be available in the next phase.');
+    
+    const budgetMax = job?.budget_max || 0;
+    Alert.alert(
+      'Accept Job',
+      `Accept this job at the AI-quoted price of ${budgetMax.toFixed(2)}? This will assign the job to you at this price.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Accept Job', 
+          style: 'default',
+          onPress: () => acceptJobMutation.mutate()
+        },
+      ]
+    );
   };
 
   const handleBid = () => {
     if (!ENABLE_JOB_ACTIONS) return;
-    Alert.alert('Not implemented yet', 'Submit bid will be available in the next phase.');
+    setShowBidModal(true);
   };
+
+  const handleSubmitBid = () => {
+    if (!bidForm.quotedPrice) {
+      Alert.alert('Error', 'Please enter a bid price');
+      return;
+    }
+    
+    const price = parseFloat(bidForm.quotedPrice);
+    if (isNaN(price) || price <= 0) {
+      Alert.alert('Error', 'Please enter a valid bid price');
+      return;
+    }
+
+    submitBidMutation.mutate();
+  };
+
+  const isSubmitting = acceptJobMutation.isPending || submitBidMutation.isPending;
 
   if (isLoading) {
     return <LoadingSpinner fullScreen text="Loading job details..." />;
@@ -315,23 +411,45 @@ export default function HandymanJobDetail() {
         {/* Action Buttons */}
         <View style={styles.actionsSection}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.acceptButton, !ENABLE_JOB_ACTIONS && styles.disabledButton]}
+            style={[
+              styles.actionButton, 
+              styles.acceptButton,
+              (isSubmitting || !ENABLE_JOB_ACTIONS) && styles.disabledButton
+            ]}
             onPress={handleAccept}
-            disabled={!ENABLE_JOB_ACTIONS}
+            disabled={isSubmitting || !ENABLE_JOB_ACTIONS}
           >
-            <Ionicons name="checkmark-circle" size={22} color={ENABLE_JOB_ACTIONS ? '#FFF' : colors.neutral[500]} />
-            <Text style={[styles.actionButtonText, !ENABLE_JOB_ACTIONS && styles.disabledButtonText]}>
-              Accept Job
+            <Ionicons 
+              name="checkmark-circle" 
+              size={22} 
+              color={(isSubmitting || !ENABLE_JOB_ACTIONS) ? colors.neutral[500] : '#FFF'} 
+            />
+            <Text style={[
+              styles.actionButtonText,
+              (isSubmitting || !ENABLE_JOB_ACTIONS) && styles.disabledButtonText
+            ]}>
+              {acceptJobMutation.isPending ? 'Accepting...' : 'Accept Job'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionButton, styles.bidButton, !ENABLE_JOB_ACTIONS && styles.disabledButton]}
+            style={[
+              styles.actionButton, 
+              styles.bidButton,
+              (isSubmitting || !ENABLE_JOB_ACTIONS) && styles.disabledButton
+            ]}
             onPress={handleBid}
-            disabled={!ENABLE_JOB_ACTIONS}
+            disabled={isSubmitting || !ENABLE_JOB_ACTIONS}
           >
-            <Ionicons name="document-text-outline" size={22} color={ENABLE_JOB_ACTIONS ? '#FFA500' : colors.neutral[500]} />
-            <Text style={[styles.actionButtonTextOutline, !ENABLE_JOB_ACTIONS && styles.disabledButtonText]}>
+            <Ionicons 
+              name="document-text-outline" 
+              size={22} 
+              color={(isSubmitting || !ENABLE_JOB_ACTIONS) ? colors.neutral[500] : '#FFA500'} 
+            />
+            <Text style={[
+              styles.actionButtonTextOutline,
+              (isSubmitting || !ENABLE_JOB_ACTIONS) && styles.disabledButtonText
+            ]}>
               Submit Bid
             </Text>
           </TouchableOpacity>
@@ -341,6 +459,115 @@ export default function HandymanJobDetail() {
           )}
         </View>
       </ScrollView>
+
+      {/* Bid Submission Modal */}
+      <Modal
+        visible={showBidModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowBidModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Submit Custom Bid</Text>
+              <TouchableOpacity onPress={() => setShowBidModal(false)}>
+                <Ionicons name="close-circle" size={28} color={colors.neutral[400]} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.modalSubtitle}>
+                Enter your custom bid for this job. AI quote: ${job?.budget_max?.toFixed(2) || 'N/A'}
+              </Text>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Your Bid Amount *</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="0.00"
+                  placeholderTextColor={colors.neutral[400]}
+                  keyboardType="decimal-pad"
+                  value={bidForm.quotedPrice}
+                  onChangeText={(text) => setBidForm({ ...bidForm, quotedPrice: text })}
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Labor Cost (optional)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="0.00"
+                  placeholderTextColor={colors.neutral[400]}
+                  keyboardType="decimal-pad"
+                  value={bidForm.laborCost}
+                  onChangeText={(text) => setBidForm({ ...bidForm, laborCost: text })}
+                />
+              </View>
+
+              <View style={styles.formRow}>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={styles.formLabel}>Hours (optional)</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="0"
+                    placeholderTextColor={colors.neutral[400]}
+                    keyboardType="decimal-pad"
+                    value={bidForm.laborHours}
+                    onChangeText={(text) => setBidForm({ ...bidForm, laborHours: text })}
+                  />
+                </View>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={styles.formLabel}>Rate/hr (optional)</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="0.00"
+                    placeholderTextColor={colors.neutral[400]}
+                    keyboardType="decimal-pad"
+                    value={bidForm.laborRate}
+                    onChangeText={(text) => setBidForm({ ...bidForm, laborRate: text })}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Message to Customer (optional)</Text>
+                <TextInput
+                  style={[styles.formInput, styles.formTextArea]}
+                  placeholder="Describe your approach, timeline, or any notes..."
+                  placeholderTextColor={colors.neutral[400]}
+                  multiline
+                  numberOfLines={4}
+                  value={bidForm.message}
+                  onChangeText={(text) => setBidForm({ ...bidForm, message: text })}
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={() => setShowBidModal(false)}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton, 
+                  styles.modalSubmitButton,
+                  submitBidMutation.isPending && styles.disabledButton
+                ]}
+                onPress={handleSubmitBid}
+                disabled={submitBidMutation.isPending}
+              >
+                <Text style={styles.modalSubmitButtonText}>
+                  {submitBidMutation.isPending ? 'Submitting...' : 'Submit Bid'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -611,6 +838,95 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   retryText: {
+    ...typography.body.regular,
+    fontWeight: typography.weights.semibold,
+    color: '#FFF',
+  },
+  
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.background.primary,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.base,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  modalTitle: {
+    ...typography.headings.h4,
+    fontWeight: typography.weights.bold,
+    color: colors.neutral[900],
+  },
+  modalBody: {
+    padding: spacing.base,
+  },
+  modalSubtitle: {
+    ...typography.body.regular,
+    color: colors.neutral[600],
+    marginBottom: spacing.lg,
+  },
+  formGroup: {
+    marginBottom: spacing.md,
+  },
+  formLabel: {
+    ...typography.caption.regular,
+    fontWeight: typography.weights.medium,
+    color: colors.neutral[700],
+    marginBottom: spacing.xs,
+  },
+  formInput: {
+    backgroundColor: colors.background.secondary,
+    borderWidth: 1,
+    borderColor: colors.neutral[300],
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    ...typography.body.regular,
+    color: colors.neutral[900],
+  },
+  formTextArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  formRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    padding: spacing.base,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: colors.neutral[100],
+  },
+  modalCancelButtonText: {
+    ...typography.body.regular,
+    fontWeight: typography.weights.semibold,
+    color: colors.neutral[700],
+  },
+  modalSubmitButton: {
+    backgroundColor: '#FFA500',
+  },
+  modalSubmitButtonText: {
     ...typography.body.regular,
     fontWeight: typography.weights.semibold,
     color: '#FFF',

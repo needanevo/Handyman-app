@@ -5,10 +5,18 @@ Proposals are submitted by handymen/contractors in response to published jobs.
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Dict
 from datetime import datetime
 from enum import Enum
 import uuid
+
+
+class LineItem(BaseModel):
+    """Line item for proposal breakdown"""
+    description: str
+    amount: float
+    quantity: Optional[float] = 1
+    unit: Optional[str] = None  # e.g., "hours", "each", "sqft"
 
 
 class ProposalStatus(str, Enum):
@@ -40,6 +48,16 @@ class Proposal(BaseModel):
     proposed_start: Optional[datetime] = None
     message: Optional[str] = None
 
+    # Line-item breakdown
+    labor_cost: Optional[float] = None  # Labor portion of price
+    labor_hours: Optional[float] = None  # Hours of labor
+    labor_rate: Optional[float] = None  # Hourly rate
+    materials: List[LineItem] = []  # Material line items
+    incidentals: List[LineItem] = []  # Additional incidental costs
+    
+    # Calculated total (should match quoted_price for validation)
+    total_bid: Optional[float] = None  # Sum of labor + materials + incidentals
+
     # Status
     status: ProposalStatus = ProposalStatus.PENDING
 
@@ -54,6 +72,13 @@ class ProposalCreateRequest(BaseModel):
     estimated_duration: Optional[float] = None
     proposed_start: Optional[datetime] = None
     message: Optional[str] = None
+    
+    # Line-item breakdown (optional)
+    labor_cost: Optional[float] = None
+    labor_hours: Optional[float] = None
+    labor_rate: Optional[float] = None
+    materials: List[LineItem] = []
+    incidentals: List[LineItem] = []
 
 
 class ProposalResponse(BaseModel):

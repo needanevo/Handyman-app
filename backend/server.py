@@ -1675,6 +1675,78 @@ async def list_jobs(
     return jobs
 
 
+@api_router.post("/jobs/{job_id}/accept")
+async def accept_job_at_quote_price(
+    job_id: str,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Accept a job at the AI-quoted price (budget_max).
+    
+    Provider accepts the job as-is at the AI-quoted price.
+    Sets agreed_amount = budget_max, status → accepted, assigns provider.
+    """
+    # Only contractors/handymen can accept jobs
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only contractors/handymen can accept jobs")
+
+    # Check provider_status
+    if current_user.provider_status != "active":
+        raise HTTPException(
+            403,
+            detail={
+                "error": "Provider not active",
+                "provider_status": current_user.provider_status,
+                "message": "You must complete your profile and verification to accept jobs"
+            }
+        )
+
+    # Fetch job
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    # Check if job is available (posted status)
+    current_status = job.get("status", "draft")
+    if current_status != "posted":
+        raise HTTPException(
+            400,
+            detail=f"Job cannot be accepted. Current status: {current_status}"
+        )
+
+    # Check if already assigned
+    from services.job_lifecycle import get_assigned_provider_id
+    existing_assignment = get_assigned_provider_id(job)
+    if existing_assignment:
+        raise HTTPException(400, detail="Job already assigned to another provider")
+
+    # Get the AI-quoted price
+    budget_max = job.get("budget_max")
+    if not budget_max:
+        raise HTTPException(400, detail="Job does not have an AI-quoted price. Use bid submission instead.")
+
+    # Use lifecycle service to transition to accepted and set assignment
+    # Also set agreed_amount to the AI-quoted price
+    updated_job = await job_lifecycle.apply_transition(
+        job_id=job_id,
+        new_status=JobStatus.ACCEPTED,
+        actor_id=current_user.id,
+        actor_role=current_user.role.value,
+        additional_data={
+            "provider_id": current_user.id,
+            "agreed_amount": budget_max
+        }
+    )
+
+    logger.info(f"Job {job_id} accepted at AI-quoted price ${budget_max} by {current_user.role.value} {current_user.id}")
+
+    return {
+        "message": "Job accepted at AI-quoted price",
+        "job": updated_job.model_dump(),
+        "agreed_amount": budget_max
+    }
+
+
 @api_router.get("/jobs/{job_id}/quotes", response_model=List[Quote])
 async def get_job_quotes(
     job_id: str,
@@ -4639,6 +4711,119 @@ async def get_proposals_for_job(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@api_router.post("/jobs/{job_id}/bid")
+async def submit_custom_bid(
+    job_id: str,
+    bid_data: ProposalCreateRequest,
+    current_user: User = Depends(get_current_user_dependency)
+):
+    """
+    Submit a custom bid/proposal for a job (contractor/handyman only).
+    
+    Creates a proposal with custom pricing and line items.
+    Sets job bid_status = bid_pending.
+    """
+    # Only contractors/handymen can submit bids
+    if current_user.role not in [UserRole.CONTRACTOR, UserRole.HANDYMAN]:
+        raise HTTPException(403, detail="Only contractors/handymen can submit bids")
+
+    # Check provider_status
+    if current_user.provider_status != "active":
+        raise HTTPException(
+            403,
+            detail={
+                "error": "Provider not active",
+                "provider_status": current_user.provider_status,
+                "message": "You must complete your profile and verification to submit bids"
+            }
+        )
+
+    # Verify user has a contractor profile
+    contractor = await db.contractors.find_one({"user_id": current_user.id})
+    if not contractor:
+        # Try handyman profile
+        contractor = await db.handymen.find_one({"user_id": current_user.id})
+    if not contractor:
+        raise HTTPException(403, detail="Provider profile not found")
+
+    contractor_id = contractor.get("id") or contractor.get("user_id")
+
+    # Fetch job
+    job = await db.jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, detail="Job not found")
+
+    # Check if job is available (posted status)
+    current_status = job.get("status", "draft")
+    if current_status != "posted":
+        raise HTTPException(
+            400,
+            detail=f"Cannot submit bid. Current job status: {current_status}"
+        )
+
+    # Check if provider already has a pending proposal for this job
+    existing_proposal = await db.proposals.find_one({
+        "job_id": job_id,
+        "contractor_id": contractor_id,
+        "status": "pending"
+    })
+    if existing_proposal:
+        raise HTTPException(400, detail="You already have a pending proposal for this job")
+
+    # Determine contractor role
+    from models.proposal import ContractorRole
+    role = ContractorRole.CONTRACTOR if current_user.role == UserRole.CONTRACTOR else ContractorRole.HANDYMAN
+
+    # Calculate total_bid from line items if provided
+    total_bid = bid_data.quoted_price
+    if bid_data.labor_cost is not None or bid_data.materials or bid_data.incidentals:
+        labor_total = bid_data.labor_cost or 0
+        materials_total = sum((m.amount * m.quantity) for m in bid_data.materials) if bid_data.materials else 0
+        incidentals_total = sum((i.amount * i.quantity) for i in bid_data.incidentals) if bid_data.incidentals else 0
+        total_bid = labor_total + materials_total + incidentals_total
+
+    # Create proposal
+    proposal = {
+        "id": str(uuid.uuid4()),
+        "job_id": job_id,
+        "contractor_id": contractor_id,
+        "contractor_role": role.value,
+        "quoted_price": bid_data.quoted_price,
+        "estimated_duration": bid_data.estimated_duration,
+        "proposed_start": bid_data.proposed_start.isoformat() if bid_data.proposed_start else None,
+        "message": bid_data.message,
+        "labor_cost": bid_data.labor_cost,
+        "labor_hours": bid_data.labor_hours,
+        "labor_rate": bid_data.labor_rate,
+        "materials": [m.model_dump() for m in bid_data.materials] if bid_data.materials else [],
+        "incidentals": [i.model_dump() for i in bid_data.incidentals] if bid_data.incidentals else [],
+        "total_bid": total_bid,
+        "status": "pending",
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat()
+    }
+
+    await db.proposals.insert_one(proposal)
+
+    # Update job bid_status to bid_pending
+    await db.jobs.update_one(
+        {"id": job_id},
+        {"$set": {
+            "bid_status": "bid_pending",
+            "updated_at": datetime.utcnow().isoformat()
+        }}
+    )
+
+    logger.info(f"Custom bid ${bid_data.quoted_price} submitted for job {job_id} by {role.value} {contractor_id}")
+
+    return {
+        "message": "Bid submitted successfully",
+        "proposal_id": proposal["id"],
+        "quoted_price": bid_data.quoted_price,
+        "total_bid": total_bid
+    }
+
+
 @api_router.post("/proposals/{proposal_id}/accept")
 async def accept_proposal(
     proposal_id: str,
@@ -4676,15 +4861,26 @@ async def accept_proposal(
     # Apply transition using lifecycle service
     try:
         from services.job_lifecycle import JobLifecycleError
+        
+        # FIX 1: Use job_id instead of job object
         updated_job = await job_lifecycle.apply_transition(
-            job=job,
+            job_id=job.id,
             new_status=JobStatus.ACCEPTED,
             actor_id=current_user.id,
             actor_role=current_user.role.value,
             additional_data={
                 "accepted_proposal_id": proposal.id,
-                "assigned_contractor_id": proposal.contractor_id
+                "provider_id": proposal.contractor_id  # FIX 3: Use provider_id
             }
+        )
+        
+        # FIX 2: Update proposal status to ACCEPTED
+        await db.proposals.update_one(
+            {"id": proposal_id},
+            {"$set": {
+                "status": "accepted",
+                "updated_at": datetime.utcnow().isoformat()
+            }}
         )
 
         return {

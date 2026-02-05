@@ -257,6 +257,22 @@ export const handymanAPI = {
   getJob: (id: string) =>
     apiClient.get<any>(`/jobs/${id}`),
 
+  acceptJobAtQuote: (id: string) =>
+    apiClient.post<any>(`/jobs/${id}/accept`, {}),
+
+  submitBid: (id: string, bid: {
+    quoted_price: number;
+    estimated_duration?: number;
+    proposed_start?: string;
+    message?: string;
+    labor_cost?: number;
+    labor_hours?: number;
+    labor_rate?: number;
+    materials?: Array<{ description: string; amount: number; quantity?: number; unit?: string }>;
+    incidentals?: Array<{ description: string; amount: number; quantity?: number; unit?: string }>;
+  }) =>
+    apiClient.post<any>(`/jobs/${id}/bid`, bid),
+
   // Wallet
   getWalletSummary: () =>
     apiClient.get<any>('/handyman/wallet/summary'),
@@ -306,6 +322,22 @@ export const contractorAPI = {
 
   getJob: (id: string) =>
     apiClient.get<any>(`/contractor/jobs/${id}`),
+
+  acceptJobAtQuote: (id: string) =>
+    apiClient.post<any>(`/jobs/${id}/accept`, {}),
+
+  submitBid: (id: string, bid: {
+    quoted_price: number;
+    estimated_duration?: number;
+    proposed_start?: string;
+    message?: string;
+    labor_cost?: number;
+    labor_hours?: number;
+    labor_rate?: number;
+    materials?: Array<{ description: string; amount: number; quantity?: number; unit?: string }>;
+    incidentals?: Array<{ description: string; amount: number; quantity?: number; unit?: string }>;
+  }) =>
+    apiClient.post<any>(`/jobs/${id}/bid`, bid),
 
   acceptJob: (id: string) =>
     apiClient.post<any>(`/contractor/jobs/${id}/accept`, {}),

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -16,30 +17,71 @@ import { Button } from '../../../src/components/Button';
 import { Card } from '../../../src/components/Card';
 import { Badge } from '../../../src/components/Badge';
 import { ProgressBar } from '../../../src/components/ProgressBar';
+import { jobsAPI } from '../../../src/services/api';
 
-// Mock data - would come from API in real app
-const mockJob = {
-  id: '1',
-  title: 'Fix hole in bedroom wall',
-  category: 'drywall',
-  status: 'in_progress',
-  progress: 50,
-  contractor: {
-    name: 'Mike Johnson',
-    rating: 4.8,
-    completedJobs: 47,
-    photo: 'https://ui-avatars.com/api/?name=Mike+Johnson&background=2563EB&color=fff',
-    role: 'contractor', // or 'handyman'
-  },
-  payment: {
-    total: 300,
-    upfrontPaid: 200,
-    materialsReleased: 96,
-    milestone50Released: 0,
-    finalRelease: 0,
-    escrowBalance: 104,
-  },
-  milestones: [
+// Types for job data
+interface JobContractor {
+  id: string;
+  name: string;
+  rating: number;
+  completedJobs: number;
+  photo?: string;
+  role: 'handyman' | 'contractor';
+}
+
+interface JobPayment {
+  total: number;
+  upfrontPaid: number;
+  materialsReleased: number;
+  milestone50Released: number;
+  finalRelease: number;
+  escrowBalance: number;
+}
+
+interface Milestone {
+  id: string;
+  name: string;
+  status: 'completed' | 'pending_approval' | 'pending';
+  date?: string;
+  amount: number;
+  evidence?: string[];
+  notes?: string;
+}
+
+interface TimelineEvent {
+  date: string;
+  event: string;
+  icon: string;
+}
+
+interface JobData {
+  id: string;
+  service_category: string;
+  description: string;
+  status: string;
+  agreed_amount?: number;
+  budget_max?: number;
+  assigned_provider?: {
+    id: string;
+    name: string;
+    rating?: number;
+    completed_jobs?: number;
+    photo_url?: string;
+    role?: string;
+  };
+  created_at: string;
+}
+
+export default function JobDetailScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const [selectedMilestone, setSelectedMilestone] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [job, setJob] = useState<JobData | null>(null);
+  
+  // Mock milestones for now - would come from milestones API in future
+  const [milestones] = useState<Milestone[]>([
     {
       id: 'm1',
       name: 'Materials Purchase',
@@ -69,22 +111,89 @@ const mockJob = {
       status: 'pending',
       amount: 114,
     },
-  ],
-  timeline: [
+  ]);
+
+  // Mock timeline - would come from job history in future
+  const timeline: TimelineEvent[] = [
     { date: '2025-11-02', event: 'Job accepted by contractor', icon: 'checkmark-circle' },
     { date: '2025-11-02', event: 'Upfront payment received', icon: 'cash' },
     { date: '2025-11-03', event: 'Materials receipts uploaded', icon: 'document' },
     { date: '2025-11-03', event: 'Materials payment released', icon: 'checkmark-circle' },
     { date: '2025-11-05', event: '50% milestone submitted', icon: 'alert-circle' },
-  ],
-};
+  ];
 
-export default function JobDetailScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams();
-  const [selectedMilestone, setSelectedMilestone] = useState<string | null>(null);
+  useEffect(() => {
+    fetchJob();
+  }, [params.id]);
 
-  const job = mockJob; // Would fetch based on params.id
+  const fetchJob = async () => {
+    try {
+      setLoading(true);
+      const jobId = Array.isArray(params.id) ? params.id[0] : params.id;
+      const response = await jobsAPI.getJob(jobId);
+      setJob(response.data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load job');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Transform API job to display format
+  const getJobTitle = () => {
+    if (!job) return 'Loading...';
+    // Use description as title if no separate title field
+    return job.description?.split('.')[0] || 'Job';
+  };
+
+  const getCategory = () => {
+    if (!job) return 'Loading...';
+    return job.service_category || 'Service';
+  };
+
+  const getTotalAmount = () => {
+    if (!job) return 0;
+    return job.agreed_amount || job.budget_max || 0;
+  };
+
+  const getContractorInfo = (): JobContractor => {
+    if (!job?.assigned_provider) {
+      return {
+        id: 'unknown',
+        name: 'Mike Johnson',
+        rating: 4.8,
+        completedJobs: 47,
+        photo: 'https://ui-avatars.com/api/?name=Mike+Johnson&background=2563EB&color=fff',
+        role: 'contractor',
+      };
+    }
+    const p = job.assigned_provider;
+    return {
+      id: p.id,
+      name: p.name,
+      rating: p.rating || 0,
+      completedJobs: p.completed_jobs || 0,
+      photo: p.photo_url,
+      role: (p.role as 'handyman' | 'contractor') || 'contractor',
+    };
+  };
+
+  const getPaymentInfo = (): JobPayment => {
+    const total = getTotalAmount();
+    // Mock payment calculation based on total
+    return {
+      total,
+      upfrontPaid: total * 0.4,
+      materialsReleased: total * 0.32,
+      milestone50Released: total * 0.3,
+      finalRelease: total * 0.38,
+      escrowBalance: total * 0.6,
+    };
+  };
+
+  const jobContractor = getContractorInfo();
+  const jobPayment = getPaymentInfo();
+  const completionPercentage = job?.status === 'completed' ? 100 : 50;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -128,12 +237,28 @@ export default function JobDetailScreen() {
     );
   };
 
-  // Use progress field from backend or calculate from milestones
-  // Don't infer progress from status - that's frontend invention
-  const completionPercentage =
-    job.status === 'completed'
-      ? 100
-      : (job as any).progress || 0;
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.main} />
+          <Text style={styles.loadingText}>Loading job details...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={48} color={colors.error.main} />
+          <Text style={styles.errorText}>{error}</Text>
+          <Button title="Retry" onPress={fetchJob} variant="primary" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -150,7 +275,7 @@ export default function JobDetailScreen() {
           />
           <Button
             title=""
-            onPress={() => router.push(`/(customer)/chat/${job.id}`)}
+            onPress={() => router.push(`/(customer)/chat/${params.id}`)}
             variant="ghost"
             size="small"
             icon={<Ionicons name="chatbubbles" size={24} color={colors.primary.main} />}
@@ -159,8 +284,8 @@ export default function JobDetailScreen() {
 
         {/* Job Title */}
         <View style={styles.titleSection}>
-          <Text style={styles.title}>{job.title}</Text>
-          <Badge label={job.category} variant="neutral" />
+          <Text style={styles.title}>{getJobTitle()}</Text>
+          <Badge label={getCategory()} variant="neutral" />
         </View>
 
         {/* Progress Card */}
@@ -182,14 +307,14 @@ export default function JobDetailScreen() {
         {/* Contractor Card */}
         <Card variant="outlined" padding="base" style={styles.contractorCard}>
           <View style={styles.contractorContent}>
-            <Image source={{ uri: job.contractor.photo }} style={styles.contractorPhoto} />
+            <Image source={{ uri: jobContractor.photo || 'https://ui-avatars.com/api/?name=Contractor&background=2563EB&color=fff' }} style={styles.contractorPhoto} />
             <View style={styles.contractorInfo}>
               {/* Role Label */}
               <View style={styles.roleLabel}>
                 <Text style={styles.roleLabelText}>
-                  {job.contractor.role === 'handyman' ? 'Your Handyman' : 'Your Contractor'}
+                  {jobContractor.role === 'handyman' ? 'Your Handyman' : 'Your Contractor'}
                 </Text>
-                {job.contractor.role === 'handyman' && (
+                {jobContractor.role === 'handyman' && (
                   <TouchableOpacity
                     onPress={() => router.push('/(customer)/handyman-info')}
                     style={styles.handymanPill}
@@ -200,18 +325,18 @@ export default function JobDetailScreen() {
                 )}
               </View>
 
-              <Text style={styles.contractorName}>{job.contractor.name}</Text>
+              <Text style={styles.contractorName}>{jobContractor.name}</Text>
               <View style={styles.contractorMeta}>
                 <Ionicons name="star" size={16} color={colors.warning.main} />
-                <Text style={styles.contractorRating}>{job.contractor.rating}</Text>
+                <Text style={styles.contractorRating}>{jobContractor.rating.toFixed(1)}</Text>
                 <Text style={styles.contractorJobs}>
-                  • {job.contractor.completedJobs} jobs
+                  • {jobContractor.completedJobs} jobs
                 </Text>
               </View>
             </View>
             <Button
               title=""
-              onPress={() => router.push(`/(customer)/chat/${job.id}`)}
+              onPress={() => router.push(`/(customer)/chat/${params.id}`)}
               variant="outline"
               size="small"
               icon={<Ionicons name="chatbubble" size={20} color={colors.primary.main} />}
@@ -225,7 +350,7 @@ export default function JobDetailScreen() {
 
           <View style={styles.paymentRow}>
             <Text style={styles.paymentLabel}>Total Job Cost</Text>
-            <Text style={styles.paymentAmount}>${job.payment.total.toFixed(2)}</Text>
+            <Text style={styles.paymentAmount}>${jobPayment.total.toFixed(2)}</Text>
           </View>
 
           <View style={styles.paymentDivider} />
@@ -236,7 +361,7 @@ export default function JobDetailScreen() {
               <Text style={styles.paymentLabel}>Upfront Paid</Text>
             </View>
             <Text style={[styles.paymentAmount, { color: colors.success.main }]}>
-              ${job.payment.upfrontPaid.toFixed(2)}
+              ${jobPayment.upfrontPaid.toFixed(2)}
             </Text>
           </View>
 
@@ -246,7 +371,7 @@ export default function JobDetailScreen() {
               <Text style={styles.paymentLabel}>Held in Escrow</Text>
             </View>
             <Text style={[styles.paymentAmount, { color: colors.warning.main }]}>
-              ${job.payment.escrowBalance.toFixed(2)}
+              ${jobPayment.escrowBalance.toFixed(2)}
             </Text>
           </View>
 
@@ -255,7 +380,7 @@ export default function JobDetailScreen() {
           <View style={styles.paymentRow}>
             <Text style={styles.paymentLabelSmall}>Materials Released</Text>
             <Text style={styles.paymentAmountSmall}>
-              ${job.payment.materialsReleased.toFixed(2)}
+              ${jobPayment.materialsReleased.toFixed(2)}
             </Text>
           </View>
         </Card>
@@ -264,7 +389,7 @@ export default function JobDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Milestones</Text>
 
-          {job.milestones.map((milestone) => (
+          {milestones.map((milestone) => (
             <Card
               key={milestone.id}
               variant="outlined"
@@ -345,12 +470,12 @@ export default function JobDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Timeline</Text>
           <Card variant="outlined" padding="base">
-            {job.timeline.map((event, index) => (
+            {timeline.map((event, index) => (
               <View
                 key={index}
                 style={[
                   styles.timelineEvent,
-                  index === job.timeline.length - 1 && styles.timelineEventLast,
+                  index === timeline.length - 1 && styles.timelineEventLast,
                 ]}
               >
                 <View style={styles.timelineIcon}>
@@ -374,7 +499,7 @@ export default function JobDetailScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Change Orders</Text>
             <TouchableOpacity
-              onPress={() => router.push(`/(customer)/job-detail/${job.id}/change-orders`)}
+              onPress={() => router.push(`/(customer)/job-detail/${params.id}/change-orders`)}
             >
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
@@ -417,6 +542,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.primary,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  loadingText: {
+    ...typography.body.regular,
+    color: colors.neutral[600],
+    marginTop: spacing.md,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  errorText: {
+    ...typography.body.regular,
+    color: colors.error.main,
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
   },
   content: {
     flexGrow: 1,
