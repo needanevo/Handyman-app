@@ -182,13 +182,18 @@ export default function JobsListScreen() {
 
   // Filter items based on selected tab
   const allItems = allJobs || [];
+  
+  // Active: Jobs currently being worked on by a provider (accepted, scheduled, in_progress, in_review)
+  const activeStatuses = ['accepted', 'scheduled', 'in_progress', 'in_review'];
   const activeItems = allItems.filter((item: any) => {
-    const isActive = item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'rejected';
+    const isActive = activeStatuses.includes(item.status);
     console.log(`Filtering item ${item.id}: status=${item.status}, isActive=${isActive}`);
     return isActive;
   });
+  
+  // Completed: Jobs fully completed and paid (only 'paid' status)
   const completedItems = allItems.filter((item: any) =>
-    item.status === 'completed' || item.status === 'accepted'
+    item.status === 'paid'
   );
 
   console.log('📊 Filter counts - All:', allItems.length, 'Active:', activeItems.length, 'Completed:', completedItems.length);

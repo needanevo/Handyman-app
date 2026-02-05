@@ -46,6 +46,7 @@ interface JobData {
   agreed_amount?: number;
   budget_max?: number;
   assigned_provider_id?: string;
+  assigned_provider?: JobProvider;
   created_at: string;
 }
 
@@ -56,7 +57,6 @@ export default function JobDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [job, setJob] = useState<JobData | null>(null);
-  const [provider, setProvider] = useState<JobProvider | null>(null);
 
   const fetchJob = useCallback(async () => {
     try {
@@ -64,19 +64,10 @@ export default function JobDetailScreen() {
       const jobId = Array.isArray(params.id) ? params.id[0] : params.id;
       
       const jobResponse = await jobsAPI.getJob(jobId);
-      setJob(jobResponse.data || jobResponse);
+      // Handle both wrapped and unwrapped response formats
+      const jobData = jobResponse.data || jobResponse;
+      setJob(jobData);
       
-      const providerId = jobResponse.data?.assigned_provider_id || jobResponse.assigned_provider_id;
-      if (providerId) {
-        try {
-          const providerResponse = await jobsAPI.getProvider(providerId);
-          setProvider(providerResponse.data || providerResponse);
-        } catch {
-          setProvider(null);
-        }
-      } else {
-        setProvider(null);
-      }
     } catch (err: any) {
       setError(err.message || 'Failed to load job');
     } finally {
@@ -144,9 +135,12 @@ export default function JobDetailScreen() {
   };
 
   const getProviderInfo = (): JobProvider => {
-    if (provider) {
-      return provider;
+    // Use embedded provider info first
+    if (job?.assigned_provider) {
+      return job.assigned_provider;
     }
+    
+    // Fallback to mock data if no provider assigned
     return {
       id: 'unknown',
       name: 'Mike Johnson',

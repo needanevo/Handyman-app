@@ -1805,12 +1805,12 @@ async def create_job(
     )
 
 
-@api_router.get("/jobs/{job_id}", response_model=Job)
+@api_router.get("/jobs/{job_id}")
 async def get_job(
     job_id: str,
     current_user: User = Depends(get_current_user_dependency)
 ):
-    """Get job by ID"""
+    """Get job by ID with embedded provider info for customers"""
     job = await db.jobs.find_one({"id": job_id})
     if not job:
         raise HTTPException(404, detail="Job not found")
@@ -1831,7 +1831,40 @@ async def get_job(
             raise HTTPException(403, detail="Not authorized to view this job")
     # Admins can view all jobs
 
-    return Job(**job)
+    # Build response with provider info for customers
+    from services.job_lifecycle import get_assigned_provider_id
+    response_data = Job(**job).model_dump()
+    
+    # If customer, fetch and embed provider info
+    if current_user.role == UserRole.CUSTOMER:
+        provider_id = get_assigned_provider_id(job)
+        if provider_id:
+            provider = await db.users.find_one({"id": provider_id})
+            if provider:
+                # Build provider info
+                first_name = provider.get("first_name", "")
+                last_name = provider.get("last_name", "")
+                business_name = provider.get("business_name")
+                
+                if business_name:
+                    name = business_name
+                elif first_name or last_name:
+                    name = f"{first_name} {last_name}".strip()
+                else:
+                    name = "Provider"
+                
+                response_data["assigned_provider"] = {
+                    "id": provider["id"],
+                    "name": name,
+                    "business_name": business_name,
+                    "role": provider.get("role", "handyman"),
+                    "profile_photo": provider.get("profile_photo"),
+                    "phone": provider.get("phone", ""),
+                    "rating": provider.get("rating"),
+                    "completed_jobs": provider.get("completed_jobs", 0)
+                }
+    
+    return response_data
 
 
 @api_router.get("/jobs", response_model=List[Job])
