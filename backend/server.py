@@ -4821,7 +4821,7 @@ async def update_job_status(
 async def create_proposal(
     job_id: str,
     proposal_request: ProposalCreateRequest,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Create a proposal for a job (handyman/contractor only).
@@ -5066,7 +5066,7 @@ async def accept_proposal(
 @api_router.post("/proposals/{proposal_id}/withdraw")
 async def withdraw_proposal(
     proposal_id: str,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Withdraw a proposal (contractor only).
@@ -5088,7 +5088,7 @@ async def withdraw_proposal(
 
 @api_router.get("/handyman/wallet/summary")
 async def get_wallet_summary(
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get wallet summary for handyman/contractor.
@@ -5102,7 +5102,7 @@ async def get_wallet_summary(
 async def get_payouts(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get paginated list of payouts for handyman/contractor.
@@ -5121,7 +5121,7 @@ async def get_payouts(
 
 @api_router.get("/handyman/growth/summary")
 async def get_growth_summary(
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get growth summary for handyman/contractor.
@@ -5143,7 +5143,7 @@ async def get_growth_summary(
 async def get_growth_events(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get paginated growth events for handyman/contractor.
