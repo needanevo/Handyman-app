@@ -216,3 +216,8 @@ def require_contractor_or_admin():
 
 def require_customer_or_admin():
     return require_role(UserRole.CUSTOMER, UserRole.ADMIN)
+
+
+def require_provider_or_admin():
+    """Allow HANDYMAN, CONTRACTOR, or ADMIN roles"""
+    return require_role(UserRole.HANDYMAN, UserRole.CONTRACTOR, UserRole.ADMIN)

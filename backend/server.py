@@ -86,6 +86,7 @@ from auth.auth_handler import (
     AuthHandler,
     require_admin,
     require_technician_or_admin,
+    require_provider_or_admin,
 )
 
 # Import services
@@ -4623,7 +4624,7 @@ async def admin_configure_provider_gate(
 async def get_jobs_feed(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get available jobs feed for handyman/contractor.
@@ -4667,7 +4668,7 @@ async def get_jobs_feed(
 async def get_active_jobs(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get active jobs for handyman/contractor.
@@ -4686,7 +4687,7 @@ async def get_active_jobs(
 async def get_job_history(
     limit: int = 50,
     offset: int = 0,
-    current_user: User = Depends(require_technician_or_admin)
+    current_user: User = Depends(require_provider_or_admin)
 ):
     """
     Get job history for handyman/contractor.
