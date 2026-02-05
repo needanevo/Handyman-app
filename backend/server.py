@@ -2051,26 +2051,42 @@ async def get_contractor_dashboard_stats(
 
     # Count accepted jobs (assigned to this contractor, not yet scheduled)
     accepted_jobs_count = await db.jobs.count_documents({
-        "contractor_id": current_user.id,
-        "status": {"$in": ["posted", "accepted"]}
+        "$or": [
+            {"assigned_provider_id": current_user.id},
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
+        "status": {"$in": ["accepted", "in_progress"]}
     })
 
     # Count scheduled jobs (assigned to this contractor with scheduled date)
     scheduled_jobs_count = await db.jobs.count_documents({
-        "contractor_id": current_user.id,
+        "$or": [
+            {"assigned_provider_id": current_user.id},
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
         "status": "scheduled"
     })
 
     # Count completed jobs this month
     completed_this_month = await db.jobs.count_documents({
-        "contractor_id": current_user.id,
+        "$or": [
+            {"assigned_provider_id": current_user.id},
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
         "status": "completed",
         "completed_at": {"$gte": month_start.isoformat()}
     })
 
     # Count completed jobs year to date
     completed_year_to_date = await db.jobs.count_documents({
-        "contractor_id": current_user.id,
+        "$or": [
+            {"assigned_provider_id": current_user.id},
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
         "status": "completed",
         "completed_at": {"$gte": year_start.isoformat()}
     })
@@ -2080,7 +2096,11 @@ async def get_contractor_dashboard_stats(
     revenue_pipeline_month = [
         {
             "$match": {
-                "contractor_id": current_user.id,
+                "$or": [
+                    {"assigned_provider_id": current_user.id},
+                    {"assigned_contractor_id": current_user.id},
+                    {"contractor_id": current_user.id}
+                ],
                 "status": "completed",
                 "completed_at": {"$gte": month_start.isoformat()}
             }
@@ -3322,8 +3342,12 @@ async def get_accepted_contractor_jobs(
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     jobs = await db.jobs.find({
-        "assigned_provider_id": current_user.id,
-        "status": {"$in": ["accepted", "quoted"]}
+        "$or": [
+            {"assigned_provider_id": current_user.id},
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
+        "status": {"$in": ["accepted", "scheduled", "in_progress"]}
     }).sort("created_at", -1).to_list(100)
 
     for job in jobs:
@@ -3340,8 +3364,12 @@ async def get_scheduled_contractor_jobs(
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     jobs = await db.jobs.find({
-        "assigned_provider_id": current_user.id,
-        "status": {"$in": ["scheduled", "accepted"]}
+        "$or": [
+            {"assigned_provider_id": current_user.id},
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
+        "status": {"$in": ["scheduled", "in_progress"]}
     }).sort("scheduled_date", 1).to_list(100)
 
     for job in jobs:
@@ -3360,8 +3388,12 @@ async def get_completed_contractor_jobs(
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     query = {
-        "assigned_provider_id": current_user.id,
-        "status": "completed"
+        "$or": [
+            {"assigned_provider_id": current_user.id},
+            {"assigned_contractor_id": current_user.id},
+            {"contractor_id": current_user.id}
+        ],
+        "status": {"$in": ["completed", "paid", "in_review"]}
     }
 
     if start_date and end_date:
