@@ -3214,7 +3214,7 @@ async def get_accepted_contractor_jobs(
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     jobs = await db.jobs.find({
-        "contractor_id": current_user.id,
+        "assigned_provider_id": current_user.id,
         "status": {"$in": ["accepted", "quoted"]}
     }).sort("created_at", -1).to_list(100)
 
@@ -3232,7 +3232,7 @@ async def get_scheduled_contractor_jobs(
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     jobs = await db.jobs.find({
-        "contractor_id": current_user.id,
+        "assigned_provider_id": current_user.id,
         "status": "scheduled"
     }).sort("scheduled_date", 1).to_list(100)
 
@@ -3252,7 +3252,7 @@ async def get_completed_contractor_jobs(
         raise HTTPException(403, detail="Only contractors can access this endpoint")
 
     query = {
-        "contractor_id": current_user.id,
+        "assigned_provider_id": current_user.id,
         "status": "completed"
     }
 
