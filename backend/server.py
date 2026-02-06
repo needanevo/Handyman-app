@@ -1032,6 +1032,7 @@ async def request_quote(
         logger.info(f"Quote {quote_id} created and saved to database")
 
         # Step 4b: Create a published Job so contractors/handymen can see it
+        # All price fields must match what customer saw on quote
         job_id = str(uuid.uuid4())
         job_doc = {
             "id": job_id,
@@ -1050,7 +1051,13 @@ async def request_quote(
             "description": quote_request.description,
             "photos": photo_urls,
             "urgency": quote_request.urgency,
+            # All price fields set to same value so all screens show same price
             "budget_max": total_amount,
+            "total_amount": total_amount,
+            "agreed_amount": total_amount,
+            "price": total_amount,
+            "ai_generated": ai_suggestion is not None,
+            "ai_confidence": ai_suggestion.confidence if ai_suggestion else None,
             "status": JobStatus.POSTED.value,
             "contractor_id": None,
             "created_at": datetime.utcnow().isoformat(),
