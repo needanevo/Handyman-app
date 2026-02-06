@@ -2732,9 +2732,6 @@ async def update_contractor_portfolio(
     if current_user.role != UserRole.CONTRACTOR:
         raise HTTPException(403, detail="Only contractors can update portfolio")
 
-    # Extract portfolio_photos from request body
-    portfolio_photos = request_body.get("portfolio_photos", [])
-
     # Validate photo URLs
     if not isinstance(data.portfolio_photos, list):
         raise HTTPException(400, detail="portfolio_photos must be an array")
@@ -2754,11 +2751,11 @@ async def update_contractor_portfolio(
         }
     )
 
-    if result.modified_count > 0:
+    if result.matched_count > 0:
         logger.info(f"Updated portfolio for contractor {current_user.id} ({len(data.portfolio_photos)} photos)")
         return {"message": "Portfolio updated successfully", "count": len(data.portfolio_photos)}
     else:
-        raise HTTPException(500, detail="Failed to update portfolio")
+        raise HTTPException(404, detail="User not found")
 
 
 @api_router.patch("/contractors/profile")
