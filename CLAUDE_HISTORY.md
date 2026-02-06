@@ -2443,3 +2443,14 @@ db.jobs.find({"address.latitude": {$exists: true}}).forEach(function(job) {
 
 Commit: `3a5c7da` on `fix/job-detail-routes-ts-clean`
 
+
+---
+
+[2026-02-05 13:15] Fix — Portfolio update 500 error in contractor registration
+
+Fixed critical bug in contractor registration Step 4 (Portfolio) causing 500 errors when saving portfolio photos. The PATCH `/contractors/portfolio` endpoint was referencing an undefined `request_body` variable instead of using the Pydantic model `data` parameter. Also fixed false 500 errors when submitting unchanged portfolio data by using `matched_count` instead of `modified_count`.
+
+**Files changed:**
+- `backend/server.py` — Removed undefined `request_body` reference (line 2736), changed `modified_count` to `matched_count` for portfolio update, return 404 instead of 500 when user not found.
+
+Commit: `a13fc01` on `dev`
