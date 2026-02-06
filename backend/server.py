@@ -1286,18 +1286,20 @@ async def respond_to_quote(
                 )
             
             # Create job from accepted quote
+            # Use the quote's calculated total_amount as budget_max (not customer's input budget_range)
+            quote_total = quote.get("total_amount", 0)
             job = Job(
                 customer_id=current_user.id,
                 service_category=quote["service_category"],
                 description=quote["description"],
                 address=job_address,
-                budget_max=quote.get("budget_range", {}).get("max") if quote.get("budget_range") else None,
+                budget_max=quote_total if quote_total else quote.get("budget_range", {}).get("max"),
                 urgency=quote.get("urgency", "low"),
             )
 
             # Set additional fields directly on the object
             job.quote_id = quote_id
-            job.agreed_amount = quote.get("total_amount", 0)
+            job.agreed_amount = quote_total
             job.customer_notes = response.customer_notes
             job.address_id = quote["address_id"]
 
