@@ -5585,7 +5585,8 @@ async def startup_event():
         await db.jobs.create_index("status")
         await db.jobs.create_index("service_category")
         await db.jobs.create_index([("address.zip", 1)])
-        await db.jobs.create_index([("address.lat", "2dsphere"), ("address.lon", "2dsphere")])
+        # Note: Removed invalid 2dsphere index on separate lat/lon fields
+        # Distance calculations use geopy.geodesic() instead of MongoDB geo queries
         await db.jobs.create_index("assigned_contractor_id")
         await db.jobs.create_index("customer_id")
 
