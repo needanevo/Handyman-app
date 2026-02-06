@@ -62,6 +62,15 @@ export const colors = {
     lightest: '#FFF5F5',
   },
 
+  // Info - Informational states, quotes, pending review
+  info: {
+    main: '#3B82F6', // Blue
+    light: '#60A5FA',
+    dark: '#2563EB',
+    lighter: '#DBEAFE',
+    lightest: '#EFF6FF',
+  },
+
   // Neutral - Text, borders, backgrounds (keeping existing for now, might adjust later if needed)
   neutral: {
     900: '#111827', // Darkest text
