@@ -2454,3 +2454,56 @@ Fixed critical bug in contractor registration Step 4 (Portfolio) causing 500 err
 - `backend/server.py` — Removed undefined `request_body` reference (line 2736), changed `modified_count` to `matched_count` for portfolio update, return 404 instead of 500 when user not found.
 
 Commit: `a13fc01` on `dev`
+
+---
+
+[2026-02-05 13:30] Session Summary — Portfolio Fix, Theme Fix, Admin Plan
+
+**Issues Fixed Today:**
+
+1. **Portfolio Update 500 Error (backend/server.py)**
+   - Line 2736 referenced undefined `request_body` variable
+   - Changed `modified_count` to `matched_count` to prevent false 500 errors
+   - Commit: `a13fc01`
+
+2. **Admin Jobs Page Crash (frontend/src/constants/theme.ts)**
+   - `colors.info` was missing from theme
+   - Added info color set (blue tones)
+   - Commit: `65c48fa`
+
+---
+
+## Admin Login & Dashboard Plan (For KILO)
+
+### Current State
+- Admin pages exist: `(admin)/dashboard.tsx`, `jobs/`, `contractors/`, `customers/`
+- Backend has `UserRole.ADMIN` support
+- **Missing:** Role guard on `_layout.tsx` (anyone can access admin routes!)
+- **Missing:** Admin login flow
+
+### Phase 1: Backend (server.py)
+- Option A: Environment variable for admin email - on registration, if email matches ADMIN_EMAIL env var, set role=ADMIN
+- Option B: CLI/script to promote user to admin via direct DB update
+
+### Phase 2: Frontend Auth
+- **2.1 Update `(admin)/_layout.tsx`** - Add role guard (check user.role === 'admin', redirect if not)
+- **2.2** (Optional) Create admin login entry point `/auth/admin-login`
+
+### Phase 3: Navigation Flow
+- After login, check role and redirect:
+  - `customer` → `/(customer)/dashboard`
+  - `contractor` → `/(contractor)/dashboard`
+  - `admin` → `/(admin)/dashboard`
+
+### Files to Touch
+| File | Change |
+|------|--------|
+| `backend/server.py` | (Optional) Admin seeding logic |
+| `frontend/app/(admin)/_layout.tsx` | **Add role guard** - PRIORITY |
+| `frontend/src/contexts/AuthContext.tsx` | Route admin to admin dashboard on login |
+| `frontend/app/auth/login.tsx` | (Optional) Admin-aware redirect |
+
+### Priority Order
+1. `_layout.tsx` role guard - Security fix, do first
+2. Login redirect logic - So admins land on admin dashboard
+3. Admin creation method - Manual DB update is fine for now
