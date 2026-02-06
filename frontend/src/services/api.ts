@@ -582,6 +582,7 @@ export const adminAPI = {
       total: number;
       this_month: number;
     };
+    pending_approvals: number;
   }>('/admin/dashboard/stats'),
 
   // Contractor management
@@ -612,6 +613,29 @@ export const adminAPI = {
 
   assignJobToContractor: (jobId: string, contractorId: string) =>
     apiClient.patch<any>(`/admin/jobs/${jobId}/assign`, { contractor_id: contractorId }),
+
+  // Quote management
+  getQuotes: () => apiClient.get<any[]>('/admin/quotes'),
+
+  sendQuoteEmail: (quoteId: string) =>
+    apiClient.post<any>(`/admin/quotes/${quoteId}/send-email`, {}),
+
+  // Refund management
+  getRefunds: () => apiClient.get<any[]>('/admin/refunds'),
+
+  processRefund: (refundId: string, data: {
+    amount: number;
+    reason: string;
+    approve: boolean;
+  }) => apiClient.post<any>(`/admin/refunds/${refundId}/process`, data),
+
+  // Approvals management
+  getPendingApprovals: () => apiClient.get<any[]>('/admin/approvals'),
+
+  approveRegistration: (userId: string, data: {
+    approve: boolean;
+    notes?: string;
+  }) => apiClient.post<any>(`/admin/approvals/${userId}/respond`, data),
 };
 
 // Health check

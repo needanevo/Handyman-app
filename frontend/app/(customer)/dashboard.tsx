@@ -111,12 +111,22 @@ export default function CustomerDashboard() {
             <Text style={styles.greeting}>Welcome back,</Text>
             <Text style={styles.name}>{user?.firstName || 'Customer'}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => router.push('/(customer)/profile')}
-          >
-            <Ionicons name="person-circle" size={40} color={colors.primary.main} />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            {user?.role === 'admin' && (
+              <TouchableOpacity
+                style={styles.adminButton}
+                onPress={() => router.push('/(admin)/dashboard')}
+              >
+                <Ionicons name="shield-checkmark" size={24} color={colors.primary.main} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={() => router.push('/(customer)/profile')}
+            >
+              <Ionicons name="person-circle" size={40} color={colors.primary.main} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Address Setup Reminder */}
@@ -313,6 +323,14 @@ const styles = StyleSheet.create({
     ...typography.sizes['2xl'],
     fontWeight: typography.weights.bold,
     color: colors.neutral[900],
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  adminButton: {
+    padding: spacing.xs,
   },
   profileButton: {
     padding: spacing.xs,

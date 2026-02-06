@@ -65,11 +65,5 @@ export default function AdminLayout() {
   }
 
   // Role matches - render admin routes
-  return (
-    <Slot
-      screenOptions={{
-        headerShown: false,
-      }}
-    />
-  );
+  return <Slot />;
 }

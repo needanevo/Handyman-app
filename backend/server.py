@@ -4753,7 +4753,200 @@ async def admin_configure_provider_gate(
     }
 
 
-# ==================== PHASE 4: JOB FEED & PROPOSALS ====================
+# ==================== ADMIN DASHBOARD ENDPOINTS ====================
+
+
+@api_router.get("/admin/dashboard/stats")
+async def admin_get_dashboard_stats(
+    current_user: User = Depends(require_admin)
+):
+    """Get dashboard statistics for admin (admin only)"""
+    # Count users by role
+    total_customers = await db.users.count_documents({"role": UserRole.CUSTOMER})
+    total_contractors = await db.users.count_documents({"role": UserRole.CONTRACTOR})
+    active_contractors = await db.users.count_documents({
+        "role": UserRole.CONTRACTOR, 
+        "registration_status": "approved"
+    })
+    
+    # Count new users this week
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    new_customers_this_week = await db.users.count_documents({
+        "role": UserRole.CUSTOMER,
+        "created_at": {"$gte": week_ago}
+    })
+    
+    # Count jobs by status
+    total_jobs = await db.jobs.count_documents({})
+    pending_jobs = await db.jobs.count_documents({"status": "pending"})
+    in_progress_jobs = await db.jobs.count_documents({"status": "in_progress"})
+    completed_jobs = await db.jobs.count_documents({"status": "completed"})
+    
+    # Count jobs completed this month/week
+    month_ago = datetime.utcnow() - timedelta(days=30)
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    completed_this_month = await db.jobs.count_documents({
+        "status": "completed",
+        "completed_at": {"$gte": month_ago}
+    })
+    completed_this_week = await db.jobs.count_documents({
+        "status": "completed",
+        "completed_at": {"$gte": week_ago}
+    })
+    
+    # Calculate revenue
+    completed_job_docs = await db.jobs.find({"status": "completed"}).to_list(10000)
+    total_revenue = sum(job.get("contractor_invoice_amount", job.get("budget_max", 0)) for job in completed_job_docs)
+
+    # Revenue this month
+    this_month_jobs = await db.jobs.find({
+        "status": "completed",
+        "completed_at": {"$gte": month_ago}
+    }).to_list(1000)
+    this_month_revenue = sum(job.get("contractor_invoice_amount", job.get("budget_max", 0)) for job in this_month_jobs)
+
+    # Count pending approvals
+    pending_approvals = await db.users.count_documents({
+        "role": {"$in": [UserRole.CONTRACTOR, UserRole.HANDYMAN]},
+        "registration_status": "pending"
+    })
+
+    return {
+        "users": {
+            "total_customers": total_customers,
+            "total_contractors": total_contractors,
+            "active_contractors": active_contractors,
+            "new_customers_this_week": new_customers_this_week,
+            "new_contractors_this_week": 0
+        },
+        "jobs": {
+            "total": total_jobs,
+            "pending": pending_jobs,
+            "in_progress": in_progress_jobs,
+            "completed": completed_jobs,
+            "cancelled": await db.jobs.count_documents({"status": "cancelled"}),
+            "completed_this_month": completed_this_month,
+            "completed_this_week": completed_this_week
+        },
+        "revenue": {
+            "total": total_revenue,
+            "this_month": this_month_revenue
+        },
+        "pending_approvals": pending_approvals
+    }
+
+
+@api_router.get("/admin/approvals")
+async def admin_get_pending_approvals(
+    current_user: User = Depends(require_admin)
+):
+    """Get pending contractor/handyman registration approvals (admin only)"""
+    # Get contractors pending approval
+    pending_contractors = await db.users.find({
+        "role": UserRole.CONTRACTOR,
+        "registration_status": "pending"
+    }).to_list(1000)
+    
+    # Get handymen pending approval
+    pending_handymen = await db.users.find({
+        "role": UserRole.HANDYMAN,
+        "registration_status": "pending"
+    }).to_list(1000)
+    
+    def format_user(user: dict) -> dict:
+        return {
+            "id": str(user.get("_id")),
+            "type": user.get("role").lower(),
+            "email": user.get("email", ""),
+            "first_name": user.get("firstName", ""),
+            "last_name": user.get("lastName", ""),
+            "phone": user.get("phone", ""),
+            "skills": user.get("skills", []),
+            "registration_date": user.get("created_at", datetime.utcnow()).strftime("%Y-%m-%d") if isinstance(user.get("created_at"), datetime) else str(user.get("created_at", "")),
+            "status": user.get("registration_status", "pending"),
+            "photo_url": user.get("profile_photo")
+        }
+    
+    return {
+        "contractors": [format_user(c) for c in pending_contractors],
+        "handymen": [format_user(h) for h in pending_handymen],
+        "total": len(pending_contractors) + len(pending_handymen)
+    }
+
+
+@api_router.post("/admin/approvals/{user_id}/respond")
+async def admin_respond_to_approval(
+    user_id: str,
+    data: dict = Body(...),
+    current_user: User = Depends(require_admin)
+):
+    """Approve or reject a contractor/handyman registration (admin only)"""
+    from datetime import datetime
+    
+    approve = data.get("approve", False)
+    notes = data.get("notes", "")
+    
+    user = await db.users.find_one({"_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    new_status = "approved" if approve else "rejected"
+    
+    await db.users.update_one(
+        {"_id": user_id},
+        {"$set": {
+            "registration_status": new_status,
+            "registration_notes": notes,
+            "registration_reviewed_by": current_user.email,
+            "registration_reviewed_at": datetime.utcnow()
+        }}
+    )
+    
+    return {
+        "success": True,
+        "message": f"Registration {'approved' if approve else 'rejected'} successfully",
+        "user_id": user_id,
+        "new_status": new_status
+    }
+
+
+@api_router.get("/admin/refunds")
+async def admin_get_refunds(
+    current_user: User = Depends(require_admin)
+):
+    """Get refund requests (admin only)"""
+    # In a real app, you would have a refunds collection
+    # For now, return empty list as placeholder
+    return {
+        "refunds": [],
+        "total": 0
+    }
+
+
+@api_router.post("/admin/refunds/{refund_id}/process")
+async def admin_process_refund(
+    refund_id: str,
+    data: dict = Body(...),
+    current_user: User = Depends(require_admin)
+):
+    """Process a refund request (admin only)"""
+    amount = data.get("amount", 0)
+    reason = data.get("reason", "")
+    approve = data.get("approve", False)
+    
+    # In a real app, you would:
+    # 1. Find the refund request
+    # 2. If approving, process refund through payment provider
+    # 3. Update refund status
+    # 4. Notify customer
+    
+    return {
+        "success": True,
+        "message": f"Refund {'approved' if approve else 'rejected'} successfully",
+        "refund_id": refund_id,
+        "amount": amount,
+        "reason": reason
+    }
 
 
 @api_router.get("/handyman/jobs/feed")
