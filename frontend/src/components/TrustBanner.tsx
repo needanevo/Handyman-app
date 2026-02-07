@@ -17,8 +17,8 @@ export function TrustBanner({
 }: TrustBannerProps) {
   const router = useRouter();
 
-  // Don't show banner if provider is active or sandbox (can accept jobs)
-  if (providerStatus === 'active' || providerStatus === 'sandbox') {
+  // Hide banner if provider is active, sandbox, OR profile is 100% complete
+  if (providerStatus === 'active' || providerStatus === 'sandbox' || providerCompleteness >= 100) {
     return null;
   }
 
