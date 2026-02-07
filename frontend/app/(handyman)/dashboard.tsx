@@ -20,6 +20,9 @@ export default function HandymanDashboard() {
   const router = useRouter();
   const { user, logout } = useAuth();
 
+  // User data is already fresh from AuthContext - no need to refresh on focus
+  // This was causing infinite loops with useFocusEffect
+
   // Fetch real jobs using the SAME query keys as list screens
   // This ensures unified cache across dashboard and job lists
   const { data: availableJobs } = useQuery({

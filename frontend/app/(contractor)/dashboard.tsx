@@ -32,7 +32,10 @@ export default function ContractorDashboard() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
-    // Hidden Growth Center unlock logic
+  // User data is already fresh from AuthContext - no need to refresh on focus
+  // This was causing infinite loops with useFocusEffect
+
+  // Hidden Growth Center unlock logic
   const jobsCompleted = user?.stats?.completedJobs || 0;
   const avgRating = user?.stats?.averageRating || 0;
   const paymentsReceived = user?.stats?.paymentsReceived || 0;

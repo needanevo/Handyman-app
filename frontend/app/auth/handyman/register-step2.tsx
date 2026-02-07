@@ -23,6 +23,7 @@ interface Step2Form {
   yearsExperience: string;
   customSkills: string;
   street: string;
+  suite: string;
   city: string;
   state: string;
   zip: string;
@@ -56,6 +57,7 @@ export default function HandymanRegisterStep2() {
 
   // Watch address fields for button disabled state
   const streetValue = watch('street');
+  const suiteValue = watch('suite');
   const cityValue = watch('city');
   const stateValue = watch('state');
   const zipValue = watch('zip');
@@ -95,6 +97,7 @@ export default function HandymanRegisterStep2() {
 
       // Set form field values
       setValue('street', addr.street || '');
+      setValue('suite', (addr as any).line2 || '');
       setValue('city', addr.city || '');
       setValue('state', addr.state || '');
       setValue('zip', addr.zipCode || '');
@@ -175,7 +178,7 @@ export default function HandymanRegisterStep2() {
       // Build address from form data + optional metadata from autocomplete
       const addressPayload = {
         street: data.street,
-        line2: selectedAddress?.line2,
+        line2: data.suite,
         city: data.city,
         state: data.state,
         zip_code: data.zip,
@@ -381,6 +384,22 @@ export default function HandymanRegisterStep2() {
                 error={errors.street?.message}
                 required
                 icon="location-outline"
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="suite"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Suite / Apt"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Suite 100, Apt 4B"
+                error={errors.suite?.message}
+                icon="home-outline"
+                helpText="Optional"
               />
             )}
           />
