@@ -419,6 +419,74 @@ async def test_auth(
     }
 
 
+@api_router.delete("/auth/account")
+async def delete_current_account(
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Delete the current user's account.
+    
+    Requirements:
+    - User must have NO active or pending jobs
+    - User must have NO work in progress
+    
+    This action is irreversible.
+    """
+    try:
+        user_id = current_user.id
+        
+        # Check for active/pending jobs (customers only)
+        if current_user.role == UserRole.CUSTOMER:
+            # Check jobs collection for any jobs belonging to this user
+            active_jobs = await db.jobs.count_documents({
+                "$or": [
+                    {"customer_id": user_id, "status": {"$in": ["pending", "accepted", "in_progress", "scheduled"]}},
+                    {"provider_id": user_id, "status": {"$in": ["pending", "accepted", "in_progress", "scheduled"]}}
+                ]
+            })
+            
+            if active_jobs > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot delete account with active or pending jobs. Please cancel or complete your jobs first."
+                )
+        
+        # For providers, check if they have any active job assignments
+        if current_user.role in [UserRole.HANDYMAN, UserRole.CONTRACTOR]:
+            active_provider_jobs = await db.jobs.count_documents({
+                "provider_id": user_id,
+                "status": {"$in": ["accepted", "in_progress", "scheduled"]}
+            })
+            
+            if active_provider_jobs > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot delete account with active job assignments. Please complete your current jobs first."
+                )
+        
+        # Delete user's addresses from addresses collection
+        await db.addresses.delete_many({"user_id": user_id})
+        
+        # Delete the user from users collection
+        await db.users.delete_one({"id": user_id})
+        
+        logger.info(f"Account deleted for user {user_id}")
+        
+        return {
+            "success": True,
+            "message": "Your account has been permanently deleted."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting account: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete account. Please try again."
+        )
+
+
 @api_router.post("/auth/refresh", response_model=Token)
 async def refresh_token(refresh: dict = Body(...)):
     """

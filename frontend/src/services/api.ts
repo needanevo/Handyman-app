@@ -107,6 +107,10 @@ export const authAPI = {
 
   completeOnboarding: () =>
     apiClient.post<{ success: boolean; message: string; provider_status: string }>('/auth/onboarding/complete', {}),
+
+  // Delete account (requires no active/pending jobs)
+  deleteAccount: () =>
+    apiClient.delete<{ success: boolean; message: string }>('/auth/account'),
 };
 
 // Services API

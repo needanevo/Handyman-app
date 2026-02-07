@@ -13,21 +13,70 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../../src/constants/theme';
 import { Card } from '../../src/components/Card';
+import { authAPI } from '../../src/services/api';
+import { storage } from '../../src/utils/storage';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 export default function CustomerSettingsScreen() {
   const router = useRouter();
+  const { logout } = useAuth();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Local state for toggles (not persisted yet)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
   const [marketingEmails, setMarketingEmails] = useState(false);
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone. You must have no active or pending jobs to proceed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            Alert.alert(
+              'Final Confirmation',
+              'This will permanently delete your account and all associated data. Continue?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete My Account',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setIsDeleting(true);
+                    try {
+                      await authAPI.deleteAccount();
+                      // Clear tokens and logout
+                      await storage.removeItem('accessToken');
+                      await storage.removeItem('refreshToken');
+                      Alert.alert('Account Deleted', 'Your account has been permanently deleted.');
+                      router.replace('/auth/welcome');
+                    } catch (error: any) {
+                      const message = error.response?.data?.detail || 'Failed to delete account. Make sure you have no active jobs.';
+                      Alert.alert('Error', message);
+                    } finally {
+                      setIsDeleting(false);
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -153,6 +202,21 @@ export default function CustomerSettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
           </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity 
+            style={[styles.actionRow, styles.deleteRow]}
+            onPress={handleDeleteAccount}
+            disabled={isDeleting}
+          >
+            <View style={styles.actionInfo}>
+              <Ionicons name="trash-outline" size={20} color={colors.error.main} />
+              <Text style={[styles.actionLabel, styles.deleteText]}>
+                {isDeleting ? 'Deleting...' : 'Delete Account'}
+              </Text>
+            </View>
+          </TouchableOpacity>
         </Card>
 
         {/* About Section */}
@@ -268,5 +332,11 @@ const styles = StyleSheet.create({
     ...typography.sizes.base,
     color: colors.neutral[900],
     fontWeight: typography.weights.medium,
+  },
+  deleteRow: {
+    marginTop: spacing.sm,
+  },
+  deleteText: {
+    color: colors.error.main,
   },
 });
