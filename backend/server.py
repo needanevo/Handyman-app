@@ -419,25 +419,26 @@ async def test_auth(
     }
 
 
-@api_router.delete("/auth/account")
-async def delete_current_account(
+@api_router.post("/auth/account/request-deletion")
+async def request_account_deletion(
     current_user: User = Depends(get_current_user_dependency),
 ):
     """
-    Delete the current user's account.
+    Request account deletion (soft delete).
     
     Requirements:
     - User must have NO active or pending jobs
     - User must have NO work in progress
     
-    This action is irreversible.
+    Account will be marked for deletion. Admin must approve for permanent deletion.
     """
+    from datetime import datetime, timedelta
+    
     try:
         user_id = current_user.id
         
         # Check for active/pending jobs (customers only)
         if current_user.role == UserRole.CUSTOMER:
-            # Check jobs collection for any jobs belonging to this user
             active_jobs = await db.jobs.count_documents({
                 "$or": [
                     {"customer_id": user_id, "status": {"$in": ["pending", "accepted", "in_progress", "scheduled"]}},
@@ -448,7 +449,7 @@ async def delete_current_account(
             if active_jobs > 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Cannot delete account with active or pending jobs. Please cancel or complete your jobs first."
+                    detail="Cannot request deletion with active or pending jobs. Please cancel or complete your jobs first."
                 )
         
         # For providers, check if they have any active job assignments
@@ -461,30 +462,100 @@ async def delete_current_account(
             if active_provider_jobs > 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Cannot delete account with active job assignments. Please complete your current jobs first."
+                    detail="Cannot request deletion with active job assignments. Please complete your current jobs first."
                 )
         
-        # Delete user's addresses from addresses collection
-        await db.addresses.delete_many({"user_id": user_id})
+        # Soft delete - mark account for deletion
+        deletion_deadline = datetime.utcnow() + timedelta(days=30)  # 30 days to cancel request
         
-        # Delete the user from users collection
-        await db.users.delete_one({"id": user_id})
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {
+                "deletion_requested_at": datetime.utcnow(),
+                "deletion_deadline": deletion_deadline,
+                "deletion_status": "pending",
+                "is_active": False  # Immediately deactivate account
+            }}
+        )
         
-        logger.info(f"Account deleted for user {user_id}")
+        logger.info(f"Account deletion requested for user {user_id}")
         
         return {
             "success": True,
-            "message": "Your account has been permanently deleted."
+            "message": "Account deletion requested. You have 30 days to cancel. Contact support to cancel this request.",
+            "deletion_deadline": deletion_deadline.isoformat()
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting account: {str(e)}")
+        logger.error(f"Error requesting account deletion: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete account. Please try again."
+            detail="Failed to request account deletion. Please try again."
         )
+
+
+@api_router.post("/auth/account/cancel-deletion")
+async def cancel_account_deletion(
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Cancel a pending account deletion request.
+    """
+    try:
+        user_id = current_user.id
+        
+        # Check if there's a pending deletion request
+        user = await db.users.find_one({"id": user_id})
+        
+        if user.get("deletion_status") != "pending":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No pending deletion request found."
+            )
+        
+        # Cancel deletion and reactivate account
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {
+                "deletion_requested_at": None,
+                "deletion_deadline": None,
+                "deletion_status": None,
+                "is_active": True
+            }}
+        )
+        
+        logger.info(f"Account deletion cancelled for user {user_id}")
+        
+        return {
+            "success": True,
+            "message": "Account deletion cancelled. Your account is active again."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error cancelling account deletion: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to cancel deletion request. Please try again."
+        )
+
+
+@api_router.delete("/auth/account")
+async def confirm_account_deletion(
+    current_user: User = Depends(get_current_user_dependency),
+):
+    """
+    Permanently delete the current user's account.
+    
+    NOTE: This endpoint is deprecated. Use POST /auth/account/request-deletion instead.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="This endpoint has been replaced. Use POST /auth/account/request-deletion"
+    )
 
 
 @api_router.post("/auth/refresh", response_model=Token)
@@ -5023,6 +5094,150 @@ async def admin_process_refund(
         "refund_id": refund_id,
         "amount": amount,
         "reason": reason
+    }
+
+
+@api_router.get("/admin/deletions")
+async def admin_get_deletion_requests(
+    current_user: User = Depends(require_admin)
+):
+    """Get all pending account deletion requests (admin only)"""
+    from datetime import datetime
+    
+    # Get users with pending deletion status
+    pending_deletions = await db.users.find({
+        "deletion_status": "pending"
+    }).to_list(1000)
+    
+    def format_user(user: dict) -> dict:
+        created_at = user.get("created_at")
+        if isinstance(created_at, datetime):
+            created_date = created_at.strftime("%Y-%m-%d")
+        elif created_at:
+            created_date = str(created_at)[:10]
+        else:
+            created_date = "Unknown"
+            
+        deadline = user.get("deletion_deadline")
+        if isinstance(deadline, datetime):
+            deadline_str = deadline.strftime("%Y-%m-%d")
+        elif deadline:
+            deadline_str = str(deadline)[:10]
+        else:
+            deadline_str = "Unknown"
+        
+        return {
+            "id": str(user.get("_id")),
+            "user_id": user.get("id"),
+            "type": user.get("role", "unknown").lower(),
+            "email": user.get("email", ""),
+            "first_name": user.get("firstName", ""),
+            "last_name": user.get("lastName", ""),
+            "phone": user.get("phone", ""),
+            "requested_at": user.get("deletion_requested_at").strftime("%Y-%m-%d %H:%M") if isinstance(user.get("deletion_requested_at"), datetime) else str(user.get("deletion_requested_at", "")),
+            "deadline": deadline_str,
+            "status": user.get("deletion_status", "pending"),
+            "registration_date": created_date
+        }
+    
+    return {
+        "deletions": [format_user(u) for u in pending_deletions],
+        "total": len(pending_deletions)
+    }
+
+
+@api_router.post("/admin/deletions/{user_id}/approve")
+async def admin_approve_deletion(
+    user_id: str,
+    current_user: User = Depends(require_admin)
+):
+    """
+    Approve and permanently delete a user account.
+    
+    This will:
+    1. Delete all user's addresses from addresses collection
+    2. Anonymize user data (keep minimal record for analytics)
+    3. Remove the user from users collection
+    """
+    from datetime import datetime
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.get("deletion_status") != "pending":
+        raise HTTPException(status_code=400, detail="User does not have a pending deletion request")
+    
+    user_email = user.get("email", "")
+    user_role = user.get("role", "")
+    
+    # Delete user's addresses
+    await db.addresses.delete_many({"user_id": user_id})
+    
+    # Anonymize and archive user data before deletion (for analytics/compliance)
+    archive_data = {
+        "archived_at": datetime.utcnow(),
+        "archived_by": current_user.email,
+        "original_id": user_id,
+        "role": user_role,
+        "deleted_at": datetime.utcnow(),
+        "email_hash": hash(user_email) if user_email else None,  # Keep hash for spam prevention
+        "original_created_at": user.get("created_at")
+    }
+    await db.deleted_users.insert_one(archive_data)
+    
+    # Delete the user
+    await db.users.delete_one({"id": user_id})
+    
+    logger.info(f"Account permanently deleted by admin. User: {user_id}, Email: {user_email}, Role: {user_role}")
+    
+    return {
+        "success": True,
+        "message": f"Account for {user_email} has been permanently deleted.",
+        "user_id": user_id
+    }
+
+
+@api_router.post("/admin/deletions/{user_id}/reject")
+async def admin_reject_deletion(
+    user_id: str,
+    data: dict = Body(...),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Reject a deletion request - account remains active.
+    """
+    from datetime import datetime
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.get("deletion_status") != "pending":
+        raise HTTPException(status_code=400, detail="User does not have a pending deletion request")
+    
+    reason = data.get("reason", "")
+    
+    # Reactivate the account
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "deletion_requested_at": None,
+            "deletion_deadline": None,
+            "deletion_status": "rejected",
+            "deletion_rejected_reason": reason,
+            "deletion_rejected_by": current_user.email,
+            "deletion_rejected_at": datetime.utcnow(),
+            "is_active": True
+        }}
+    )
+    
+    logger.info(f"Account deletion rejected for user {user_id} by admin {current_user.email}")
+    
+    return {
+        "success": True,
+        "message": "Deletion request rejected. Account has been reactivated.",
+        "user_id": user_id
     }
 
 

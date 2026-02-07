@@ -108,9 +108,22 @@ export const authAPI = {
   completeOnboarding: () =>
     apiClient.post<{ success: boolean; message: string; provider_status: string }>('/auth/onboarding/complete', {}),
 
-  // Delete account (requires no active/pending jobs)
-  deleteAccount: () =>
-    apiClient.delete<{ success: boolean; message: string }>('/auth/account'),
+  // Delete account (soft delete with admin approval)
+  requestAccountDeletion: () =>
+    apiClient.post<{ success: boolean; message: string; deletion_deadline?: string }>('/auth/account/request-deletion', {}),
+
+  cancelAccountDeletion: () =>
+    apiClient.post<{ success: boolean; message: string }>('/auth/account/cancel-deletion', {}),
+
+  // Admin endpoints for deletion management
+  adminGetDeletionRequests: () =>
+    apiClient.get<any[]>('/admin/deletions'),
+
+  adminApproveDeletion: (userId: string) =>
+    apiClient.post<any>(`/admin/deletions/${userId}/approve`),
+
+  adminRejectDeletion: (userId: string, reason: string) =>
+    apiClient.post<any>(`/admin/deletions/${userId}/reject`, { reason }),
 };
 
 // Services API

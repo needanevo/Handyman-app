@@ -37,33 +37,36 @@ export default function CustomerSettingsScreen() {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone. You must have no active or pending jobs to proceed.',
+      'Request Account Deletion',
+      'Your account will be marked for deletion. An admin must approve before your data is permanently removed. You have 30 days to cancel this request.\n\nYou will be logged out immediately and cannot undo this action.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Request Deletion',
           style: 'destructive',
           onPress: async () => {
             Alert.alert(
               'Final Confirmation',
-              'This will permanently delete your account and all associated data. Continue?',
+              'Are you absolutely sure? This will request permanent deletion of your account.',
               [
-                { text: 'Cancel', style: 'cancel' },
+                { text: 'Go Back', style: 'cancel' },
                 {
-                  text: 'Delete My Account',
+                  text: 'Yes, Request Deletion',
                   style: 'destructive',
                   onPress: async () => {
                     setIsDeleting(true);
                     try {
-                      await authAPI.deleteAccount();
+                      await authAPI.requestAccountDeletion();
                       // Clear tokens and logout
                       await storage.removeItem('accessToken');
                       await storage.removeItem('refreshToken');
-                      Alert.alert('Account Deleted', 'Your account has been permanently deleted.');
+                      Alert.alert(
+                        'Deletion Requested',
+                        'Your account has been marked for deletion. An admin will review and approve. Contact support if you want to cancel.'
+                      );
                       router.replace('/auth/welcome');
                     } catch (error: any) {
-                      const message = error.response?.data?.detail || 'Failed to delete account. Make sure you have no active jobs.';
+                      const message = error.response?.data?.detail || 'Failed to request deletion. Make sure you have no active jobs.';
                       Alert.alert('Error', message);
                     } finally {
                       setIsDeleting(false);
