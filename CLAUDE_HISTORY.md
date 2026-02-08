@@ -2507,3 +2507,12 @@ Commit: `a13fc01` on `dev`
 1. `_layout.tsx` role guard - Security fix, do first
 2. Login redirect logic - So admins land on admin dashboard
 3. Admin creation method - Manual DB update is fine for now
+
+---
+
+## [2026-02-07 12:00] Fix — AppHeader dashboard button misrouting contractors
+
+- `frontend/src/components/AppHeader.tsx`
+- Commit: `a0017e1`
+
+The `handleDashboardPress` function in `AppHeader` checked `user?.role === 'technician'` instead of `'contractor'`, causing all contractors to fall through to `router.push('/home')` — a non-existent route that resolved to `frontend:///` (root). Fixed the role check to `'contractor'` and added proper routing for all roles (handyman, customer, admin) with a safe fallback to `/auth/welcome`.
