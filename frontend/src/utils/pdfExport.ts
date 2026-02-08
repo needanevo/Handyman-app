@@ -1,13 +1,12 @@
 /**
- * PDF Export Utility
+ * Expense Export Utility
  *
- * Export expenses, vendor data, and categories to PDF
- * Works on web and mobile platforms
+ * Export expenses and vendor data as shareable HTML reports.
+ * Uses expo-file-system + expo-sharing (works in Expo Go, no native build needed).
  */
 
-import * as Print from 'expo-print';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
 
 export interface ExpenseExportData {
   id: string;
@@ -27,9 +26,9 @@ export interface VendorSummary {
 }
 
 /**
- * Generate HTML for expense PDF export
+ * Generate HTML for expense report
  */
-function generateExpensePDFHTML(
+function generateExpenseHTML(
   expenses: ExpenseExportData[],
   title: string,
   dateRange?: { start: string; end: string }
@@ -81,12 +80,6 @@ function generateExpensePDFHTML(
           margin-top: 30px;
           margin-bottom: 15px;
           color: #374151;
-        }
-        h3 {
-          font-size: 16px;
-          margin-top: 20px;
-          margin-bottom: 10px;
-          color: #4B5563;
         }
         table {
           width: 100%;
@@ -285,190 +278,166 @@ function generateExpensePDFHTML(
 }
 
 /**
- * Export expenses to PDF
+ * Export expenses as a shareable HTML report
  */
 export async function exportExpensesToPDF(
   expenses: ExpenseExportData[],
   fileName: string = 'expenses',
   dateRange?: { start: string; end: string }
 ): Promise<void> {
-  try {
-    const title = dateRange
-      ? `Expense Report - ${new Date(dateRange.start).toLocaleDateString()} to ${new Date(dateRange.end).toLocaleDateString()}`
-      : 'Expense Report - All Time';
+  const title = dateRange
+    ? `Expense Report - ${new Date(dateRange.start).toLocaleDateString()} to ${new Date(dateRange.end).toLocaleDateString()}`
+    : 'Expense Report - All Time';
 
-    const html = generateExpensePDFHTML(expenses, title, dateRange);
+  const html = generateExpenseHTML(expenses, title, dateRange);
+  const fileUri = `${FileSystem.cacheDirectory}${fileName}-${Date.now()}.html`;
 
-    // Generate PDF
-    const { uri } = await Print.printToFileAsync({
-      html,
-      base64: false,
+  await FileSystem.writeAsStringAsync(fileUri, html, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+
+  const isAvailable = await Sharing.isAvailableAsync();
+  if (isAvailable) {
+    await Sharing.shareAsync(fileUri, {
+      mimeType: 'text/html',
+      dialogTitle: 'Export Expense Report',
     });
-
-    // Share or download PDF
-    if (Platform.OS === 'web') {
-      // On web, download the file
-      const link = document.createElement('a');
-      link.href = uri;
-      link.download = `${fileName}.pdf`;
-      link.click();
-    } else {
-      // On mobile, open share dialog
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Export Expense Report',
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        throw new Error('Sharing is not available on this device');
-      }
-    }
-  } catch (error) {
-    console.error('Failed to export PDF:', error);
-    throw error;
+  } else {
+    throw new Error('Sharing is not available on this device');
   }
 }
 
 /**
- * Export vendor summary to PDF
+ * Export vendor summary as a shareable HTML report
  */
 export async function exportVendorSummaryToPDF(
   vendors: VendorSummary[],
   fileName: string = 'vendors'
 ): Promise<void> {
-  try {
-    const totalSpent = vendors.reduce((sum, v) => sum + v.totalSpent, 0);
-    const totalTransactions = vendors.reduce((sum, v) => sum + v.transactionCount, 0);
+  const totalSpent = vendors.reduce((sum, v) => sum + v.totalSpent, 0);
+  const totalTransactions = vendors.reduce((sum, v) => sum + v.transactionCount, 0);
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Vendor Summary Report</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            padding: 40px;
-            color: #111827;
-          }
-          h1 { font-size: 28px; margin-bottom: 10px; color: #E88035; }
-          h2 { font-size: 20px; margin-top: 30px; margin-bottom: 15px; color: #374151; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-          th {
-            background-color: #F3F4F6;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 12px;
-            color: #374151;
-            border-bottom: 2px solid #E5E7EB;
-          }
-          td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #F3F4F6;
-            font-size: 14px;
-          }
-          .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin-bottom: 30px;
-          }
-          .summary-card {
-            background-color: #FEF3ED;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #E88035;
-          }
-          .summary-label { font-size: 12px; color: #6B7280; margin-bottom: 8px; }
-          .summary-value { font-size: 24px; font-weight: 700; color: #111827; }
-          .amount { font-weight: 600; color: #FF776B; }
-          .category-list { font-size: 12px; color: #6B7280; }
-          .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 2px solid #E5E7EB;
-            text-align: center;
-            color: #6B7280;
-            font-size: 12px;
-          }
-        </style>
-      </head>
-      <body>
-        <h1>Vendor Summary Report</h1>
-        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
-          Generated on ${new Date().toLocaleDateString()}
-        </p>
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Vendor Summary Report</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          padding: 40px;
+          color: #111827;
+        }
+        h1 { font-size: 28px; margin-bottom: 10px; color: #E88035; }
+        h2 { font-size: 20px; margin-top: 30px; margin-bottom: 15px; color: #374151; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        th {
+          background-color: #F3F4F6;
+          padding: 12px;
+          text-align: left;
+          font-weight: 600;
+          font-size: 12px;
+          color: #374151;
+          border-bottom: 2px solid #E5E7EB;
+        }
+        td {
+          padding: 10px 12px;
+          border-bottom: 1px solid #F3F4F6;
+          font-size: 14px;
+        }
+        .summary-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 20px;
+          margin-bottom: 30px;
+        }
+        .summary-card {
+          background-color: #FEF3ED;
+          padding: 20px;
+          border-radius: 8px;
+          border-left: 4px solid #E88035;
+        }
+        .summary-label { font-size: 12px; color: #6B7280; margin-bottom: 8px; }
+        .summary-value { font-size: 24px; font-weight: 700; color: #111827; }
+        .amount { font-weight: 600; color: #FF776B; }
+        .category-list { font-size: 12px; color: #6B7280; }
+        .footer {
+          margin-top: 40px;
+          padding-top: 20px;
+          border-top: 2px solid #E5E7EB;
+          text-align: center;
+          color: #6B7280;
+          font-size: 12px;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Vendor Summary Report</h1>
+      <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+        Generated on ${new Date().toLocaleDateString()}
+      </p>
 
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="summary-label">Total Spent</div>
-            <div class="summary-value">$${totalSpent.toFixed(2)}</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Total Transactions</div>
-            <div class="summary-value">${totalTransactions}</div>
-          </div>
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-label">Total Spent</div>
+          <div class="summary-value">$${totalSpent.toFixed(2)}</div>
         </div>
+        <div class="summary-card">
+          <div class="summary-label">Total Transactions</div>
+          <div class="summary-value">${totalTransactions}</div>
+        </div>
+      </div>
 
-        <h2>Vendor Details</h2>
-        <table>
-          <thead>
+      <h2>Vendor Details</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Vendor Name</th>
+            <th style="text-align: right;">Total Spent</th>
+            <th style="text-align: right;">Transactions</th>
+            <th>Categories</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${vendors
+            .sort((a, b) => b.totalSpent - a.totalSpent)
+            .map(
+              (vendor) => `
             <tr>
-              <th>Vendor Name</th>
-              <th style="text-align: right;">Total Spent</th>
-              <th style="text-align: right;">Transactions</th>
-              <th>Categories</th>
+              <td>${vendor.vendorName}</td>
+              <td style="text-align: right;" class="amount">$${vendor.totalSpent.toFixed(2)}</td>
+              <td style="text-align: right;">${vendor.transactionCount}</td>
+              <td class="category-list">${vendor.categories.join(', ')}</td>
             </tr>
-          </thead>
-          <tbody>
-            ${vendors
-              .sort((a, b) => b.totalSpent - a.totalSpent)
-              .map(
-                (vendor) => `
-              <tr>
-                <td>${vendor.vendorName}</td>
-                <td style="text-align: right;" class="amount">$${vendor.totalSpent.toFixed(2)}</td>
-                <td style="text-align: right;">${vendor.transactionCount}</td>
-                <td class="category-list">${vendor.categories.join(', ')}</td>
-              </tr>
-            `
-              )
-              .join('')}
-          </tbody>
-        </table>
+          `
+            )
+            .join('')}
+        </tbody>
+      </table>
 
-        <div class="footer">
-          <p>The Real Johnson Handyman Services - Vendor Summary</p>
-          <p style="margin-top: 4px; font-size: 10px;">For your records only.</p>
-        </div>
-      </body>
-      </html>
-    `;
+      <div class="footer">
+        <p>The Real Johnson Handyman Services - Vendor Summary</p>
+        <p style="margin-top: 4px; font-size: 10px;">For your records only.</p>
+      </div>
+    </body>
+    </html>
+  `;
 
-    const { uri } = await Print.printToFileAsync({ html, base64: false });
+  const fileUri = `${FileSystem.cacheDirectory}${fileName}-${Date.now()}.html`;
 
-    if (Platform.OS === 'web') {
-      const link = document.createElement('a');
-      link.href = uri;
-      link.download = `${fileName}.pdf`;
-      link.click();
-    } else {
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Export Vendor Summary',
-          UTI: 'com.adobe.pdf',
-        });
-      }
-    }
-  } catch (error) {
-    console.error('Failed to export vendor summary PDF:', error);
-    throw error;
+  await FileSystem.writeAsStringAsync(fileUri, html, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+
+  const isAvailable = await Sharing.isAvailableAsync();
+  if (isAvailable) {
+    await Sharing.shareAsync(fileUri, {
+      mimeType: 'text/html',
+      dialogTitle: 'Export Vendor Summary',
+    });
+  } else {
+    throw new Error('Sharing is not available on this device');
   }
 }
