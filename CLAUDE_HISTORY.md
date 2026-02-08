@@ -2516,3 +2516,12 @@ Commit: `a13fc01` on `dev`
 - Commit: `a0017e1`
 
 The `handleDashboardPress` function in `AppHeader` checked `user?.role === 'technician'` instead of `'contractor'`, causing all contractors to fall through to `router.push('/home')` — a non-existent route that resolved to `frontend:///` (root). Fixed the role check to `'contractor'` and added proper routing for all roles (handyman, customer, admin) with a safe fallback to `/auth/welcome`.
+
+---
+
+## [2026-02-07 12:10] Fix — Expenses page crash from expo-print native module
+
+- `frontend/app/(contractor)/expenses/index.tsx`
+- Commit: `277a1cd`
+
+The expenses page imported `exportExpensesToPDF` from `pdfExport.ts` at the top level, which in turn imports `expo-print`. Since `expo-print` requires a native dev client build and isn't available in Expo Go, this crashed at module load time with `Cannot find native module 'ExpoPrint'`, preventing the entire expenses page from rendering. Fixed by changing to `import type` for the type and using a dynamic `await import()` inside `handleExportPDF` so `expo-print` only loads when the user actually taps Export.
