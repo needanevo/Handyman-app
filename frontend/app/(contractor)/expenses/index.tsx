@@ -31,6 +31,8 @@ import { Button } from '../../../src/components/Button';
 import { Badge } from '../../../src/components/Badge';
 import { PhotoCapture } from '../../../src/components/contractor/PhotoCapture';
 import { contractorAPI } from '../../../src/services/api';
+import { AppHeader } from '../../../src/components/AppHeader';
+import type { ExpenseExportData } from '../../../src/utils/pdfExport';
 
 export default function ExpensesScreen() {
   const router = useRouter();
@@ -113,6 +115,7 @@ export default function ExpensesScreen() {
 
   const handleExportPDF = async () => {
     try {
+      const { exportExpensesToPDF } = await import('../../../src/utils/pdfExport');
       const exportData: ExpenseExportData[] = (filteredExpenses || []).map((exp) => ({
         id: exp.id,
         category: exp.category,
