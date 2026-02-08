@@ -42,12 +42,16 @@ export function AppHeader({
   };
 
   const handleDashboardPress = () => {
-    if (user?.role === 'technician') {
+    if (user?.role === 'contractor') {
       router.push('/(contractor)/dashboard');
+    } else if (user?.role === 'handyman') {
+      router.push('/(handyman)/dashboard');
+    } else if (user?.role === 'customer') {
+      router.push('/(customer)/dashboard');
     } else if (user?.role === 'admin') {
-      router.push('/(admin)/dashboard');
+      router.push('/(admin)/dashboard' as any);
     } else {
-      router.push('/home');
+      router.push('/auth/welcome' as any);
     }
   };
 
